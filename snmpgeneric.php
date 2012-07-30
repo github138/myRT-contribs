@@ -114,7 +114,7 @@
  * 29.03.12	fix cisco OEM S/N 1
  * 02.04.12	add snmpgeneric_pf_ciscoflash
  * 03.04.12	add ciscoMemoryPoolMIB
- *		
+ * 18.04.12	ciscomemory/flash round up values (ceil)
  *
  */
 
@@ -458,7 +458,7 @@ function snmpgeneric_pf_ciscoflash(&$snmp, &$sysObjectID, $attr_id) {
 
 		showSuccess("Found Flash: ".$ciscoflash[$prefix.'.8.'.$index]." ".$ciscoflash[$prefix.'.2.'.$index]." bytes");
 
-		$attrs[16]['value'] = $ciscoflash[$prefix.'.2.'.$index] / 1024 / 1024; /* ciscoFlashDeviceSize */
+		$attrs[16]['value'] = ceil($ciscoflash[$prefix.'.2.'.$index] / 1024 / 1024); /* ciscoFlashDeviceSize */
 
 	}
 
@@ -488,7 +488,7 @@ function snmpgeneric_pf_ciscoflash(&$snmp, &$sysObjectID, $attr_id) {
 
 		}
 
-		$attrs[17]['value'] = (int)(($free + $used) / 1024 / 1024); /* RAM, MB */
+		$attrs[17]['value'] = ceil(($free + $used) / 1024 / 1024); /* RAM, MB */
 	}
 
 } /* snmpgeneric_pf_ciscoflash */
@@ -2235,17 +2235,6 @@ class ifSNMP implements Iterator {
 		}
 		
 	}
-function mask2maskbits($mask){
-   $long = ip2long($mask);
-   $base = ip2long('255.255.255.255');
-   return 32-log(($long ^ $base)+1,2);
-
-   /* xor-ing will give you the inverse mask,
-       log base 2 of that +1 will return the number
-       of bits that are off in the mask and subtracting
-       from 32 gets you the maskbits notation */
-         
-}
 
 	function getifTable() {
 		$this->ifTable['ifIndex'] = $this->snmpdevice->walk('ifIndex',TRUE);
@@ -2293,11 +2282,10 @@ function mask2maskbits($mask){
 
 				$this->ifTable['ipaddress'][$ifindex][$ipaddr] = array(
 										'addrtype' => 'ipv4',
-										'maskbits' => (int)$maskbits,
+										'maskbits' => $maskbits,
 										'net' => long2ip($net),
 										'bcast' => long2ip($bcast) 
 										);
-
 			}
 			unset($oid);
 			unset($value);
