@@ -53,6 +53,7 @@ CREATE TABLE `LinkBackend` (
  * 29.02.12	fix update cable id for backend links
  *			add linkmgmt_commitUpdatePortLink
  * 04.03.12	add set_reserve_comment and set_link permission handling
+ * 18.07.12	add transform:rotate to Back Link image
  *
  *
  */
@@ -649,7 +650,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 			.'">Show All Ports</a></td>';
 
 	echo '<td width=200><span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
-                                array('op' => 'PortLinkDialog','linktype' => 'back','byname' => '1'))).'","name","height=800,width=400,scrollbars=yes");><a>Link Object Ports by Name</a></span></td>';
+                                array('op' => 'PortLinkDialog','linktype' => 'back','byname' => '1'))).'","name","height=700,width=400,scrollbars=yes");><a>Link Object Ports by Name</a></span></td>';
 
 	if($allback) {
 				
@@ -1213,7 +1214,13 @@ class portlist {
 			echo '<span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
 				array('op' => 'PortLinkDialog','port' => $port_id,'linktype' => $linktype))).'","name","height=800,width=400");'
                         .'>';
-                        printImageHREF ('plug', $linktype.' Link this port');
+                        $img = getImageHREF ('plug', $linktype.' Link this port');
+
+			$img = str_replace('<img',
+					'<img style="transform:rotate(180deg);-o-transform:rotate(180deg);-ms-transform:rotate(180deg);-moz-transform:rotate(180deg);-webkit-transform:rotate(180deg);"',
+					$img);
+
+			echo $img;
                         echo "</span>";
 			
 		}
