@@ -115,6 +115,7 @@
  * 02.04.12	add snmpgeneric_pf_ciscoflash
  * 03.04.12	add ciscoMemoryPoolMIB
  * 18.04.12	ciscomemory/flash round up values (ceil)
+ * 16.07.12	add "ask me" to snmp host selection
  *
  */
 
@@ -806,6 +807,23 @@ function snmpgeneric_snmpconfig($object_id) {
 				}
 			};',TRUE);
 
+	addJS('function checkInput() {
+				host = document.getElementById(\'host\');
+
+				if(host.value == "-1") {
+					var newvalue = prompt("Enter Hostname or IP Address","");
+					if(newvalue != "") {
+						host.options[host.options.length] = new Option(newvalue, newvalue);
+						host.value = newvalue;
+					}
+				}
+
+				if(host.value != "-1" && host.value != "")
+					return true;
+				else
+					return false;
+			};',TRUE);
+
 	foreach( $endpoints as $key => $value) {
 		$endpoints[$value] = $value;
 		unset($endpoints[$key]);
@@ -829,10 +847,13 @@ function snmpgeneric_snmpconfig($object_id) {
 	}
 	unset($value);
 
+	/* ask for ip/host name on submit see js checkInput() */
+	$endpoints['-1'] = 'ask me';
+
 	$snmpconfig = $_POST;
 
 	if(!isset($snmpconfig['host'])) {
-		$snmpconfig['host'] = NULL;
+		$snmpconfig['host'] = -1;
 
 		/* try to find first FQDN or IP */
 		foreach($endpoints as $value) {
@@ -871,12 +892,12 @@ function snmpgeneric_snmpconfig($object_id) {
 		$snmpconfig['priv_passphrase'] = NULL;
 
 	echo '<h1 align=center>SNMP Config</h1>';
-	echo '<form method=post name="snmpconfig" action='.$_SERVER['REQUEST_URI'].' />';
+	echo '<form method=post name="snmpconfig" onsubmit="return checkInput()" action='.$_SERVER['REQUEST_URI'].' />';
 
         echo '<table cellspacing=0 cellpadding=5 align=center class=widetable>
 	<tr><th class=tdright>Host:</th><td>';
-	
-	echo getSelect ($endpoints, array ('name' => 'host'), $snmpconfig['host'], FALSE);
+
+	echo getSelect ($endpoints, array ('id' => 'host','name' => 'host'), $snmpconfig['host'], FALSE);
 
 	echo'</td></tr>
         	<tr>
