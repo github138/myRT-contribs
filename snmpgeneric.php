@@ -2,22 +2,41 @@
 
 /********************************************
  *
- * RackTables snmpgeneric extension
+ * RackTables 0.19.x snmpgeneric extension
  *
+ * 	sync an RackTables object with an SNMP device.
  *
- * Let you create ports and ip addresses by reading snmp ifTable / ifxTable / ipAdEntIfIndex (ipAddrTable) / ipAddressIfIndex (ipAddressTable) 
- * If Port name or L2Address already exists the port is not checked for adding.
+ *	Should work with almost any SNMP capable device.
  *
- * Also bind ip addresses to Object if not already allocated.
+ *	reads SNMP tables:
+ *		- system
+ *		- ifTable
+ *		- ifxTable
+ *		- ipAddrTable (ipv4 only)
+ *		- ipAddressTable (ipv4 + ipv6)
+ *
+ *	Features:
+ *		- update object attributes
+ *		- create networks
+ *		- create ports
+ *		- add and bind ip addresses
+ *
+ *	Known to work with:
+ *		- Enterasys SecureStacks, S-Series
+ *		- cisco 2620XM (thx to Rob)
+ *		- hopefully many others
  * 
- * Let you select the interfaces, ip address and attributes to be created / set.
  *
- * Won't add anything until "Create Ports and IPs" pressed!
- * 
+ *	Usage:
  *
- * Tested only with some Enterasys switches C/B and S !!!!
- *	cisco 2620XM (thx to Rob)
- * 
+ *		1. select "SNMP generic sync" tap
+ *		2. select your SNMP config (host, v1, v2c or v3, ...)
+ *		3. hit "Show List"
+ *		4. you will see a selection of all information that could be retrieved
+ *		5. select what should be updated and/or created
+ *		6. hit "Create" Button to make changes to RackTables
+ *		7. repeat step 1. to 6. as often as you like / need
+ *
  * 
  * needs PHP 5
  * 
@@ -30,8 +49,14 @@
 /****
  * INSTALL
  *
- * add to local.php
+ * add to inc/local.php
  *	include 'inc/snmpgeneric.php';
+ *
+ * or create inc/local.php with content
+ *
+ *	<?php
+ *		include 'inc/snmpgeneric.php';
+ *	?>
  * 
  */
 
@@ -41,7 +66,7 @@
  *
  *  - update visible label on ifAlias change !?
  *
- *  - test if device supprots mibs
+ *  - test if device supports mibs
  *  - gethostbyaddr / gethostbyname host list
  *  - correct iif_name display if != 1
  *
@@ -116,6 +141,8 @@
  * 03.04.12	add ciscoMemoryPoolMIB
  * 18.04.12	ciscomemory/flash round up values (ceil)
  * 16.07.12	add "ask me" to snmp host selection
+ * 19.07.12	change description
+ * 26.07.12	change INSTALL section
  *
  */
 
