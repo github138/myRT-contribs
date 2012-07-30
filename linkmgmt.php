@@ -2,21 +2,35 @@
 /*
  * Link Management
  *
- *  Displays links between Ports.
- *  Allows you to create/delete front and backend links between ports
- *	Link object backend ports by name (e.g. handy for patch panels)
- *  Change CableIDs
- *  Change Port Reservation Comment
+ *	Features:
+ *		- create links between ports
+ *		- create backend links between ports
+ *		- visually display links / chains
+ *			 e.g.
+ * 			(Object)>[port] -- front --> [port]<(Object) == back == > (Object)>[port] -- front --> [port]<(Object)
+ * 		- Link object backend ports by name (e.g. handy for patch panels)
+ *		- change/create CableID (needs jquery.jeditable.mini.js)
+ *		- change/create Port Reservation Comment (needs jquery.jeditable.mini.js)
  *
- *  
- * e.g.
- * 	(Object)>[port] -- front --> [port]<(Object) == back == > (Object)>[port] -- front --> [port]<(Object)
- *
+ *	Usage:
+ *		1. select "Link Management" tab
+ *		2. you should see link chains of all linked ports
+ *		3. to display all ports hit "Show All Ports" in the left upper corner
+ *		4. to link all ports with the same name of two different objects use "Link Object Ports by Name"
+ *			a. select the other object you want to backend link to
+ *			b. "show back ports" gives you the list of possible backend links
+ *				!! Important port names have to be the same on both objects !!
+ *				e.g. (Current Object):Portname -?-> Portname:(Selected Object)
+ *			c. select all backend link to create (Ctrl + a for all)
+ *			d. Enter backend CableID for all selected links
+ *			e. "Link back" create the backend links
+ *		5. If you have an backend link within the same Object the link isn't shown until
+ *		   "Expand Backend Links on same Object" is hit
  *
  *
  * INSTALL:
  *
- *	- create LinkBackend Table
+ *	- create LinkBackend Table in your RackTables database
 
 CREATE TABLE `LinkBackend` (
   `porta` int(10) unsigned NOT NULL DEFAULT '0',
@@ -30,7 +44,7 @@ CREATE TABLE `LinkBackend` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
  *	- copy linkmgmt.php to inc/ directory
- *	- copy jquery.jeditable.mini.js to js/ directory
+ *	- copy jquery.jeditable.mini.js to js/ directory (http://www.appelsiini.net/download/jquery.jeditable.mini.js)
  * 	- add "include 'inc/linkmgmt.php';" to inc/local.php
  *
  * TESTED on FreeBSD 9.0, nginx/1.0.11, php 5.3.9
@@ -54,6 +68,7 @@ CREATE TABLE `LinkBackend` (
  *			add linkmgmt_commitUpdatePortLink
  * 04.03.12	add set_reserve_comment and set_link permission handling
  * 18.07.12	add transform:rotate to Back Link image
+ * 19.07.12	new Description with usage
  *
  *
  */
