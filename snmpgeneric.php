@@ -143,6 +143,7 @@
  * 16.07.12	add "ask me" to snmp host selection
  * 19.07.12	change description
  * 26.07.12	change INSTALL section
+ * 01.08.12	fix interfaceserror handling in ifSNMP
  *
  */
 
@@ -2267,21 +2268,13 @@ class ifSNMP implements Iterator {
 	function __construct(&$snmpdevice) {
 		$this->snmpdevice = $snmpdevice;	
 
-		$this->interfaceserror = $this->snmpdevice->getErrno();
-
-		if($this->interfaceserror) {
-			return;
-		}
-		
 		$this->ifNumber = intval($this->snmpdevice->get('ifNumber.0'));
-		
+
 		$this->interfaceserror = $this->snmpdevice->getErrno();
 
 		if(!$this->interfaceserror) {
-			
 			$this->getifTable();
 		}
-		
 	}
 
 	function getifTable() {
