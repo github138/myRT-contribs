@@ -4,7 +4,7 @@
  *
  * RackTables 0.19.x snmpgeneric extension
  *
- * 	sync an RackTables object with an SNMP device.
+ *	sync an RackTables object with an SNMP device.
  *
  *	Should work with almost any SNMP capable device.
  *
@@ -25,7 +25,7 @@
  *		- Enterasys SecureStacks, S-Series
  *		- cisco 2620XM (thx to Rob)
  *		- hopefully many others
- * 
+ *
  *
  *	Usage:
  *
@@ -37,9 +37,9 @@
  *		6. hit "Create" Button to make changes to RackTables
  *		7. repeat step 1. to 6. as often as you like / need
  *
- * 
+ *
  * needs PHP 5
- * 
+ *
  * TESTED on FreeBSD 9.0, nginx/1.0.12, php 5.3.10, NET-SNMP 5.7.1
  *	and RackTables 0.19.11
  *
@@ -57,11 +57,11 @@
  *	<?php
  *		include 'inc/snmpgeneric.php';
  *	?>
- * 
+ *
  */
 
 /* TODOs
- * 
+ *
  *  - code cleanup
  *
  *  - update visible label on ifAlias change !?
@@ -71,13 +71,13 @@
  *  - correct iif_name display if != 1
  *
  *  - set more Object attributs / fields
- *  
+ *
  */
 
 /*************************
 
  * Change Log
- * 
+ *
  * 09.12.11	minor cleanups
  * 10.02.12	make host selectable
  * 16.02.12	use getConfigVar('DEFAULT_SNMP_COMMUNITY');
@@ -88,11 +88,11 @@
  *		add sg_oid2attr
  *		add trigger (prepared only)
  *		add sg_ifType_ignore
- * 19.02.12	add ifAlias to visible label 
+ * 19.02.12	add ifAlias to visible label
  *		allow ifName input if empty (preset with ifDescr)
- * 20.02.12 	change attribute code
+ * 20.02.12	change attribute code
  *		add $sg_known_sysObjectIDs (add $known_switches from snmp.php) to set HW Type
- * 		added attribute processor function code
+ *		added attribute processor function code
  * 21.02.12	add vendor / device specific ports
  *		change processor function code
  *			allow to return attributes and ports
@@ -101,17 +101,17 @@
  *		add ifInOctets and ifOutOctets to interface list
  * 22.02.12	add hrefs to l2address and ipaddr
  *		add readonly textfields for ifDescr and ifAlias
- * 23.02.12	change sysObjectID merge code 
+ * 23.02.12	change sysObjectID merge code
  *		change attrib processing code
  *		add regex processor function
  * 25.02.12	prefix global vars with sg_
- *		add SW version for Enterasys devices 
+ *		add SW version for Enterasys devices
  * 29.02.12	add snmpgeneric_pf_entitymib
  * 03.03.12	fix SNMPv3 support (tested with Enterasys only)
  *		snmpconfig form changes
  * 07.03.12	add commitUpdatePortl2address handling
  *		change to allow multiple ip addresses per interface
- *	 	get snmp ipv6 addresses ( !!! column order changed !!! ) (experimental)
+ *		get snmp ipv6 addresses ( !!! column order changed !!! ) (experimental)
  * 08.03.12	snmpconfig focus submit button onload
  *		add snmpgeneric_pf_swtype (experimental)
  * 09.03.12	add snmptranslate (set $sg_cmd_snmptranslate) (experimental)
@@ -145,6 +145,7 @@
  * 26.07.12	change INSTALL section
  * 01.08.12	fix interfaceserror handling in ifSNMP
  *		suppress SNMP "No Such Object available on this agent at this OID" warning
+ *		fix whitespaces
  *
  */
 
@@ -168,7 +169,7 @@ $sg_ifType_ignore = array(
 	 '24',	/* softwareLoopback */
 	 '23',	/* ppp */
 	 '33',	/* rs232 */
-	 '34', 	/* para */
+	 '34',	/* para */
 	 '53',	/* propVirtual */
 	 '77',	/* lapd */
 	'131',	/* tunnel */
@@ -180,15 +181,15 @@ $sg_ifType_ignore = array(
 /* ifType to RT oif_id mapping */
 $sg_ifType2oif_id = array(
 	/* 440 causes SQLSTATE[23000]: Integrity constraint violation:
-	 *				 1452 Cannot add or update a child row: 
+	 *				1452 Cannot add or update a child row:
 	 *					a foreign key constraint fails
 	 */
 	//  '1' => 440,	/* other => unknown 440 */
 	  '1' => 1469,	/* other => virutal port 1469 */
-	  '6' => 24, 	/* ethernetCsmacd => 1000BASE-T 24 */
+	  '6' => 24,	/* ethernetCsmacd => 1000BASE-T 24 */
 	 '24' => 1469,	/* softwareLoopback => virtual port 1469 */
 	 '33' => 1469,	/*  rs232 => RS-232 (DB-9) 681 */
-	 '34' => 1469, 	/* para => virtual port 1469 */
+	 '34' => 1469,	/* para => virtual port 1469 */
 	 '53' => 1469,	/* propVirtual => virtual port 1469 */
 	 '62' => 1195,	/* fastEther => 100BASE-FX 1195 */
 	'131' => 1469,	/* tunnel => virtual port 1469 */
@@ -210,16 +211,16 @@ $sg_known_sysObjectIDs = array
 		'pf' => array('snmpgeneric_pf_entitymib'),
 		'attr' => array
 		(
-			 2 => array('pf' => 'snmpgeneric_pf_hwtype'), 					/* HW Typ*/
+			 2 => array('pf' => 'snmpgeneric_pf_hwtype'),					/* HW Typ*/
 			 3 => array('oid' => 'sysName.0'),
 				/* FQDN check only if regex matches */
 			 //3 => array('oid' => 'sysName.0', 'regex' => '/^[^ .]+(\.[^ .]+)+\.?/', 'uncheck' => 'no FQDN'),
 			 4 => array('pf' => 'snmpgeneric_pf_swtype', 'uncheck' => 'experimental'),	/* SW type */
 			 14 => array('oid' => 'sysContact.0'),						/* Contact person */
 			// 1235 => array('value' => 'Constant'),
-		), 
+		),
 		'port' => array
-		( 
+		(
 			// 'AC-in' => array('porttypeid' => '1-16', 'uncheck' => 'uncheck reason/comment'),
 			// 'name' => array('porttypeid' => '1-24', 'ifDescr' => 'visible label'),
 		),
@@ -237,9 +238,9 @@ $sg_known_sysObjectIDs = array
 		'attr' => array(
 				4 => array('pf' => 'snmpgeneric_pf_catalyst'), /* SW type/version */
 				16 => array('pf' => 'snmpgeneric_pf_ciscoflash'), /*  flash memory */
-			
+
 				),
-		
+
 	),
 	/* ------------ Microsoft --------------- */
 	'311' => array
@@ -260,46 +261,46 @@ $sg_known_sysObjectIDs = array
 
 	/* Enterasys N3 */
 	'5624.2.1.53' => array
-	(	
+	(
 		'dict_key' => 50000,
-		'text' => 'N3', 
-	), 
+		'text' => 'N3',
+	),
 
 	'5624.2.2.284' => array
-	(	
+	(
 		'dict_key' => 50002,
-		'text' => 'Securestack C2', 
-	), 
+		'text' => 'Securestack C2',
+	),
 
 	'5624.2.1.98' => array
-	(	
+	(
 		'dict_key' => 50002,
-		'text' => 'Securestack C3', 
-	), 
+		'text' => 'Securestack C3',
+	),
 
 	'5624.2.1.100' => array
-	(	
+	(
 		'dict_key' => 50002,
-		'text' => 'Securestack B3', 
-	), 
+		'text' => 'Securestack B3',
+	),
 
 	'5624.2.1.128' => array
-	(	
+	(
 		'dict_key' => 50001,
-		'text' => 'S-series', 
-	), 
+		'text' => 'S-series',
+	),
 
 	'5624.2.1.129' => array
-	(	
+	(
 		'dict_key' => 50001,
-		'text' => 'S-series', 
-	), 
+		'text' => 'S-series',
+	),
 
 	'5624.2.1.137' => array
-	(	
+	(
 		'dict_key' => 50002,
-		'text' => 'Securestack B5 POE', 
-	), 
+		'text' => 'Securestack B5 POE',
+	),
 
 	/* S3 */
 	'5624.2.1.131' => array
@@ -311,21 +312,21 @@ $sg_known_sysObjectIDs = array
 	/* S4 */
 	'5624.2.1.132' => array
 	(
-		'dict_key' => 50001, 
+		'dict_key' => 50001,
 		'text' => 'S-series'
 	),
 
 	/* S8 */
 	'5624.2.1.133' => array
 	(
-		'dict_key' => 50001, 
+		'dict_key' => 50001,
 		'text' => 'S-series'
 	),
 
 	/* ------------ net-snmp --------------- */
 	'8072' => array
 	(
-  		'text' => 'net-snmp',
+		'text' => 'net-snmp',
 		'attr' => array(
 				4 => array('pf' => 'snmpgeneric_pf_swtype', 'oid' => 'sysDescr.0', 'regex' => '/(.*?) .*? (.*?) .*/', 'replacement' => '\\1 \\2', 'uncheck' => 'TODO RT matching'), /*SW type */
 				),
@@ -396,7 +397,7 @@ function snmpgeneric_pf_enterasys(&$snmp, &$sysObjectID, $attr_id) {
 		/* TODO find correct way to get Bootroom and Firmware versions */
 
 		/* Model */
- 		/*if(preg_match('/.*\.([^.]+)$/', $sysObjectID['value'], $matches)) {
+		/*if(preg_match('/.*\.([^.]+)$/', $sysObjectID['value'], $matches)) {
 		 *	showNotice('Device '.$matches[1]);
 		 *}
 		 */
@@ -406,19 +407,19 @@ function snmpgeneric_pf_enterasys(&$snmp, &$sysObjectID, $attr_id) {
 
 		/* set SW version only if not already set by entitymib */
 		if(isset($attrs[5]['value']) && !empty($attrs[5]['value'])) {
-		
+
 			/* SW version from sysDescr */
- 			if(preg_match('/^Enterasys .* Inc\. (.+) [Rr]ev ([^ ]+) ?(.*)$/', $snmp->sysDescr, $matches)) {
+			if(preg_match('/^Enterasys .* Inc\. (.+) [Rr]ev ([^ ]+) ?(.*)$/', $snmp->sysDescr, $matches)) {
 
 				$attrs[5]['value'] = $matches[2]; /* SW version */
-	
+
 			//	showSuccess("Found Enterasys Model ".$matches[1]);
 			}
 
 		} /* SW version */
 
 		/* add serial port */
- 		//$sysObjectID['port']['console'] = array('porttypeid' => '1-29',  'ifDescr' => 'console', 'disabled' => 'disabled');
+		//$sysObjectID['port']['console'] = array('porttypeid' => '1-29',  'ifDescr' => 'console', 'disabled' => 'disabled');
 
 }
 
@@ -427,23 +428,23 @@ function snmpgeneric_pf_enterasys(&$snmp, &$sysObjectID, $attr_id) {
 /* logic from snmp.php */
 function snmpgeneric_pf_catalyst(&$snmp, &$sysObjectID, $attr_id) {
 		$attrs = &$sysObjectID['attr'];
- 		$ports = &$sysObjectID['port'];
+		$ports = &$sysObjectID['port'];
 
 		/* sysDescr multiline on C5200 */
                 if(preg_match ('/.*, Version ([^ ]+), .*/', $snmp->sysDescr, $matches)) {
 			$exact_release = $matches[1];
- 	        	$major_line = preg_replace ('/^([[:digit:]]+\.[[:digit:]]+)[^[:digit:]].*/', '\\1', $exact_release);
+		$major_line = preg_replace ('/^([[:digit:]]+\.[[:digit:]]+)[^[:digit:]].*/', '\\1', $exact_release);
 
 	                $ios_codes = array
-        	        (
-               		        '12.0' => 244,
-               		        '12.1' => 251,
-                       		'12.2' => 252,
-                	);
-		
+		(
+				'12.0' => 244,
+				'12.1' => 251,
+				'12.2' => 252,
+		);
+
 			$attrs[5]['value'] = $exact_release;
 
- 	      		if (array_key_exists ($major_line, $ios_codes))
+			if (array_key_exists ($major_line, $ios_codes))
 				$attrs[4]['value'] = $ios_codes[$major_line];
 
 		} /* sw type / version */
@@ -452,22 +453,22 @@ function snmpgeneric_pf_catalyst(&$snmp, &$sysObjectID, $attr_id) {
                 if ($sysChassi !== FALSE or $sysChassi !== NULL)
 			$attrs[1]['value'] = str_replace ('"', '', $sysChassi);
 
- 		$ports['con0'] = array('porttypeid' => '1-29',  'ifDescr' => 'console'); // RJ-45 RS-232 console
+		$ports['con0'] = array('porttypeid' => '1-29',  'ifDescr' => 'console'); // RJ-45 RS-232 console
 
 		if (preg_match ('/Cisco IOS Software, C2600/', $snmp->sysDescr))
- 			$ports['aux0'] = array('porttypeid' => '1-29', 'ifDescr' => 'auxillary'); // RJ-45 RS-232 aux port
+			$ports['aux0'] = array('porttypeid' => '1-29', 'ifDescr' => 'auxillary'); // RJ-45 RS-232 aux port
 
                 // blade devices are powered through internal circuitry of chassis
                 if ($sysObjectID['value'] != '9.1.749' and $sysObjectID['value'] != '9.1.920')
                 {
- 			$ports['AC-in'] = array('porttypeid' => '1-16');
+			$ports['AC-in'] = array('porttypeid' => '1-16');
                 }
 
 } /* snmpgeneric_pf_catalyst */
 
 /* -------------------------------------------------- */
 function snmpgeneric_pf_ciscoflash(&$snmp, &$sysObjectID, $attr_id) {
-	/* 
+	/*
 	 * ciscoflashMIB = 1.3.6.1.4.1.9.9.10
 	 */
 	/*
@@ -475,7 +476,7 @@ function snmpgeneric_pf_ciscoflash(&$snmp, &$sysObjectID, $attr_id) {
 	*/
 	$attrs = &$sysObjectID['attr'];
 
-	$ciscoflash = $snmp->walk('1.3.6.1.4.1.9.9.10.1.1.2'); /* ciscoFlashDeviceTable */ 
+	$ciscoflash = $snmp->walk('1.3.6.1.4.1.9.9.10.1.1.2'); /* ciscoFlashDeviceTable */
 
 	$flash = array_keys($ciscoflash, 'flash');
 
@@ -506,7 +507,7 @@ function snmpgeneric_pf_ciscoflash(&$snmp, &$sysObjectID, $attr_id) {
 		$free = 0;
 
 		foreach($ciscomem as $oid => $value) {
-			
+
 			switch(preg_replace('/.*?(\.1\.1\.1\.[^\.]+)\.[^\.]+$/','\\1',$oid)) {
 				case '.1.1.1.5':
 					$used += $value;
@@ -535,7 +536,7 @@ function snmpgeneric_pf_hwtype(&$snmp, &$sysObjectID, $attr_id) {
 
 		$value = $sysObjectID['dict_key'];
 		showSuccess("Found HW type dict_key: $value");
-	
+
 		/* return array of attr_id => attr_value) */
 		$attr['value'] = $value;
 
@@ -554,7 +555,7 @@ function snmpgeneric_pf_swtype(&$snmp, &$sysObjectID, $attr_id) {
 
 	/* 4 = SW type */
 
-	$attr = &$sysObjectID['attr'][$attr_id]; 
+	$attr = &$sysObjectID['attr'][$attr_id];
 
 	$object = &$sysObjectID['object'];
 
@@ -563,7 +564,7 @@ function snmpgeneric_pf_swtype(&$snmp, &$sysObjectID, $attr_id) {
 	if(isset($attr['oid']))
 		$oid = $attr['oid'];
 	else
-		$oid = 'sysDescr.0'; 
+		$oid = 'sysDescr.0';
 
 	$raw_value = $snmp->get($oid);
 
@@ -588,12 +589,12 @@ function snmpgeneric_pf_swtype(&$snmp, &$sysObjectID, $attr_id) {
 	if(!empty($value) && $count > 0) {
 		/* search dict_key for value in RT Dictionary */
 		/* depends on object type server(13)/switch(14)/router(15) */
-		 $result = usePreparedSelectBlade
-        		(	
-                		'SELECT dict_key,dict_value FROM Dictionary WHERE chapter_id in (13,14,15) and dict_value like ? order by dict_key desc limit 1',
-                		array ('%'.$value.'%')
-        		);
-       		$row = $result->fetchAll(PDO::FETCH_GROUP|PDO::FETCH_UNIQUE|PDO::FETCH_COLUMN);
+		$result = usePreparedSelectBlade
+		(
+			'SELECT dict_key,dict_value FROM Dictionary WHERE chapter_id in (13,14,15) and dict_value like ? order by dict_key desc limit 1',
+			array ('%'.$value.'%')
+		);
+		$row = $result->fetchAll(PDO::FETCH_GROUP|PDO::FETCH_UNIQUE|PDO::FETCH_COLUMN);
 
 		if(!empty($row)) {
 			$RTvalue = key($row);
@@ -621,13 +622,13 @@ function snmpgeneric_pf_swtype(&$snmp, &$sysObjectID, $attr_id) {
 } /* snmpgeneric_pf_swtype */
 
 /* -------------------------------------------------- */
-/* try to set SW version 
+/* try to set SW version
  * and add some AC ports
  *
  */
 /* needs more testing */
 function snmpgeneric_pf_entitymib(&$snmp, &$sysObjectID, $attr_id) {
-	
+
 	/* $attr_id == NULL -> device pf */
 
 	$attrs = &$sysObjectID['attr'];
@@ -640,7 +641,7 @@ function snmpgeneric_pf_entitymib(&$snmp, &$sysObjectID, $attr_id) {
 
 	showNotice("Found Entity Table (Experimental)");
 
-/*		PhysicalClass 
+/*		PhysicalClass
  *		1:other
  *		2:unknown
  *		3:chassis
@@ -666,16 +667,16 @@ function snmpgeneric_pf_entitymib(&$snmp, &$sysObjectID, $attr_id) {
 
 		foreach($chassis as $key => $oid) {
 			/* get index */
-			if(!preg_match('/\.(\d+)$/',$oid, $matches)) 
+			if(!preg_match('/\.(\d+)$/',$oid, $matches))
 				continue;
 
-			$index = $matches[1]; 
+			$index = $matches[1];
 
-			$name = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.7.$index"); 
-			$serialnum = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.11.$index"); 
-			$mfgname = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.12.$index"); 
-			$modelname = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.13.$index"); 
-		
+			$name = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.7.$index");
+			$serialnum = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.11.$index");
+			$mfgname = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.12.$index");
+			$modelname = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.13.$index");
+
 			//showNotice("$name $mfgname $modelname $serialnum");
 
 			echo("<tr><td>$name</td><td>$mfgname</td><td>$modelname</td><td>$serialnum</td>");
@@ -696,23 +697,23 @@ function snmpgeneric_pf_entitymib(&$snmp, &$sysObjectID, $attr_id) {
 
 		echo '<br><br>Modules<br><table>';
 		echo("<tr><th>Name</th><th>MfgName</th><th>ModelName</th><th>HardwareRev</th><th>FirmwareRev</th><th>SoftwareRev</th><th>SerialNum</th>");
-	
+
 		foreach($modules as $key => $oid) {
 
 			/* get index */
-			if(!preg_match('/\.(\d+)$/',$oid, $matches)) 
+			if(!preg_match('/\.(\d+)$/',$oid, $matches))
 				continue;
 
-			$index = $matches[1]; 
+			$index = $matches[1];
 
-			$name = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.7.$index"); 
-			$hardwarerev = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.8.$index"); 
-			$firmwarerev = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.9.$index"); 
-			$softwarerev = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.10.$index"); 
-			$serialnum = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.11.$index"); 
-			$mfgname = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.12.$index"); 
-			$modelname = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.13.$index"); 
-		
+			$name = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.7.$index");
+			$hardwarerev = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.8.$index");
+			$firmwarerev = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.9.$index");
+			$softwarerev = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.10.$index");
+			$serialnum = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.11.$index");
+			$mfgname = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.12.$index");
+			$modelname = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.13.$index");
+
 			//showNotice("$name $mfgname $modelname $hardwarerev $firmwarerev $softwarerev $serialnum");
 
 			echo("<tr><td>".(empty($name) ? '-' : $name )."</td><td>$mfgname</td><td>$modelname</td><td>$hardwarerev</td><td>$firmwarerev</td><td>$softwarerev</td><td>$serialnum</td>");
@@ -738,13 +739,13 @@ function snmpgeneric_pf_entitymib(&$snmp, &$sysObjectID, $attr_id) {
 	foreach($powersupply as $oid) {
 
 		/* get index */
-		if(!preg_match('/\.(\d+)$/',$oid, $matches)) 
+		if(!preg_match('/\.(\d+)$/',$oid, $matches))
 			continue;
 
-		$index = $matches[1]; 
-		$descr = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.2.$index"); 
+		$index = $matches[1];
+		$descr = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.2.$index");
 
- 		$ports['AC-'.$count] = array('porttypeid' => '1-16', 'ifDescr' => $descr, 'comment' => 'entity MIB', 'uncheck' => '');
+		$ports['AC-'.$count] = array('porttypeid' => '1-16', 'ifDescr' => $descr, 'comment' => 'entity MIB', 'uncheck' => '');
 		$count++;
 	}
 	unset($oid);
@@ -775,11 +776,11 @@ function snmpgeneric_pf_regex(&$snmp, &$sysObjectID, $attr_id) {
 			$replace = '\\1';
 
 		$value = preg_replace($regex,$replace, $raw_value);
-	
+
 		/* return array of attr_id => attr_value) */
 		$attr['value'] = $value;
 
-	} 
+	}
 	// else Warning ??
 
 } /* snmpgeneric_pf_regex */
@@ -799,7 +800,7 @@ function snmpgeneric_tabhandler($object_id) {
 	if(isset($_POST['snmpconfig'])) {
 		if($_POST['snmpconfig'] == '1') {
 			snmpgeneric_list($object_id);
-		}	
+		}
 	} else {
 		snmpgeneric_snmpconfig($object_id);
 	}
@@ -894,7 +895,7 @@ function snmpgeneric_snmpconfig($object_id) {
 		unset($value);
 	}
 
-//	sg_var_dump_html($endpoints);	
+//	sg_var_dump_html($endpoints);
 
 	if(!isset($snmpconfig['snmpversion']))
 		$snmpconfig['version'] = mySNMP::SNMP_VERSION;
@@ -929,7 +930,7 @@ function snmpgeneric_snmpconfig($object_id) {
 	echo getSelect ($endpoints, array ('id' => 'host','name' => 'host'), $snmpconfig['host'], FALSE);
 
 	echo'</td></tr>
-        	<tr>
+	<tr>
                 <th class=tdright><label for=snmpversion>Version:</label></th>
                 <td class=tdleft>';
 
@@ -990,10 +991,10 @@ function snmpgeneric_snmpconfig($object_id) {
 
 function snmpgeneric_list($object_id) {
 
-    	global $sg_create_noconnector_ports, $sg_known_sysObjectIDs, $sg_portoifoptions, $sg_ifType_ignore;
+	global $sg_create_noconnector_ports, $sg_known_sysObjectIDs, $sg_portoifoptions, $sg_ifType_ignore;
 
 	if(isset($_POST['snmpconfig'])) {
-		$snmpconfig = $_POST;	
+		$snmpconfig = $_POST;
 	} else {
 		showError("Missing SNMP Config");
 		return;
@@ -1087,7 +1088,7 @@ function snmpgeneric_list($object_id) {
 	/* array_merge doesn't work with numeric keys !! */
 	$sysObjectID['attr'] = array();
 	$sysObjectID['port'] = array();
-		
+
 	$sysobjid = $sysObjectID['value'];
 
 	$count = 1;
@@ -1096,20 +1097,20 @@ function snmpgeneric_list($object_id) {
 
 		if(isset($sg_known_sysObjectIDs[$sysobjid])) {
 			$sysObjectID = $sysObjectID + $sg_known_sysObjectIDs[$sysobjid];
-	
+
 			if(isset($sg_known_sysObjectIDs[$sysobjid]['attr']))
 				$sysObjectID['attr'] = $sysObjectID['attr'] + $sg_known_sysObjectIDs[$sysobjid]['attr'];
-	
+
 			if(isset($sg_known_sysObjectIDs[$sysobjid]['port']))
 				$sysObjectID['port'] = $sysObjectID['port'] + $sg_known_sysObjectIDs[$sysobjid]['port'];
-	
+
 			if(isset($sg_known_sysObjectIDs[$sysobjid]['text'])) {
 				showSuccess("found sysObjectID ($sysobjid) ".$sg_known_sysObjectIDs[$sysobjid]['text']);
 			}
 		}
 
 		$sysobjid = preg_replace('/\.[[:digit:]]+$/','',$sysobjid, 1, $count);
-		
+
 		/* add default sysobjectid */
 		if($count == 0 && $sysobjid != 'default') {
 			$sysobjid = 'default';
@@ -1173,12 +1174,12 @@ function snmpgeneric_list($object_id) {
 							if(!preg_match($regex, $attrvalue)) {
 								if(!isset($attr['uncheck']))
 									$attr['uncheck'] = "regex doesn't match";
-							} else 
+							} else
 								unset($attr['uncheck']);
 						}
 					}
 
-				 	$attr['value'] = $attrvalue;	
+					$attr['value'] = $attrvalue;
 
 					break;
 
@@ -1209,12 +1210,12 @@ function snmpgeneric_list($object_id) {
 	/* DEBUG */
 	//sg_var_dump_html($sysObjectID['attr'], "After processing");
 
-	foreach($sysObjectID['attr'] as $attr_id => &$attr) {			
+	foreach($sysObjectID['attr'] as $attr_id => &$attr) {
 
 		if(isset($object['attr'][$attr_id]) && isset($attr['value'])) {
 
 			if($attr['value'] == $object['attr'][$attr_id]['value'])
-				$attr['uncheck'] = 'Current = new value';	
+				$attr['uncheck'] = 'Current = new value';
 
 			$value = $attr['value'];
 
@@ -1254,7 +1255,7 @@ function snmpgeneric_list($object_id) {
 	/* get ports */
 	amplifyCell($object);
 
-	/* set array key to port name */ 
+	/* set array key to port name */
 	foreach($object['ports'] as $key => $values) {
 		$object['ports'][$values['name']] = $values;
 		unset($object['ports'][$key]);
@@ -1268,7 +1269,7 @@ function snmpgeneric_list($object_id) {
 
 		echo '<br>Vendor / Device specific ports<br>';
 		echo '<table><tr><th><input type="checkbox" id="moreport" checked="checked" onclick="setchecked(this.id)"></th><th>ifName</th><th>porttypeid</th></tr>';
-	
+
 		foreach($sysObjectID['port'] as $name => $port) {
 
 			if(array_key_exists($name,$object['ports']))
@@ -1306,13 +1307,13 @@ function snmpgeneric_list($object_id) {
 
 				if($key == 'uncheck' || $key == 'comment')
 					continue;
-	
+
 				/* TODO iif_name */
 				if($key == 'porttypeid')
 					$displayvalue = getNiftySelect($newporttypeoptions,
 							 array('name' => "porttypeid[$name]") + $disabledselect, $value);
 											/* disabled formfied won't be submitted ! */
-				else 
+				else
 					$displayvalue = $value;
 
 				$formfield = '<input type="hidden" name="'.$key.'['.$name.']" value="'.$value.'">';
@@ -1324,7 +1325,7 @@ function snmpgeneric_list($object_id) {
 		}
 		unset($name);
 		unset($port);
-		
+
 		echo '</table>';
 	}
 
@@ -1350,7 +1351,7 @@ function snmpgeneric_list($object_id) {
 				case 'ipv4z':
 					$netid = getIPv4AddressNetworkId($ipaddr);
 					break;
-				
+
 				case 'ipv6':
 					/* convert to IPv6Address->parse format */
 					$ipaddr =  preg_replace('/((..):(..))/','\\2\\3',$ipaddr);
@@ -1360,7 +1361,7 @@ function snmpgeneric_list($object_id) {
 					if($ipv6->parse($ipaddr)) {
 						$netid = getIPv6AddressNetworkId($ipv6);
 						$netaddr = $ipv6->get_first_subnet_address($maskbits)->format();
-						$linklocal = ($ipv6->get_first_subnet_address(10)->format() == 'fe80::'); 
+						$linklocal = ($ipv6->get_first_subnet_address(10)->format() == 'fe80::');
 					}
 					break;
 
@@ -1370,7 +1371,7 @@ function snmpgeneric_list($object_id) {
 					break;
 				default:
 			}
-			
+
 			if(empty($netid) && $netaddr != '::1' && $netaddr != '127.0.0.1' && $netaddr != '127.0.0.0' && $netaddr != '0.0.0.0' && !$linklocal) {
 
 				$netaddr .= "/$maskbits";
@@ -1389,10 +1390,10 @@ function snmpgeneric_list($object_id) {
 		echo '<br><br>Create IP Spaces';
 		echo '<table><tr><th><input type="checkbox" id="ipspace" onclick="setchecked(this.id)" checked=\"checked\"></th>';
 		echo '<th>Type</th><th>prefix</th><th>name</th><th width=150 title="reserve network and router addresses">reserve network / router addresses</th></tr>';
-	
+
 		$i = 1;
 		foreach($ipspace as $prefix => $addrtype) {
-		
+
 			$netcreatecheckbox = '<b style="background-color:#00ff00">'
 				.'<input class="ipspace" style="background-color:#00ff00" type="checkbox" name="netcreate['
 				.$i.']" value="'.$addrtype.'" checked=\"checked\"></b>';
@@ -1477,7 +1478,7 @@ function snmpgeneric_list($object_id) {
 			}
 
 			$disablemac = true;
-			if($disableport) { 
+			if($disableport) {
 				if($port_info !== NULL) {
 					if(str_replace(':','',$port_info['l2address']) != $ifPhysAddress)
 						$disablemac = false;
@@ -1499,7 +1500,7 @@ function snmpgeneric_list($object_id) {
 					.($disablemac ? '#ff0000' : '#00ff00').'" type="checkbox" name="updatemac['.$if.']" value="'
 					.$object['ports'][$ifsnmp->ifName($if)]['id'].'" checked="checked"'
 					.($disablemac ? ' disabled=\"disabled\"' : '' ).'></b>';
-					
+
 		}
 
 
@@ -1510,18 +1511,18 @@ function snmpgeneric_list($object_id) {
 			$createport = FALSE;
 			$ignoreport = TRUE;
 		}
-		
+
 		/* ignore ports without an Connector */
 		if(!$sg_create_noconnector_ports && ($ifsnmp->ifConnectorPresent($if) == 2)) {
 			$comment .= ", no Connector";
 			$createport = FALSE;
 		}
 
-		
+
 		/* Allocate IPs ipv4 and ipv6 */
 
 		$ipaddresses = $ifsnmp->ipaddress($if);
-	
+
 		if(!empty($ipaddresses)) {
 
 			$ipaddrcell = '<table>';
@@ -1531,7 +1532,7 @@ function snmpgeneric_list($object_id) {
 				$disableipaddr = FALSE;
 				$ipaddrhref = '';
 				$linklocal = FALSE;
-	
+
 				$addrtype = $value['addrtype'];
 				$maskbits = $value['maskbits'];
 				$bcast = $value['bcast'];
@@ -1541,7 +1542,7 @@ function snmpgeneric_list($object_id) {
 					case 'ipv4':
 						$inputname = 'ip';
 						break;
-			
+
 					case 'ipv6z':
 						$disableipaddr = TRUE;
 					case 'ipv6':
@@ -1550,21 +1551,21 @@ function snmpgeneric_list($object_id) {
 						/* convert to IPv6Address->parse format */
 						$ipaddr =  preg_replace('/((..):(..))/','\\2\\3',$ipaddr);
 						$ipaddr =  preg_replace('/%.*$/','',$ipaddr);
-	
+
 						$ipv6 = new IPv6Address();
 						if(!$ipv6->parse($ipaddr)) {
 							$disableipaddr = TRUE;
 							$comment .= ' ipv6 parse failed';
 						} else {
 							$ipaddr = $ipv6->format();
-							$linklocal = ($ipv6->get_first_subnet_address(10)->format() == 'fe80::'); 
+							$linklocal = ($ipv6->get_first_subnet_address(10)->format() == 'fe80::');
 						}
 
 						$createipaddr = FALSE;
 						break;
 
 				}
-					
+
 				$address = getIPAddress($ipaddr);
 
 				/* only if ip not already allocated */
@@ -1573,14 +1574,14 @@ function snmpgeneric_list($object_id) {
 						$createipaddr = TRUE;
 				} else {
 					$disableipaddr = TRUE;
-	
+
 					$ipobject_id = $address['allocs'][0]['object_id'];
-	
+
 					$ipaddrhref = makeHref(array('page'=>'object',
 									 'object_id' => $ipobject_id, 'hl_ipv4_addr' => $ipaddr));
-	
+
 				}
-						
+
 				/* reserved addresses */
 				if($address['reserved'] == 'yes') {
 					$comment .= ', '.$address['ip'].' reserved '.$address['name'];
@@ -1620,9 +1621,9 @@ function snmpgeneric_list($object_id) {
 			}
 			unset($ipaddr);
 			unset($value);
-		
+
 			$ipaddrcell .= '</table>';
-		
+
 		 } else {
 			$ipaddrcreatecheckbox = '';
 			$ipaddrcell = '';
@@ -1631,7 +1632,7 @@ function snmpgeneric_list($object_id) {
 
 
 		/* checkboxes for add port and add ip */
-	 	/* FireFox needs <b style=..>, IE and Opera work with <td style=..> */	
+		/* FireFox needs <b style=..>, IE and Opera work with <td style=..> */
 		if(!$disableport)
 			$portcreatecheckbox = '<b style="background-color:'.($disableport ? '#ff0000' : '#00ff00')
 					.'"><input class="ports" style="background-color:'.($disableport ? '#ff0000' : '#00ff00')
@@ -1639,7 +1640,7 @@ function snmpgeneric_list($object_id) {
 					.($disableport ? ' disabled="disbaled"' : '').($createport ? ' checked="checked"' : '').'></b>';
 		else
 			$portcreatecheckbox = '';
-		
+
 		/* port type id */
 		/* add port type to newporttypeoptions if missing */
 		if(strpos(serialize($newporttypeoptions),$porttypeid) === FALSE) {
@@ -1647,7 +1648,7 @@ function snmpgeneric_list($object_id) {
 			$portids = explode('-',$porttypeid);
 			$oif_name = $sg_portoifoptions[$portids[1]];
 
-			$newporttypeoptions['auto'] = array($porttypeid => "*$oif_name");  
+			$newporttypeoptions['auto'] = array($porttypeid => "*$oif_name");
 		}
 
 		$selectoptions = array('name' => "porttypeid[$if]");
@@ -1712,7 +1713,7 @@ function snmpgeneric_opcreate() {
 			if(empty($ifName)) {
 				showError('Port without ifName '.$_POST['porttypeid'][$if].', '.$visible_label.', '.$ifPhysAddress);
 			} else {
- 				commitAddPort ($object_id, $ifName, $_POST['porttypeid'][$if], $visible_label, $ifPhysAddress);
+				commitAddPort ($object_id, $ifName, $_POST['porttypeid'][$if], $visible_label, $ifPhysAddress);
 				showSuccess('Port created '.$ifName.', '.$_POST['porttypeid'][$if].', '.$visible_label.', '.$ifPhysAddress);
 			}
 		}
@@ -1743,25 +1744,25 @@ function snmpgeneric_opcreate() {
 
 	/* allocate ipv6 adresses */
 	if(isset($_POST['ipv6addrcreate'])) {
-		foreach($_POST['ipv6addrcreate'] as $ipaddr => $if) {	
-			
+		foreach($_POST['ipv6addrcreate'] as $ipaddr => $if) {
+
 			$ip = new IPv6Address();
-			if($ip->parse($ipaddr)) { 
-			
+			if($ip->parse($ipaddr)) {
+
 				bindIPv6ToObject($ip, $object_id,$_POST['ifName'][$if], 1); /* connected */
-				showSuccess("$ipaddr allocated"); 
+				showSuccess("$ipaddr allocated");
 			} else
-				showError("$ipaddr parse failed!"); 
+				showError("$ipaddr parse failed!");
 		}
 		unset($ipaddr);
 		unset($if);
 	}
 	/* allocate ip adresses */
 	if(isset($_POST['ipaddrcreate'])) {
-		foreach($_POST['ipaddrcreate'] as $ipaddr => $if) {	
+		foreach($_POST['ipaddrcreate'] as $ipaddr => $if) {
 
 			bindIpToObject($ipaddr, $object_id,$_POST['ifName'][$if], 1); /* connected */
-			showSuccess("$ipaddr allocated"); 
+			showSuccess("$ipaddr allocated");
 		}
 		unset($ipaddr);
 		unset($if);
@@ -1805,7 +1806,7 @@ function guessRToif_id($ifType,$ifDescr = NULL) {
 		$retval = "1-$retval";
 
 	/* no ethernetCsmacd */
-	if($ifType != 6) 
+	if($ifType != 6)
 		return $retval;
 
 
@@ -1827,11 +1828,11 @@ function guessRToif_id($ifType,$ifDescr = NULL) {
 	 * Enterasys Networks, Inc. 10GBASE SFP+ 10-Gigabit Ethernet Port; No SFP+ Inserted
 	 * Enterasys Networks, Inc. 10GBASE-SR SFP+ 10-Gigabit Ethernet Port (850nm Short Wavelength, 33/82m MMF, LC)
 	 * Enterasys Networks, Inc. 1000BASE Gigabit Ethernet Port; Unknown GBIC/MGBIC Inserted
- 	 *
+	 *
 	 */
 
 	foreach($sg_portiifoptions as $iif_id => $iif_type) {
-		
+
 		/* TODO better matching */
 
 
@@ -1861,12 +1862,12 @@ function guessRToif_id($ifType,$ifDescr = NULL) {
 							break;
 						default:
 						case '1000' :
-							$iif_id = 4;	
+							$iif_id = 4;
 							$iif_type = "SFP-1000";
 							break;
 					}
 				}
-				
+
 			}
 
 			if($no) {
@@ -1980,10 +1981,10 @@ class SNMPgeneric {
 	protected $result;
 
 	function __construct($version, $host, $community) {
-		
+
 		$this->host = $host;
 		$this->version = $version;
-		$this->community = $community;	
+		$this->community = $community;
 
 		set_error_handler(array($this,'ErrorHandler'), E_WARNING);
 	}
@@ -2031,7 +2032,7 @@ class SNMPgeneric {
 	private function __snmpget($object_id) {
 
 		$retval = FALSE;
-		
+
 		switch($this->version) {
 			case self::VERSION_1:
 				$retval = snmpget($this->host,$this->community,$object_id);
@@ -2070,7 +2071,7 @@ class SNMPgeneric {
 		}
 
 		return $this->result;
-		
+
 	}
 
 	function close() {
@@ -2100,7 +2101,7 @@ class SNMPgeneric {
 
 /* ------------------------------------------------------- */
 /*
- * SNMP with system OIDs 
+ * SNMP with system OIDs
  */
 class mySNMP extends SNMPgeneric implements Iterator {
 
@@ -2125,7 +2126,7 @@ class mySNMP extends SNMPgeneric implements Iterator {
 
 		/* needs php >= 5.2.0 */
 	//	snmp_set_oid_output_format(SNMP_OID_OUTPUT_FULL);
-		
+
 	//	snmp_set_quick_print(1);
 
 	} /* __construct */
@@ -2218,17 +2219,17 @@ class mySNMP extends SNMPgeneric implements Iterator {
 		if($this->systemerror) {
 			return;
 		}
-		
+
 		$retval = $this->_getvalue($name);
 
 		if($retval === NULL) {
 
 			$trace = debug_backtrace();
-        		trigger_error(
-            			'Undefinierte Eigenschaft für __call(): ' . $name .
-            			' in ' . $trace[0]['file'] .
-            			' Zeile ' . $trace[0]['line'],
-            			E_USER_NOTICE);
+			trigger_error(
+					'Undefinierte Eigenschaft für __call(): ' . $name .
+					' in ' . $trace[0]['file'] .
+					' Zeile ' . $trace[0]['line'],
+					E_USER_NOTICE);
 		}
 
 		return $retval;
@@ -2281,7 +2282,7 @@ class ifSNMP implements Iterator {
 	private $interfaceserror = TRUE;
 
 	function __construct(&$snmpdevice) {
-		$this->snmpdevice = $snmpdevice;	
+		$this->snmpdevice = $snmpdevice;
 
 		$this->ifNumber = intval($this->snmpdevice->get('ifNumber.0'));
 
@@ -2297,7 +2298,7 @@ class ifSNMP implements Iterator {
 		$this->ifTable['ifDescr'] = $this->snmpdevice->walk('ifDescr',TRUE);
 		$this->ifTable['ifAlias'] = $this->snmpdevice->walk('ifAlias',TRUE);
 		$this->ifTable['ifName'] =  $this->snmpdevice->walk('ifName',TRUE);
-		
+
 		$this->ifTable['ifType'] =  $this->snmpdevice->walk('ifType',TRUE);
 
 		$this->ifTable['ifSpeed'] =  $this->snmpdevice->walk('ifSpeed',TRUE);
@@ -2329,7 +2330,7 @@ class ifSNMP implements Iterator {
 				next($ipAdEntNetMask);
 
 				$ipaddr = preg_replace('/.*\.([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$/','$1',$oid);
-	
+
 				$ifindex =  array_search($value,$this->ifTable['ifIndex']);
 
 				$maskbits = 32-log((ip2long($netmask) ^ 0xffffffff)+1,2);
@@ -2340,7 +2341,7 @@ class ifSNMP implements Iterator {
 										'addrtype' => 'ipv4',
 										'maskbits' => $maskbits,
 										'net' => long2ip($net),
-										'bcast' => long2ip($bcast) 
+										'bcast' => long2ip($bcast)
 										);
 			}
 			unset($oid);
@@ -2365,7 +2366,7 @@ class ifSNMP implements Iterator {
 
 				$prefix = current($ipAddressPrefix);
 				next($ipAddressPrefix);
-			
+
 				$type = current($ipAddressType);
 				next($ipAddressType);
 
@@ -2396,8 +2397,8 @@ class ifSNMP implements Iterator {
 
 				$this->ifTable['ipaddress'][$ifindex][$matches[2]] = array(
 										'addrtype' => $matches[1],
-					 					'maskbits' => $maskbits,
-									 	'net' => $net,
+										'maskbits' => $maskbits,
+										'net' => $net,
 										'bcast' => $bcast
 										);
 			}
@@ -2417,7 +2418,7 @@ class ifSNMP implements Iterator {
 
 		echo "<tr>";
 		foreach ($this->ifTable as $key => $value) {
-			
+
 			switch($key) {
 				case 'ifOperStatus':
 					$displayvalue = 'if Oper Status';
@@ -2465,8 +2466,8 @@ class ifSNMP implements Iterator {
 				$fieldvalue = $this->{$key}($ifIndex);
 
 				if(!empty($fieldvalue)) {
-					if($key == 'ifDescr' || $key == 'ifAlias') {	
-				 		$formfield = '<input readonly="readonly" type="text" size="15" name="'.$key.'['.$ifIndex.']" value="'
+					if($key == 'ifDescr' || $key == 'ifAlias') {
+						$formfield = '<input readonly="readonly" type="text" size="15" name="'.$key.'['.$ifIndex.']" value="'
 								.$this->$key($ifIndex).'">';
 						$textfield = TRUE;
 					} else {
@@ -2476,7 +2477,7 @@ class ifSNMP implements Iterator {
 				} else {
 					if($key == 'ifName') {
 						/* create textfield set to ifDescr */
-				 		$formfield = '<input type="text" size="8" name="'.$key.'['.$ifIndex.']" value="'
+						$formfield = '<input type="text" size="8" name="'.$key.'['.$ifIndex.']" value="'
 								.$this->ifDescr($ifIndex).'">';
 						$textfield = TRUE;
 					}
@@ -2484,7 +2485,7 @@ class ifSNMP implements Iterator {
 				}
 
 			}
-		
+
 
 			if($textfield)
 				$displayvalue=$formfield;
@@ -2495,7 +2496,7 @@ class ifSNMP implements Iterator {
 					$displayvalue = "<a href=".$hrefs[$key].">$displayvalue</a>";
 				}
 			}
-			
+
 			echo "<td nowrap=\"nowrap\">$displayvalue</td>";
 		}
 		unset($key);
@@ -2535,50 +2536,52 @@ class ifSNMP implements Iterator {
 		}
 
 	}
-		
+
 	function &__get($name) {
 
 		switch($name) {
-			case 'ifNumber': 
+			case 'ifNumber':
 				return $this->{$name};
 				break;
 			case 'ipaddress':
 				return $this->ifTable['ipaddress'];
 				break;
 		}
-	
-		$trace = debug_backtrace();
-        	trigger_error(
-            		'Undefinierte Eigenschaft für __get(): ' . $name .
-            		' in ' . $trace[0]['file'] .
-            		' Zeile ' . $trace[0]['line'],
-            		E_USER_NOTICE);
 
-       		return NULL;
+		$trace = debug_backtrace();
+
+		trigger_error(
+			'Undefinierte Eigenschaft für __get(): ' . $name .
+			' in ' . $trace[0]['file'] .
+			' Zeile ' . $trace[0]['line'],
+			E_USER_NOTICE);
+
+		return NULL;
 	}
 
 	/* $obj->ifDescr(3) = $ifTable[$name][$arg]*/
 	function __call($name,$args) {
-		
+
 		if($this->interfaceserror)
 			return;
-	
+
 		if(isset($this->ifTable[$name])) {
 			if(isset($this->ifTable[$name][$args[0]-1])) {
 				return $this->ifTable[$name][$args[0]-1];
 			}
 		} else {
-	
+
 			/* for debug */
 			$trace = debug_backtrace();
-        		trigger_error(
-            			'Undefinierte Methode für __call(): ' . $name .
-            			' in ' . $trace[0]['file'] .
-            			' Zeile ' . $trace[0]['line'],
-        	    		E_USER_NOTICE);
+
+			trigger_error(
+				'Undefinierte Methode für __call(): ' . $name .
+				' in ' . $trace[0]['file'] .
+				' Zeile ' . $trace[0]['line'],
+				E_USER_NOTICE);
 		}
 
-        	return NULL;
+	return NULL;
 
 	} /* __call */
 
@@ -2612,7 +2615,7 @@ class ifSNMP implements Iterator {
 /* ------------------------------------------------------- */
 /* for debugging */
 function sg_var_dump_html(&$var, $text = '') {
-	
+
 	echo "<pre>------------------Start Var Dump - $text -----------------------\n";
 	var_dump($var);
 	echo "\n---------------------END Var Dump - $text -----------------------</pre>";
