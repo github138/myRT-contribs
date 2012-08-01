@@ -69,6 +69,8 @@ CREATE TABLE `LinkBackend` (
  * 04.03.12	add set_reserve_comment and set_link permission handling
  * 18.07.12	add transform:rotate to Back Link image
  * 19.07.12	new Description with usage
+ * 01.08.12	fix whitespaces
+ *		make portlist::urlparams, urlparamsarray, hasbackend static
  *
  *
  */
@@ -1285,7 +1287,7 @@ class portlist {
 	/*
 	 *
          */
-        static function urlparams($name, $value, $defaultvalue = NULL) {
+	static function urlparams($name, $value, $defaultvalue = NULL) {
 
                 $urlparams = $_GET;
 
@@ -1307,7 +1309,7 @@ class portlist {
 	/*
          * $params = array('name' => 'value', ...)
          */
-        static function urlparamsarray($params) {
+	static function urlparamsarray($params) {
 
                 $urlparams = $_GET;
 
