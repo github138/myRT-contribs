@@ -144,6 +144,7 @@
  * 19.07.12	change description
  * 26.07.12	change INSTALL section
  * 01.08.12	fix interfaceserror handling in ifSNMP
+ *		suppress SNMP "No Such Object available on this agent at this OID" warning
  *
  */
 
@@ -1983,6 +1984,8 @@ class SNMPgeneric {
 		$this->host = $host;
 		$this->version = $version;
 		$this->community = $community;	
+
+		set_error_handler(array($this,'ErrorHandler'), E_WARNING);
 	}
 
 	function setSecurity($sec_level, $auth_protocol = 'md5', $auth_passphrase = '', $priv_protocol = 'des', $priv_passphrase = '') {
@@ -2080,6 +2083,18 @@ class SNMPgeneric {
 	function getError() {
 		$var = error_get_last();
 		return $var['message'];
+	}
+
+	function Errorhandler($errno, $errstr, $errfile, $errline) {
+		switch(TRUE) {
+			case (False !== strpos($errstr,'No Such Object available on this agent at this OID')):
+					/* no further error processing */
+					return true;
+				break;
+		}
+
+		/* proceed with default error handling */
+		return false;
 	}
 } /* SNMPgeneric */
 
