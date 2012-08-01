@@ -55,7 +55,7 @@ CREATE TABLE `LinkBackend` (
 
 /*************************
  * Change Log
- * 
+ *
  * 15.01.12	new loopdetection
  * 18.01.12	code cleanups
  * 23.01.12	add href to printport
@@ -134,10 +134,10 @@ function linkmgmt_opHelp() {
 /* -------------------------------------------------- */
 
 function linkmgmt_opupdate() {
-	
+
 	if(!isset($_POST['id']))
 		exit;
-	
+
 	$ids = explode('_',$_POST['id'],3);
 	$retval = strip_tags($_POST['value']);
 
@@ -155,11 +155,11 @@ function linkmgmt_opupdate() {
 		else
 			$retval = "Permission denied!";
 	}
-		
+
 	/* return what jeditable should display after edit */
 	echo $retval;
 
-	exit;	
+	exit;
 } /* opupdate */
 
 /* -------------------------------------------------- */
@@ -176,11 +176,11 @@ function linkmgmt_commitUpdatePortLink($port_id, $cable = NULL, $backend = FALSE
 
 	return usePreparedUpdateBlade
 		(
- 	                 $table,
-	                 array ('cable' => mb_strlen ($cable) ? $cable : NULL),
- 	                 array ('porta' => $port_id, 'portb' => $port_id),
- 	                 'OR'
- 	         );
+			$table,
+			array ('cable' => mb_strlen ($cable) ? $cable : NULL),
+			array ('porta' => $port_id, 'portb' => $port_id),
+			'OR'
+		);
 } /* linkmgmt_commitUpdatePortLink */
 
 /* -------------------------------------------------- */
@@ -200,7 +200,7 @@ function linkmgmt_opunlinkPort() {
 		$table = 'Link';
 
 	$retval = usePreparedDeleteBlade ($table, array('porta' => $port_id, 'portb' => $port_id), 'OR');
-	
+
 	if($retval == 0)
 		echo " Link not found";
 	else
@@ -233,7 +233,7 @@ function linkmgmt_oplinkPort() {
 		$link_list = $_REQUEST['link_list'];
 
 	foreach($link_list as $link){
-	
+
 		$ids = preg_split('/[^0-9]/',$link);
 		$porta = $ids[0];;
 		$portb = $ids[1];
@@ -241,8 +241,8 @@ function linkmgmt_oplinkPort() {
 		$ret = linkmgmt_linkPorts($porta, $portb, $linktype, $cable);
 
 		error_log("$ret - $porta - $portb");
- 		$port_info = getPortInfo ($porta);
-        	$remote_port_info = getPortInfo ($portb);
+		$port_info = getPortInfo ($porta);
+		$remote_port_info = getPortInfo ($portb);
 		showSuccess(
                         sprintf
                         (
@@ -336,13 +336,13 @@ header ('Content-Type: text/html; charset=UTF-8');
 
 	if(permitted(NULL,NULL,"set_link"))
 		if (isset ($_REQUEST['do_link'])) {
-        		$text .= getOutputOf ('linkmgmt_oplinkPort');
+			$text .= getOutputOf ('linkmgmt_oplinkPort');
 		}
-        	else 
+		else
 			if(isset($_REQUEST['byname']))
-        			$text .= getOutputOf ('linkmgmt_renderPopupPortSelectorbyName');
+				$text .= getOutputOf ('linkmgmt_renderPopupPortSelectorbyName');
 			else
-        			$text .= getOutputOf ('linkmgmt_renderPopupPortSelector');
+				$text .= getOutputOf ('linkmgmt_renderPopupPortSelector');
 	else
 		$text .= "Permission denied!";
 
@@ -364,11 +364,11 @@ header ('Content-Type: text/html; charset=UTF-8');
  * like findSparePorts in popup.php extended with linktype
  */
 function linkmgmt_findSparePorts($port_info, $filter, $linktype) {
-	
+
 	// all ports with no backend link
- 	/* port:object -> front linked port:object */	
-	$query = 'select Port.id, CONCAT(RackObject.name, " : ", Port.name, 
-			IFNULL(CONCAT(" -- ", Link.cable," --> ",lnkPort.name, " : ", lnkObject.name),"") ) 
+	/* port:object -> front linked port:object */
+	$query = 'select Port.id, CONCAT(RackObject.name, " : ", Port.name,
+			IFNULL(CONCAT(" -- ", Link.cable," --> ",lnkPort.name, " : ", lnkObject.name),"") )
 		from Port
 		left join LinkBackend on Port.id in (LinkBackend.porta,LinkBackend.portb)
 		left join RackObject on RackObject.id = Port.object_id
@@ -379,7 +379,7 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype) {
 	$qparams = array();
 
 	 // self and linked ports filter
-        $query .= " WHERE Port.id <> ? ". 
+        $query .= " WHERE Port.id <> ? ".
 		    "AND LinkBackend.porta is NULL ";
         $qparams[] = $port_info['id'];
 
@@ -411,9 +411,9 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype) {
 
 	$row = $result->fetchAll(PDO::FETCH_GROUP|PDO::FETCH_UNIQUE|PDO::FETCH_COLUMN);
 
-	/* [id] => displaystring */	
+	/* [id] => displaystring */
 	return $row;
-	
+
 } /* findSparePorts */
 
 /* -------------------------------------------------- */
@@ -422,9 +422,9 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype) {
  * similar to findSparePorts but finds Ports with same name
  */
 function linkmgmt_findSparePortsbyName($object_id, $remote_object, $linktype) {
-	
+
 	// all ports with same name on object and remote_object and without existing backend link
-	$query = 'select CONCAT(Port.id,"_",rPort.id), CONCAT(RackObject.name, " : ", Port.name, " -?-> ", rPort.name, " : ", rObject.name) 
+	$query = 'select CONCAT(Port.id,"_",rPort.id), CONCAT(RackObject.name, " : ", Port.name, " -?-> ", rPort.name, " : ", rObject.name)
 		from Port
 		left join LinkBackend on Port.id in (LinkBackend.porta,LinkBackend.portb)
 		left join RackObject on RackObject.id = Port.object_id
@@ -435,7 +435,7 @@ function linkmgmt_findSparePortsbyName($object_id, $remote_object, $linktype) {
 	$qparams = array();
 
 	 // self and linked ports filter
-        $query .= " WHERE Port.object_id = ? ". 
+        $query .= " WHERE Port.object_id = ? ".
 		  "AND rPort.object_id = ? ".
 		  "AND LinkBackend.porta is NULL ".
 		  "AND rLinkBackend.porta is NULL ";
@@ -449,9 +449,9 @@ function linkmgmt_findSparePortsbyName($object_id, $remote_object, $linktype) {
 
 	$row = $result->fetchAll(PDO::FETCH_GROUP|PDO::FETCH_UNIQUE|PDO::FETCH_COLUMN);
 
-	/* [id] => displaystring */	
+	/* [id] => displaystring */
 	return $row;
-	
+
 } /* findSparePortsbyName */
 
 /* -------------------------------------------------- */
@@ -583,21 +583,21 @@ function linkmgmt_renderPopupPortSelectorbyName()
 
 } /* linkmgmt_renderPopUpPortSelector */
 
-/* ------------------------------------------------ */ 
+/* ------------------------------------------------ */
 
 function linkmgmt_tabhandler($object_id) {
 	global $lm_cache;
 
 	$target = makeHrefProcess(portlist::urlparams('op','update'));
 
- 	addJS('js/jquery.jeditable.mini.js');
+	addJS('js/jquery.jeditable.mini.js');
 
-	/* TODO  if (permitted (NULL, 'ports', 'set_reserve_comment')) */ 
+	/* TODO  if (permitted (NULL, 'ports', 'set_reserve_comment')) */
 	/* TODO Link / unlink permissions  */
 
 	$lm_cache['allowcomment'] = permitted(NULL, NULL, 'set_reserve_comment'); /* RackCode {$op_set_reserve_comment} */
 	$lm_cache['allowlink'] = permitted(NULL, NULL, 'set_link'); /* RackCode {$op_set_link} */
-	
+
 	//portlist::var_dump_html($lm_cache);
 
 	/* init jeditable fields/tags */
@@ -632,7 +632,7 @@ function linkmgmt_tabhandler($object_id) {
 /* -------------------------------------------------- */
 function linkmgmt_renderObjectLinks($object_id) {
 
- 	$object = spotEntity ('object', $object_id);
+	$object = spotEntity ('object', $object_id);
         $object['attr'] = getAttrValues($object_id);
 
 	/* get ports */
@@ -657,7 +657,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 	echo '<table><tr>';
 
 	if($allports) {
-				
+
 		echo '<td width=200><a href="'.makeHref(portlist::urlparams('allports','0','0'))
 			.'">Hide Ports without link</a></td>';
 	} else
@@ -668,7 +668,7 @@ function linkmgmt_renderObjectLinks($object_id) {
                                 array('op' => 'PortLinkDialog','linktype' => 'back','byname' => '1'))).'","name","height=700,width=400,scrollbars=yes");><a>Link Object Ports by Name</a></span></td>';
 
 	if($allback) {
-				
+
 		echo '<td width=200><a href="'.makeHref(portlist::urlparams('allback','0','0'))
 			.'">Collapse Backend Links on same Object</a></td>';
 	} else
@@ -682,7 +682,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 	if(isset($_REQUEST['hl_port_id']))
 		$hl_port_id = $_REQUEST['hl_port_id'];
 	else
-		$hl_port_id = NULL;	
+		$hl_port_id = NULL;
 
 	echo '</tr></table>';
 
@@ -696,7 +696,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 		$plist = new portlist($port, $object_id, $allports, $allback);
 
 		$plist->printportlistrow($first, $hl_port_id);
-		
+
 	}
 
 	echo "</table>";
@@ -708,7 +708,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 
 /*
  * Portlist class
- * gets all linked ports to spezified port 
+ * gets all linked ports to spezified port
  * and prints this list as table row
  *
  */
@@ -741,16 +741,16 @@ class portlist {
 	private $loopcount;
 
 	function __construct($port, $object_id, $allports = FALSE, $allback = FALSE) {
-		
+
 
 		$this->object_id = $object_id;
 
 		$this->port = $port;
 
 		$port_id = $port['id'];
-		
+
 		$this->port_id = $port_id;
-		
+
 		$this->first_id = $port_id;
 		$this->last_id = $port_id;
 
@@ -782,18 +782,18 @@ class portlist {
 
 	/*
          * gets front and back port of src_port
-	 * and adds it to the list 
+	 * and adds it to the list
 	 */
 	/* !!! recursive */
 	function _getportlist(&$src_port, $back = FALSE, $first = TRUE) {
-		
+
 		$id = $src_port['id'];
 
-		if($back) 
+		if($back)
 			$linktype = 'back';
 		else
 			$linktype = 'front';
-		
+
 		if(!empty($src_port[$linktype])) {
 
 			$dst_port_id = $src_port[$linktype]['id'];
@@ -814,7 +814,7 @@ class portlist {
 
 		}
 
-	} /* _getportlist */	
+	} /* _getportlist */
 
 	/*
 	 * as name suggested
@@ -831,14 +831,14 @@ class portlist {
 		//	echo "LOOP :".$src_port['id']."-->".$dst_port_id;
 
 			return TRUE;
-	
+
 		} else {
 			//error_log(__FUNCTION__."$dst_port_id not exists");
 			return FALSE;
 		}
-		
+
 	} /* _loopdetect */
-	
+
 	/*
 	 * get all data for one port
 	 *	name, object, front link, back link
@@ -848,39 +848,39 @@ class portlist {
 		//select cable, ((porta ^ portb) ^ 4556) as port from Link where (4556 in (porta, portb));
 
 		//error_log("_getportdata $port_id");
-		
+
 		/* TODO single sql ? */
 
-      		$result = usePreparedSelectBlade
-       		(
-				'SELECT Port.id, Port.name, Port.label, Port.type, Port.l2address, Port.object_id, Port.reservation_comment,  
+		$result = usePreparedSelectBlade
+		(
+			'SELECT Port.id, Port.name, Port.label, Port.type, Port.l2address, Port.object_id, Port.reservation_comment,
 					RackObject.name as "obj_name"
 				 from Port
 				 join RackObject on RackObject.id = Port.object_id
 				 where Port.id = ?',
 				array($port_id)
-       		 );
-       		 $datarow = $result->fetchAll(PDO::FETCH_ASSOC);
+		);
+		$datarow = $result->fetchAll(PDO::FETCH_ASSOC);
 
-      		$result = usePreparedSelectBlade
-       		(
+		$result = usePreparedSelectBlade
+		(
 				'SELECT Port.id, Link.cable, Port.name,
 				 CONCAT(Link.porta,"_",Link.portb) as link_id from Link
 				 join Port
 				 where (? in (Link.porta,Link.portb)) and ((Link.porta ^ Link.portb) ^ ? ) = Port.id',
 				array($port_id, $port_id)
-       		 );
-       		 $frontrow = $result->fetchAll(PDO::FETCH_ASSOC);
+		);
+		$frontrow = $result->fetchAll(PDO::FETCH_ASSOC);
 
-      		$result = usePreparedSelectBlade
-       		(
+		$result = usePreparedSelectBlade
+		(
 				'SELECT Port.id, LinkBackend.cable, Port.name,
 				 CONCAT(LinkBackend.porta,"_",LinkBackend.portb,"_back") as link_id from LinkBackend
 				 join Port
 				 where (? in (LinkBackend.porta,LinkBackend.portb)) and ((LinkBackend.porta ^ LinkBackend.portb) ^ ? ) = Port.id',
 				array($port_id, $port_id)
-       		 );
-       		 $backrow = $result->fetchAll(PDO::FETCH_ASSOC);
+		);
+		$backrow = $result->fetchAll(PDO::FETCH_ASSOC);
 
 		$retval = $datarow[0];
 
@@ -905,7 +905,7 @@ class portlist {
 	 */
 	function printport(&$port) {
 		/* set bgcolor for current port */
-		if($port['id'] == $this->port_id) { 
+		if($port['id'] == $this->port_id) {
 			$bgcolor = 'bgcolor='.self::CURRENT_PORT_BGCOLOR;
 			$idtag = ' id='.$port['id'];
 		} else {
@@ -927,7 +927,7 @@ class portlist {
 	/*
 	 */
 	function printcomment(&$port) {
-		
+
 		if(!empty($port['reservation_comment'])) {
 			$prefix = '<b>Reserved: </b>';
 		} else
@@ -1013,7 +1013,7 @@ class portlist {
 
 			if(!$back)
 				$this->printcomment($port);
-		} 	
+		}
 
 		if($back) {
 			if(!$sameobject)
@@ -1047,7 +1047,7 @@ class portlist {
 				$this->printcomment($port);
 				$this->_LinkPort($port_id, 'front');
 			}
-		
+
 		if($loop) {
 			if(isset($link['loopmaxcount']))
 				$reason = " (MAX LOOP COUNT reached)";
@@ -1066,7 +1066,7 @@ class portlist {
 	 * print <tr>..</tr>
 	 */
 	function printportlistrow($first = TRUE, $hl_port_id = NULL) {
-	
+
 		$this->loopcount = 0;
 
 		if($this->first_id == NULL)
@@ -1091,9 +1091,9 @@ class portlist {
 
 		/* Current Port */
 		echo '<tr '.$hlbgcolor.'><td nowrap="nowrap" bgcolor='.self::CURRENT_PORT_BGCOLOR.' title="'.$title.'">'.$this->port['name'].': </td>';
-		
+
 		echo "<td><table align=right><tr><td>";
-		
+
 		$back = !empty($this->list[$id]['front']);
 
 		$this->_printportlink($id, $link, $back);
@@ -1107,7 +1107,7 @@ class portlist {
 	} /* printportlist */
 
 	/*
-	 * print <td> 
+	 * print <td>
 	 * prints all ports in a list starting with start_port_id
 	 */
 	/* !!! recursive */
@@ -1119,7 +1119,7 @@ class portlist {
                         $linktype = 'front';
 
 		$link = &$this->list[$src_port_id][$linktype];
-	
+
 		if(!empty($link)) {
 			$dst_port_id = $link['id'];
 
@@ -1140,13 +1140,13 @@ class portlist {
 			if(!$this->_printportlink($dst_port_id, $link, $back))
 					return;
 
-               	        $this->_printportlist($dst_port_id,!$back);
-               	}
-			
+			$this->_printportlist($dst_port_id,!$back);
+		}
+
 
 	} /* _printportlist */
 
- 	/*
+	/*
          *  returns linked Row / Rack Info for object_id
          *
          */
@@ -1191,8 +1191,8 @@ class portlist {
         } /* _getRackInfo */
 
 
-	/* 
-  	 * return link symbol
+	/*
+	 * return link symbol
 	 *
 	 */
        function _LinkPort($port_id, $linktype = 'front') {
@@ -1200,7 +1200,7 @@ class portlist {
 
 		if(!$lm_cache['allowlink'])
 			return;
-	
+
                $helper_args = array
                         (
                                 'port' => $port_id,
@@ -1237,15 +1237,15 @@ class portlist {
 
 			echo $img;
                         echo "</span>";
-			
+
 		}
 
 		echo "</td>";
 
         } /* _LinkPort */
 
-	/* 
-  	 * return link cut symbol
+	/*
+	 * return link cut symbol
 	 *
          * TODO $opspec_list
 	 */
@@ -1266,9 +1266,9 @@ class portlist {
 			$tab = 'linkmgmt';
 		else
 			$tab = 'ports';
-		
 
- 		return '<a href='.
+
+		return '<a href='.
                                makeHrefProcess(array(
 					'op'=>'unlinkPort',
 					'port_id'=>$port_id,
@@ -1283,20 +1283,20 @@ class portlist {
 
 
 	/*
-         * 
+	 *
          */
-        function urlparams($name, $value, $defaultvalue = NULL) {
+        static function urlparams($name, $value, $defaultvalue = NULL) {
 
                 $urlparams = $_GET;
 
 	        if($value == $defaultvalue) {
 
- 		        /* remove param */
- 	       		unset($urlparams[$name]);
+			/* remove param */
+			unset($urlparams[$name]);
 
- 	        } else {
+		} else {
 
- 	        	$urlparams[$name] = $value;
+			$urlparams[$name] = $value;
 
 		}
 
@@ -1307,7 +1307,7 @@ class portlist {
 	/*
          * $params = array('name' => 'value', ...)
          */
-        function urlparamsarray($params) {
+        static function urlparamsarray($params) {
 
                 $urlparams = $_GET;
 
@@ -1315,14 +1315,14 @@ class portlist {
 
 	                if($value == NULL) {
 
- 	                       /* remove param */
-        	                unset($urlparams[$name]);
+				/* remove param */
+				unset($urlparams[$name]);
 
- 	               } else {
+			} else {
 
- 	                       $urlparams[$name] = $value;
+				$urlparams[$name] = $value;
 
- 	               }
+			}
 		}
 
                 return $urlparams;
@@ -1330,20 +1330,20 @@ class portlist {
         } /* urlparamsarray */
 
 	/* */
-	function hasbackend($object_id) {
+	static function hasbackend($object_id) {
 		/* sql bitwise xor: porta ^ portb */
 		//select cable, ((porta ^ portb) ^ 4556) as port from Link where (4556 in (porta, portb));
 
-      		$result = usePreparedSelectBlade
-       		(
+		$result = usePreparedSelectBlade
+		(
 				'SELECT count(*) from Port
 				 join LinkBackend on (porta = id or portb = id )
 				 where object_id = ?',
 				array($object_id)
-       		 );
- 		$retval = $result->fetchColumn();
-		
- 		return $retval != 0;
+		);
+		$retval = $result->fetchColumn();
+
+		return $retval != 0;
 
 	} /* hasbackend */
 
