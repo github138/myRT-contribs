@@ -146,6 +146,7 @@
  * 01.08.12	fix interfaceserror handling in ifSNMP
  *		suppress SNMP "No Such Object available on this agent at this OID" warning
  *		fix whitespaces
+ * 03.08.12	don't display ips with 0.0.0.0 netmask
  *
  */
 
@@ -2333,16 +2334,19 @@ class ifSNMP implements Iterator {
 
 				$ifindex =  array_search($value,$this->ifTable['ifIndex']);
 
-				$maskbits = 32-log((ip2long($netmask) ^ 0xffffffff)+1,2);
-				$net = ip2long($ipaddr) & ip2long($netmask);
-				$bcast = $net | ( ip2long($netmask) ^ 0xffffffff);
+				if($netmask != '0.0.0.0') {
+					$maskbits = 32-log((ip2long($netmask) ^ 0xffffffff)+1,2);
+					$net = ip2long($ipaddr) & ip2long($netmask);
+					$bcast = $net | ( ip2long($netmask) ^ 0xffffffff);
 
-				$this->ifTable['ipaddress'][$ifindex][$ipaddr] = array(
+					$this->ifTable['ipaddress'][$ifindex][$ipaddr] = array(
 										'addrtype' => 'ipv4',
 										'maskbits' => $maskbits,
 										'net' => long2ip($net),
 										'bcast' => long2ip($bcast)
 										);
+				}
+
 			}
 			unset($oid);
 			unset($value);
