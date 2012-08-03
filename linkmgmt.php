@@ -71,6 +71,7 @@ CREATE TABLE `LinkBackend` (
  * 19.07.12	new Description with usage
  * 01.08.12	fix whitespaces
  *		make portlist::urlparams, urlparamsarray, hasbackend static
+ * 03.08.12	fix display order for objects without links
  *
  *
  */
@@ -1045,7 +1046,7 @@ class portlist {
 			if(empty($port['back']))
 				$this->_LinkPort($port_id, 'back');
 		} else
-			if( ($port['id'] != $this->port_id) && empty($port['front'])) {
+			if(empty($port['front'])) {
 				$this->printcomment($port);
 				$this->_LinkPort($port_id, 'front');
 			}
@@ -1096,7 +1097,7 @@ class portlist {
 
 		echo "<td><table align=right><tr><td>";
 
-		$back = !empty($this->list[$id]['front']);
+		$back = empty($this->list[$id]['back']);
 
 		$this->_printportlink($id, $link, $back);
 
