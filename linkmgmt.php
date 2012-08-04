@@ -43,6 +43,18 @@ CREATE TABLE `LinkBackend` (
   CONSTRAINT `LinkBackend-FK-b` FOREIGN KEY (`portb`) REFERENCES `Port` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+ * Multilink
+
+CREATE TABLE `LinkBackend` (
+  `porta` int(10) unsigned NOT NULL DEFAULT '0',
+  `portb` int(10) unsigned NOT NULL DEFAULT '0',
+  `cable` char(64) DEFAULT NULL,
+  PRIMARY KEY (`porta`,`portb`),
+  KEY `LinkBackend_FK_b` (`portb`),
+  CONSTRAINT `LinkBackend_FK_a` FOREIGN KEY (`porta`) REFERENCES `Port` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `LinkBackend_FK_b` FOREIGN KEY (`portb`) REFERENCES `Port` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+
  *	- copy linkmgmt.php to inc/ directory
  *	- copy jquery.jeditable.mini.js to js/ directory (http://www.appelsiini.net/download/jquery.jeditable.mini.js)
  * 	- add "include 'inc/linkmgmt.php';" to inc/local.php
@@ -82,6 +94,14 @@ CREATE TABLE `LinkBackend` (
  * - code cleanups
  * - bug fixing
  *
+ * - Multiport support for port types AC-in (16) AC-out (1322) DC (1399)
+ * 	allow multi backend links
+ *		alter table
+ *		display link count in link dialog
+ *	fetch multi links select ...
+ *	display multi links
+ *
+ *
  * - csv list
  *
  * - fix $opspec_list for unlink
@@ -99,6 +119,13 @@ $ophandler['object']['linkmgmt']['unlinkPort'] = 'linkmgmt_opunlinkPort';
 $ophandler['object']['linkmgmt']['PortLinkDialog'] = 'linkmgmt_opPortLinkDialog';
 $ophandler['object']['linkmgmt']['Help'] = 'linkmgmt_opHelp';
 
+/* -------------------------------------------------- */
+
+$lm_multilink_port_types = array(
+				16, /* AC-in */
+				1322, /* AC-out */
+				1399, /* DC */
+				);
 
 /* -------------------------------------------------- */
 
@@ -293,6 +320,9 @@ function linkmgmt_linkPorts ($porta, $portb, $linktype, $cable = NULL)
                 'SELECT COUNT(*) FROM '.$table.' WHERE porta IN (?,?) OR portb IN (?,?)',
                 array ($porta, $portb, $porta, $portb)
         );
+
+	/* TODO multilink */
+
         if ($result->fetchColumn () != 0)
         {
                 $dbxlink->exec ('UNLOCK TABLES');
@@ -369,6 +399,9 @@ header ('Content-Type: text/html; charset=UTF-8');
  * like findSparePorts in popup.php extended with linktype
  */
 function linkmgmt_findSparePorts($port_info, $filter, $linktype) {
+
+	/* TODO multilink */
+	//select *, count(a)as linkcount from (select porta as a,portb as b from LinkBackend union select portb as a, porta as b from LinkBackend) as t group by a
 
 	// all ports with no backend link
 	/* port:object -> front linked port:object */
@@ -747,7 +780,6 @@ class portlist {
 
 	function __construct($port, $object_id, $allports = FALSE, $allback = FALSE) {
 
-
 		$this->object_id = $object_id;
 
 		$this->port = $port;
@@ -780,7 +812,7 @@ class portlist {
 				$this->first_id = NULL;
 			}
 
-		//$this->var_dump_html($this->list);
+	//	$this->var_dump_html($this->list);
 
 	} /* __construct */
 
@@ -792,7 +824,7 @@ class portlist {
 	/* !!! recursive */
 	function _getportlist(&$src_port, $back = FALSE, $first = TRUE) {
 
-		$id = $src_port['id'];
+		$src_port_id = $src_port['id'];
 
 		if($back)
 			$linktype = 'back';
@@ -801,19 +833,23 @@ class portlist {
 
 		if(!empty($src_port[$linktype])) {
 
-			$dst_port_id = $src_port[$linktype]['id'];
+			/* multilink */
+			foreach($src_port[$linktype] as $src_link) {
+				$dst_port_id = $src_link['id'];
 
-			if(!$this->_loopdetect($src_port,$dst_port_id,$linktype)) {
-				//error_log("no loop $linktype>".$dst_port_id);
-				$this->count++;
-				$this->_getportlist($this->_getportdata($dst_port_id), !$back, $first);
+				if(!$this->_loopdetect($src_port,$dst_port_id,$src_link,$linktype)) {
+					//error_log("no loop $linktype>".$dst_port_id);
+					$this->count++;
+					$this->_getportlist($this->_getportdata($dst_port_id), !$back, $first);
+				}
 			}
+
 		} else {
 			if($first) {
-				$this->first_id = $id;
+				$this->first_id = $src_port_id;
 			//	$this->front_count = $this->count; /* doesn't work on loops */
 			} else {
-				$this->last_id = $id;
+				$this->last_id = $src_port_id;
 			//	$this->back_count = $this->count; /* doesn't work on loops */
 			}
 
@@ -824,14 +860,14 @@ class portlist {
 	/*
 	 * as name suggested
 	 */
-	function _loopdetect(&$src_port, $dst_port_id, $linktype) {
+	function _loopdetect(&$src_port, $dst_port_id, &$src_link, $linktype) {
 
-		/* */
+		/* TODO multilink*/
 		if(array_key_exists($dst_port_id, $this->list)) {
 
 			$dst_port = $this->list[$dst_port_id];
 
-			$src_port[$linktype]['loop'] = $dst_port_id;
+			$src_link['loop'] = $dst_port_id;
 
 		//	echo "LOOP :".$src_port['id']."-->".$dst_port_id;
 
@@ -890,12 +926,12 @@ class portlist {
 		$retval = $datarow[0];
 
 		if(!empty($frontrow))
-			$retval['front']= $frontrow[0];
+			$retval['front']= $frontrow;
 		else
 			$retval['front'] = array();
 
 		if(!empty($backrow))
-			$retval['back'] = $backrow[0];
+			$retval['back'] = $backrow;
 		else
 			$retval['back'] = array();
 
@@ -961,7 +997,7 @@ class portlist {
 
 	/*
 	 */
-	function printlink(&$link, $linktype) {
+	function printlink(&$src_link, $linktype) {
 
 		if($linktype == 'back')
 			$arrow = '====>';
@@ -971,9 +1007,9 @@ class portlist {
 		/* link */
 		echo '<td align=center>';
 
-		echo '<pre><a class="editcable" id='.$link['link_id'].'>'.$link['cable']
+		echo '<pre><a class="editcable" id='.$src_link['link_id'].'>'.$src_link['cable']
 			."</a></pre><pre>$arrow</pre>"
-			.$this->_printUnLinkPort($link['id'], $linktype);
+			.$this->_printUnLinkPort($src_link['id'], $src_link, $linktype);
 
 		echo '</td>';
 	} /* printlink */
@@ -981,13 +1017,19 @@ class portlist {
 	/*
 	 * print cableID dst_port:dst_object
 	 */
-	function _printportlink($port_id, &$link, $back = FALSE) {
+	function _printportlink($src_port_id, $dst_port_id, &$src_link, $back = FALSE) {
 
-		//$port_id = $link['id'];
+		//$port_id = $src_link['id'];
 
-		$port = $this->list[$port_id];
-		$object_id = $port['object_id'];
-		$obj_name = $port['obj_name'];
+/*
+	DEBUG
+		echo "$src_port_id --><br>";
+		$this->var_dump_html($src_link);
+		echo "-->$dst_port_id<br>";
+*/
+		$dst_port = $this->list[$dst_port_id];
+		$object_id = $dst_port['object_id'];
+		$obj_name = $dst_port['obj_name'];
 
 		$loop = FALSE;
 
@@ -999,25 +1041,28 @@ class portlist {
 
 		$sameobject = FALSE;
 
-		if(isset($link['loop']))
+		if(isset($src_link['loop']))
 			$loop = TRUE;
 
-		if($link != NULL) {
+		if($src_link != NULL) {
 
-			$src_port_id = $port[$linktype]['id'];
+		/* TODO multilink */
+	//	foreach($port[$linktype] as &$link) {
+
+		//	$src_port_id = $dst_port[$linktype]['id'];
 			$src_object_id = $this->list[$src_port_id]['object_id'];
 
 			if(!$this->allback && $object_id == $src_object_id && $back) {
 				$sameobject = TRUE;
 			} else {
-				$this->printlink($link, $linktype);
+				$this->printlink($src_link, $linktype);
 			}
-
+	//	}
 		} else {
-			$this->_LinkPort($port_id, $linktype);
+			$this->_LinkPort($dst_port_id, $linktype);
 
 			if(!$back)
-				$this->printcomment($port);
+				$this->printcomment($dst_port);
 		}
 
 		if($back) {
@@ -1026,12 +1071,12 @@ class portlist {
 			echo "<td>></td>";
 
 			/* align ports nicely */
-			if($port['id'] == $this->port_id)
+			if($dst_port['id'] == $this->port_id)
 				echo '</td></tr></table></td><td><table align=left><tr>';
 		}
 
 		/* print [portname] */
-		$this->printport($port);
+		$this->printport($dst_port);
 
 		if($loop)
 			echo '<td bgcolor=#ff9966>LOOP</td>';
@@ -1039,33 +1084,33 @@ class portlist {
 		if(!$back) {
 
 			/* align ports nicely */
-			if($port['id'] == $this->port_id)
+			if($dst_port['id'] == $this->port_id)
 				echo '</td></tr></table></td><td><table align=left><tr>';
 
 			echo "<td><</td>";
 			$this->printobject($object_id,$obj_name);
 
-			if(empty($port['back']))
-				$this->_LinkPort($port_id, 'back');
+			if(empty($dst_port['back']))
+				$this->_LinkPort($dst_port_id, 'back');
 		} else
-			if(empty($port['front'])) {
-				$this->printcomment($port);
-				$this->_LinkPort($port_id, 'front');
+			if(empty($dst_port['front'])) {
+				$this->printcomment($dst_port);
+				$this->_LinkPort($dst_port_id, 'front');
 			}
 
 		if($loop) {
-			if(isset($link['loopmaxcount']))
+			if(isset($src_link['loopmaxcount']))
 				$reason = " (MAX LOOP COUNT reached)";
 			else
 				$reason = '';
 
-			showWarning("Possible Loop on Port ($linktype) ".$port['name'].$reason);
+			showWarning("Possible Loop on Port ($linktype) ".$dst_port['name'].$reason);
 			return FALSE;
 		}
 
 		return TRUE;
 
-	} /* _printport */
+	} /* _printportlink */
 
 	/*
 	 * print <tr>..</tr>
@@ -1099,9 +1144,11 @@ class portlist {
 
 		echo "<td><table align=right><tr><td>";
 
+		/* TODO use linkcount for correct order */
+
 		$back = empty($this->list[$id]['back']);
 
-		$this->_printportlink($id, $link, $back);
+		$this->_printportlink(NULL, $id, $link, $back);
 
 		$this->_printportlist($id, !$back);
 		echo "</td></tr></table></td></tr>";
@@ -1123,32 +1170,48 @@ class portlist {
                 else
                         $linktype = 'front';
 
-		$link = &$this->list[$src_port_id][$linktype];
+		if(!empty($this->list[$src_port_id][$linktype])) {
 
-		if(!empty($link)) {
-			$dst_port_id = $link['id'];
+			$linkcount = count($this->list[$src_port_id][$linktype]);
 
-			$this->loopcount++;
+			if($linkcount > 1)
+				echo "<td><table>";
 
-			if($this->loopcount > self::MAX_LOOP_COUNT) {
-			//	$src_port_name = $this->list[$src_port_id]['name'];
-			//	$dst_port_name = $this->list[$dst_port_id]['name'];
+			foreach($this->list[$src_port_id][$linktype] as &$link) {
 
-				$link['loop'] = $dst_port_id;
-				$link['loopmaxcount'] = $dst_port_id;
+				if($linkcount > 1)
+					echo "<tr>";
 
-				/* loop warning is handeld in _printportlink() */
-				//showWarning("MAX LOOP COUNT reached $src_port_name -> $dst_port_name".self::MAX_LOOP_COUNT);
-				//return; /* return after _printportlink */
+				$dst_port_id = $link['id'];
+
+				$this->loopcount++;
+
+				if($this->loopcount > self::MAX_LOOP_COUNT) {
+				//	$src_port_name = $this->list[$src_port_id]['name'];
+				//	$dst_port_name = $this->list[$dst_port_id]['name'];
+
+					$link['loop'] = $dst_port_id;
+					$link['loopmaxcount'] = $dst_port_id;
+
+					/* loop warning is handeld in _printportlink() */
+					//showWarning("MAX LOOP COUNT reached $src_port_name -> $dst_port_name".self::MAX_LOOP_COUNT);
+					//return; /* return after _printportlink */
+				}
+
+				if(!$this->_printportlink($src_port_id, $dst_port_id, $link, $back))
+				{
+					return;
+				}
+
+				$this->_printportlist($dst_port_id,!$back);
+
+				if($linkcount > 1)
+					echo "</tr>";
 			}
 
-			if(!$this->_printportlink($dst_port_id, $link, $back))
-					return;
-
-			$this->_printportlist($dst_port_id,!$back);
+			if($linkcount > 1)
+				echo "</table></td>";
 		}
-
-
 	} /* _printportlist */
 
 	/*
@@ -1254,17 +1317,15 @@ class portlist {
 	 *
          * TODO $opspec_list
 	 */
-	function _printUnLinkPort($port_id, $linktype) {
+	function _printUnLinkPort($src_port_id, &$src_link, $linktype) {
 		global $lm_cache;
 
 		if(!$lm_cache['allowlink'])
 			return '';
 
-		$src_port = $this->list[$port_id];
+		$src_port = $this->list[$src_port_id];
 
-		$link = $src_port[$linktype];
-
-		$dst_port = $this->list[$link['id']];
+		$dst_port = $this->list[$src_link['id']];
 
 		/* use RT unlink for front link, linkmgmt unlink for back links */
 		if($linktype == 'back')
@@ -1272,16 +1333,15 @@ class portlist {
 		else
 			$tab = 'ports';
 
-
 		return '<a href='.
                                makeHrefProcess(array(
 					'op'=>'unlinkPort',
-					'port_id'=>$port_id,
+					'port_id'=>$src_port_id,
 					'object_id'=>$this->object_id,
 					'tab' => $tab,
 					'linktype' => $linktype)).
                        ' onclick="return confirm(\'unlink ports '.$src_port['name']. ' -> '.$dst_port['name']
-					.' ('.$linktype.') with cable ID: '.$src_port[$linktype]['cable'].'?\');">'.
+					.' ('.$linktype.') with cable ID: '.$src_link['cable'].'?\');">'.
                        getImageHREF ('cut', $linktype.' Unlink this port').'</a>';
 
 	} /* _printUnLinkPort */
