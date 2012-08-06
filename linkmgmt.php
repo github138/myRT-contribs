@@ -84,6 +84,8 @@ CREATE TABLE `LinkBackend` (
  * 01.08.12	fix whitespaces
  *		make portlist::urlparams, urlparamsarray, hasbackend static
  * 03.08.12	fix display order for objects without links
+ * 06.08.12	add port count to Link by Name
+ *		change "Link by Name" dialog design
  *
  *
  */
@@ -589,22 +591,31 @@ function linkmgmt_renderPopupPortSelectorbyName()
 	if($remote_object)
 		$link_list = linkmgmt_findSparePortsbyName($object_id, $remote_object, $linktype);
 
-        // display search form
-        echo 'Link '.$linktype.' of ' . formatPortLink($object_id, $object['name'], NULL, NULL) . ' Ports by Name to...';
-        echo '<form method=POST>';
-        startPortlet ('Object list');
+	$objectlist = linkmgmt_getObjectsList($object_id);
 
-	$objectlist = getNarrowObjectList();
+	$objectname = (isset($objectlist[$object_id]) ? $objectlist[$object_id] : $object['name']." (0)" );
 
 	/* remove self from list */
 	unset($objectlist[$object_id]);
 
-        echo '<table align="center" valign="bottom"><tr>';
-        echo getSelect ($objectlist, array ('name' => 'remote_object', 'size' => getConfigVar ('MAXSELSIZE')), NULL, FALSE);
-        echo '<td valign="bottom"><input type=submit value="show '.$linktype.' ports"></td>';
-        echo '</tr></table>';
+        // display search form
+        echo 'Link '.$linktype.' of ' . formatPortLink($object_id, $objectname, NULL, NULL) . ' Ports by Name to...';
+        echo '<form method=POST>';
+
+        echo '<table align="center"><tr><td>';
+        startPortlet ('Object list');
+
+	$maxsize  = getConfigVar('MAXSELSIZE');
+	$objectcount = count($objectlist);
+
+        echo 'Object name (count ports)<br>';
+        echo getSelect ($objectlist, array ('name' => 'remote_object',
+						'size' => ($objectcount <= $maxsize ? $objectcount : $maxsize)),
+						 NULL, FALSE);
+        echo '</td><td><input type=submit value="show '.$linktype.' ports>"></td>';
         finishPortlet();
 
+        echo '<td>';
         // display results
         startPortlet ('Possible Backend Link List');
 	echo "Select links to create:<br>";
@@ -612,14 +623,50 @@ function linkmgmt_renderPopupPortSelectorbyName()
                 echo '(nothing found)';
         else
         {
-                echo getSelect ($link_list, array ('name' => 'link_list[]', 'multiple' => 'multiple','size' => getConfigVar ('MAXSELSIZE')), NULL, FALSE);
+		$linkcount = count($link_list);
+
+                echo getSelect ($link_list, array ('name' => 'link_list[]',
+					'multiple' => 'multiple',
+					'size' => ($linkcount <= $maxsize ? $linkcount : $maxsize)),
+					NULL, FALSE);
                 echo "<p>$linktype Cable ID: <input type=text id=cable name=cable>";
                 echo "<p><input type='submit' value='Link $linktype' name='do_link'>";
         }
         finishPortlet();
+        echo '</td></tr></table>';
         echo '</form>';
 
 } /* linkmgmt_renderPopUpPortSelector */
+
+/* ------------------------------------------------ */
+
+/*
+ * returns a list of all objects with unlinked ports that match those of src_object_id
+ */
+function linkmgmt_getObjectsList($src_object_id = NULL) {
+
+	/* TODO multilink ports */
+
+	$query = 'SELECT RackObject.id, CONCAT(RackObject.name, " (", count(Port.id), ")") as name
+			FROM RackObject
+			JOIN Port on RackObject.id = Port.object_id
+			LEFT JOIN LinkBackend on Port.id in (LinkBackend.porta, LinkBackend.portb)
+			JOIN Port as srcPort on srcPort.name = Port.Name
+			LEFT JOIN LinkBackend as srcLinkBackend on srcPort.id in (srcLinkBackend.porta, srcLinkBackend.portb)
+			WHERE LinkBackend.porta is NULL AND LinkBackend.portb is NULL
+			AND srcLinkBackend.porta is NULL AND srcLinkBackend.portb is NULL
+			AND srcPort.object_id = ?
+
+			GROUP by RackObject.id';
+
+	$qparams = array($src_object_id);
+
+	$result = usePreparedSelectBlade ($query, $qparams);
+
+	$row = $result->fetchAll(PDO::FETCH_GROUP|PDO::FETCH_UNIQUE|PDO::FETCH_COLUMN);
+
+	return $row;
+}
 
 /* ------------------------------------------------ */
 
@@ -703,7 +750,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 			.'">Show All Ports</a></td>';
 
 	echo '<td width=200><span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
-                                array('op' => 'PortLinkDialog','linktype' => 'back','byname' => '1'))).'","name","height=700,width=400,scrollbars=yes");><a>Link Object Ports by Name</a></span></td>';
+                                array('op' => 'PortLinkDialog','linktype' => 'back','byname' => '1'))).'","name","height=700,width=800,scrollbars=yes");><a>Link Object Ports by Name</a></span></td>';
 
 	if($allback) {
 
