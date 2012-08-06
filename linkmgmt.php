@@ -727,6 +727,8 @@ function linkmgmt_renderObjectLinks($object_id) {
 	//$ports = getObjectPortsAndLinks($object_id);
 	$ports = $object['ports'];
 
+	/* reindex array so key starts at 0 */
+	$ports = array_values($ports);
 
 	/* URL param handling */
 	if(isset($_GET['allports'])) {
@@ -776,11 +778,11 @@ function linkmgmt_renderObjectLinks($object_id) {
 	/*  switch display order depending on backend links */
 	$first = portlist::hasbackend($object_id);
 
-	foreach($ports as $port) {
+	foreach($ports as $key => $port) {
 
 		$plist = new portlist($port, $object_id, $allports, $allback);
 
-		$plist->printportlistrow($first, $hl_port_id);
+		$plist->printportlistrow($first, $hl_port_id, $key);
 
 	}
 
@@ -820,8 +822,9 @@ class portlist {
 	const CURRENT_OBJECT_BGCOLOR = '#ff0000';
 	const HL_PORT_BGCOLOR = '#00ff00';
 
+	/* TODO multilink */
 	/* Possible LOOP detected after count links print only */
-	const MAX_LOOP_COUNT = 13;
+	const MAX_LOOP_COUNT = 130;
 
 	private $loopcount;
 
@@ -912,7 +915,7 @@ class portlist {
 		/* TODO multilink*/
 		if(array_key_exists($dst_port_id, $this->list)) {
 
-			$dst_port = $this->list[$dst_port_id];
+		//	$dst_port = $this->list[$dst_port_id];
 
 			$src_link['loop'] = $dst_port_id;
 
@@ -1162,7 +1165,7 @@ class portlist {
 	/*
 	 * print <tr>..</tr>
 	 */
-	function printportlistrow($first = TRUE, $hl_port_id = NULL) {
+	function printportlistrow($first = TRUE, $hl_port_id = NULL, $key = 0) {
 
 		$this->loopcount = 0;
 
@@ -1178,7 +1181,7 @@ class portlist {
 		if($hl_port_id == $this->port_id)
 			$hlbgcolor = "bgcolor=".self::HL_PORT_BGCOLOR;
 		else
-			$hlbgcolor = "";
+			$hlbgcolor = ($key % 2 ? "" : "bgcolor=#f0f0f0");
 
 		$link = NULL;
 
@@ -1224,10 +1227,13 @@ class portlist {
 			if($linkcount > 1)
 				echo "<td><table>";
 
-			foreach($this->list[$src_port_id][$linktype] as &$link) {
+			$lastkey = $linkcount - 1;
 
-				if($linkcount > 1)
-					echo "<tr>";
+			foreach($this->list[$src_port_id][$linktype] as $key => &$link) {
+
+				if($linkcount > 1) {
+					echo "<tr style=\"background-color:".( $key % 2 ? "#f0f0f0" : "#ffffff" )."\">";
+				}
 
 				$dst_port_id = $link['id'];
 
@@ -1252,8 +1258,9 @@ class portlist {
 
 				$this->_printportlist($dst_port_id,!$back);
 			
-				if($linkcount > 1)
-					echo "</tr>";
+				if($linkcount > 1) {
+					echo "</tr>".( $key != $lastkey ? "<tr><td height=1 colspan=100% bgcolor=#c0c0c0><td></tr>" : "");
+				}
 			}
 
 			if($linkcount > 1)
