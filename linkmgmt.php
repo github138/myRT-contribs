@@ -431,6 +431,13 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype) {
                 $qparams = array_merge ($qparams, $filter['racks']);
         }
 
+	// object_id filterr
+        if (! empty ($filter['object_id']))
+        {
+                $query .= 'AND RackObject.id = ? ';
+                $qparams[] = $filter['object_id'];
+        }
+	else
 	// objectname filter
         if (! empty ($filter['objects']))
         {
@@ -506,7 +513,11 @@ function linkmgmt_renderPopupPortSelector()
 	$linktype = $_REQUEST['linktype'];
 	$object_id = $_REQUEST['object_id'];
         $port_info = getPortInfo ($port_id);
-        $in_rack = isset ($_REQUEST['in_rack']);
+
+        if(isset ($_REQUEST['in_rack']))
+		$in_rack = $_REQUEST['in_rack'] != 'off';
+	else
+		$in_rack = true;
 
 //	portlist::var_dump_html($port_info);
 //	portlist::var_dump_html($_REQUEST);
@@ -516,8 +527,19 @@ function linkmgmt_renderPopupPortSelector()
         (
                 'racks' => array(),
                 'objects' => '',
+                'object_id' => '',
                 'ports' => '',
         );
+
+	$remote_object = NULL;
+	if(isset($_REQUEST['remote_object']))
+	{
+		$remote_object = $_REQUEST['remote_object'];
+
+		if($remote_object != 'NULL')
+			$filter['object_id'] = $remote_object;
+	}
+
         if (isset ($_REQUEST['filter-obj']))
                 $filter['objects'] = $_REQUEST['filter-obj'];
         if (isset ($_REQUEST['filter-port']))
@@ -529,13 +551,25 @@ function linkmgmt_renderPopupPortSelector()
                         $filter['racks'] = getProximateRacks ($object['rack_id'], getConfigVar ('PROXIMITY_RANGE'));
         }
         $spare_ports = array();
+
         if
         (
                 $in_rack ||
                 ! empty ($filter['objects']) ||
+                ! empty ($filter['object_id']) ||
                 ! empty ($filter['ports'])
         )
-                $spare_ports = linkmgmt_findSparePorts ($port_info, $filter, $linktype);
+	{
+		$spare_ports = linkmgmt_findSparePorts ($port_info, $filter, $linktype);
+		$objectlist = array('NULL' => '- Show All -');
+
+		$objectlist = $objectlist + linkmgmt_getObjectsList($port_info, $filter, $linktype, 'default', NULL);
+	}
+	else
+		$objectlist = array();
+
+	$maxsize  = getConfigVar('MAXSELSIZE');
+	$objectcount = count($objectlist);
 
         // display search form
         echo 'Link '.$linktype.' of ' . formatPort ($port_info) . ' to...';
@@ -545,17 +579,28 @@ function linkmgmt_renderPopupPortSelector()
        // echo '<input type=hidden name="helper" value="portlist">';
 
         echo '<input type=hidden name="port" value="' . $port_id . '">';
-        echo '<table align="center" valign="bottom"><tr>';
+        echo '<table><tr><td valign="top"><table><tr><td>';
+
+	echo '<table align="center"><tr>';
         echo '<td class="tdleft"><label>Object name:<br><input type=text size=8 name="filter-obj" value="' . htmlspecialchars ($filter['objects'], ENT_QUOTES) . '"></label></td>';
         echo '<td class="tdleft"><label>Port name:<br><input type=text size=6 name="filter-port" value="' . htmlspecialchars ($filter['ports'], ENT_QUOTES) . '"></label></td>';
-        echo '<td class="tdleft" valign="bottom"><label><input type=checkbox name="in_rack"' . ($in_rack ? ' checked' : '') . '>Nearest racks</label></td>';
-        echo '<td valign="bottom"><input type=submit value="show '.$linktype.' ports"></td>';
+        echo '<td class="tdleft" valign="bottom"><input type="hidden" name="in_rack" value="off" /><label><input type=checkbox value="1" name="in_rack"'.($in_rack ? ' checked="checked"' : '').'>Nearest racks</label></td>';
         echo '</tr></table>';
+
+	echo '</td></tr><tr><td>';
+        echo 'Object name (count ports)<br>';
+        echo getSelect ($objectlist, array ('name' => 'remote_object',
+						'size' => ($objectcount <= $maxsize ? $objectcount : $maxsize)),
+						 $remote_object, FALSE);
+
+	echo '</td></tr></table></td>';
+        echo '<td valign="top"><br><input type=submit value="show '.$linktype.' ports"></td>';
         finishPortlet();
+        echo '</td><td>';
 
         // display results
         startPortlet ('Compatible spare '.$linktype.' ports');
-	echo('back Object:Port -- front cableID --> front Port:Object');
+	echo 'back Object:Port -- front cableID --> front Port:Object<br>';
 
         if (empty ($spare_ports))
                 echo '(nothing found)';
@@ -566,6 +611,7 @@ function linkmgmt_renderPopupPortSelector()
                 echo "<p><input type='submit' value='Link $linktype' name='do_link'>";
         }
         finishPortlet();
+        echo '</td></tr></table>';
         echo '</form>';
 
 } /* linkmgmt_renderPopUpPortSelector */
@@ -641,25 +687,70 @@ function linkmgmt_renderPopupPortSelectorbyName()
 /* ------------------------------------------------ */
 
 /*
- * returns a list of all objects with unlinked ports that match those of src_object_id
+ * returns a list of all objects with unlinked ports
+ * type 'default':
+	'name':  that match those of src_object_id
  */
-function linkmgmt_getObjectsList($src_object_id = NULL) {
+function linkmgmt_getObjectsList($port_info, $filter, $linktype, $type = 'default', $src_object_id = NULL) {
 
 	/* TODO multilink ports */
+	/* TODO linked prots , port combatibility */
 
 	$query = 'SELECT RackObject.id, CONCAT(RackObject.name, " (", count(Port.id), ")") as name
 			FROM RackObject
 			JOIN Port on RackObject.id = Port.object_id
-			LEFT JOIN LinkBackend on Port.id in (LinkBackend.porta, LinkBackend.portb)
-			JOIN Port as srcPort on srcPort.name = Port.Name
-			LEFT JOIN LinkBackend as srcLinkBackend on srcPort.id in (srcLinkBackend.porta, srcLinkBackend.portb)
-			WHERE LinkBackend.porta is NULL AND LinkBackend.portb is NULL
-			AND srcLinkBackend.porta is NULL AND srcLinkBackend.portb is NULL
-			AND srcPort.object_id = ?
+			LEFT JOIN LinkBackend on Port.id in (LinkBackend.porta, LinkBackend.portb)';
 
-			GROUP by RackObject.id';
+	if($type == 'name')
+		$query .= ' JOIN Port as srcPort on srcPort.name = Port.Name';
+	else
+		$query .= ' JOIN Port as srcPort on srcPort.id = Port.id';
 
-	$qparams = array($src_object_id);
+	$query .= ' LEFT JOIN LinkBackend as srcLinkBackend on srcPort.id in (srcLinkBackend.porta, srcLinkBackend.portb)';
+
+	/* WHERE */
+	$query .= ' WHERE LinkBackend.porta is NULL AND LinkBackend.portb is NULL
+			AND srcLinkBackend.porta is NULL AND srcLinkBackend.portb is NULL';
+
+	$qparams = array();
+
+	if($src_object_id !== NULL)
+	{
+		$query .= ' AND srcPort.object_id = ?';
+		$qparams[] = $src_object_id;
+	}
+
+	if($port_info !== NULL )
+	{
+		$query .= ' AND srcPort.id != ?';
+		$qparams[] = $port_info['id'];
+	}
+
+
+	 // rack filter
+        if (! empty ($filter['racks']))
+        {
+                $query .= 'AND Port.object_id IN (SELECT DISTINCT object_id FROM RackSpace WHERE rack_id IN (' .
+                        questionMarks (count ($filter['racks'])) . ')) ';
+                $qparams = array_merge ($qparams, $filter['racks']);
+        }
+
+	// objectname filter
+        if (! empty ($filter['objects']))
+        {
+                $query .= 'AND RackObject.name like ? ';
+                $qparams[] = '%' . $filter['objects'] . '%';
+        }
+
+        // portname filter
+        if (! empty ($filter['ports']))
+        {
+                $query .= 'AND Port.name LIKE ? ';
+                $qparams[] = '%' . $filter['ports'] . '%';
+        }
+
+	$query .= ' GROUP by RackObject.id';
+	$query .= ' ORDER by RackObject.Name';
 
 	$result = usePreparedSelectBlade ($query, $qparams);
 
@@ -1349,7 +1440,7 @@ class portlist {
 			/* backend link */
 
 			echo '<span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
-				array('op' => 'PortLinkDialog','port' => $port_id,'linktype' => $linktype))).'","name","height=800,width=400");'
+				array('op' => 'PortLinkDialog','port' => $port_id,'linktype' => $linktype ))).'","name","height=800,width=800");'
                         .'>';
                         $img = getImageHREF ('plug', $linktype.' Link this port');
 
