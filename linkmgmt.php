@@ -550,23 +550,11 @@ function linkmgmt_renderPopupPortSelector()
                 if ($object['rack_id'])
                         $filter['racks'] = getProximateRacks ($object['rack_id'], getConfigVar ('PROXIMITY_RANGE'));
         }
-        $spare_ports = array();
 
-        if
-        (
-                $in_rack ||
-                ! empty ($filter['objects']) ||
-                ! empty ($filter['object_id']) ||
-                ! empty ($filter['ports'])
-        )
-	{
-		$spare_ports = linkmgmt_findSparePorts ($port_info, $filter, $linktype);
-		$objectlist = array('NULL' => '- Show All -');
+	$objectlist = array('NULL' => '- Show All -');
+	$objectlist = $objectlist + linkmgmt_getObjectsList($port_info, $filter, $linktype, 'default', NULL);
 
-		$objectlist = $objectlist + linkmgmt_getObjectsList($port_info, $filter, $linktype, 'default', NULL);
-	}
-	else
-		$objectlist = array();
+	$spare_ports = linkmgmt_findSparePorts ($port_info, $filter, $linktype);
 
 	$maxsize  = getConfigVar('MAXSELSIZE');
 	$objectcount = count($objectlist);
@@ -733,7 +721,6 @@ function linkmgmt_getObjectsList($port_info, $filter, $linktype, $type = 'defaul
 		$query .= ' AND srcPort.id != ?';
 		$qparams[] = $port_info['id'];
 	}
-
 
 	 // rack filter
         if (! empty ($filter['racks']))
