@@ -403,24 +403,34 @@ header ('Content-Type: text/html; charset=UTF-8');
 function linkmgmt_findSparePorts($port_info, $filter, $linktype) {
 
 	/* TODO multilink */
-	//select *, count(a)as linkcount from (select porta as a,portb as b from LinkBackend union select portb as a, porta as b from LinkBackend) as t group by a
 
-	// all ports with no backend link
-	/* port:object -> front linked port:object */
+	if($linktype == 'back')
+	{
+		$linktable = 'Link';
+		$linkbacktable = 'LinkBackend';
+	}
+	else
+	{
+		$linktable = 'LinkBackend';
+		$linkbacktable = 'Link';
+	}
+
+	// all ports with no link
+	/* port:object -> linked port:object */
 	$query = 'select Port.id, CONCAT(RackObject.name, " : ", Port.name,
-			IFNULL(CONCAT(" -- ", Link.cable," --> ",lnkPort.name, " : ", lnkObject.name),"") )
+			IFNULL(CONCAT(" -- ", '.$linktable.'.cable," --> ",lnkPort.name, " : ", lnkObject.name),"") )
 		from Port
-		left join LinkBackend on Port.id in (LinkBackend.porta,LinkBackend.portb)
+		left join '.$linkbacktable.' on Port.id in ('.$linkbacktable.'.porta,'.$linkbacktable.'.portb)
 		left join RackObject on RackObject.id = Port.object_id
-		left join Link on Port.id in (Link.porta, Link.portb)
-		left join Port as lnkPort on lnkPort.id = ((Link.porta ^ Link.portb) ^ Port.id)
+		left join '.$linktable.' on Port.id in ('.$linktable.'.porta, '.$linktable.'.portb)
+		left join Port as lnkPort on lnkPort.id = (('.$linktable.'.porta ^ '.$linktable.'.portb) ^ Port.id)
 		left join RackObject as lnkObject on lnkObject.id = lnkPort.object_id';
 
 	$qparams = array();
 
 	 // self and linked ports filter
         $query .= " WHERE Port.id <> ? ".
-		    "AND LinkBackend.porta is NULL ";
+		    "AND $linkbacktable.porta is NULL ";
         $qparams[] = $port_info['id'];
 
 	 // rack filter
@@ -690,22 +700,72 @@ function linkmgmt_renderPopupPortSelectorbyName()
 function linkmgmt_getObjectsList($port_info, $filter, $linktype, $type = 'default', $src_object_id = NULL) {
 
 	/* TODO multilink ports */
-	/* TODO linked prots , port combatibility */
+	/* TODO port combatibility for front links */
+
+/*
+INNER JOIN PortInnerInterface pii ON p.iif_id = pii.id
+INNER JOIN Dictionary d ON d.dict_key = p.type
+";
+        // porttype filter (non-strict match)
+        $query .= "
+INNER JOIN (
+        SELECT Port.id FROM Port
+        INNER JOIN
+        (
+                SELECT DISTINCT pic2.iif_id
+                FROM PortInterfaceCompat pic2
+                INNER JOIN PortCompat pc ON pc.type2 = pic2.oif_id
+";
+                if ($port_info['iif_id'] != 1)
+                {
+                        $query .= " INNER JOIN PortInterfaceCompat pic ON pic.oif_id = pc.type1 WHERE pic.iif_id = ? AND ";
+                        $qparams[] = $port_info['iif_id'];
+                }
+                else
+                {
+                        $query .= " WHERE pc.type1 = ? AND ";
+                        $qparams[] = $port_info['oif_id'];
+                }
+                $query .= "
+                        pic2.iif_id <> 1
+        ) AS sub1 USING (iif_id)
+        UNION
+        SELECT Port.id
+        FROM Port
+        INNER JOIN PortCompat ON type1 = type
+        WHERE
+                iif_id = 1 and type2 = ?
+) AS sub2 ON sub2.id = p.id
+";
+        $qparams[] = $port_info['oif_id'];
+*/
+
+
+	if($linktype == 'back')
+	{
+		$linktable = 'Link';
+		$linkbacktable = 'LinkBackend';
+	}
+	else
+	{
+		$linktable = 'LinkBackend';
+		$linkbacktable = 'Link';
+	}
 
 	$query = 'SELECT RackObject.id, CONCAT(RackObject.name, " (", count(Port.id), ")") as name
 			FROM RackObject
 			JOIN Port on RackObject.id = Port.object_id
-			LEFT JOIN LinkBackend on Port.id in (LinkBackend.porta, LinkBackend.portb)';
+			LEFT JOIN '.$linkbacktable.' on Port.id in ('.$linkbacktable.'.porta, '.$linkbacktable.'.portb)';
 
 	if($type == 'name')
 		$query .= ' JOIN Port as srcPort on srcPort.name = Port.Name';
 	else
 		$query .= ' JOIN Port as srcPort on srcPort.id = Port.id';
 
-	$query .= ' LEFT JOIN LinkBackend as srcLinkBackend on srcPort.id in (srcLinkBackend.porta, srcLinkBackend.portb)';
+	$query .= ' LEFT JOIN '.$linkbacktable.' as srcLinkBackend on srcPort.id in (srcLinkBackend.porta, srcLinkBackend.portb)';
 
 	/* WHERE */
-	$query .= ' WHERE LinkBackend.porta is NULL AND LinkBackend.portb is NULL
+	$query .= ' WHERE '.$linkbacktable.'.porta is NULL AND '.$linkbacktable.'.portb is NULL
 			AND srcLinkBackend.porta is NULL AND srcLinkBackend.portb is NULL';
 
 	$qparams = array();
