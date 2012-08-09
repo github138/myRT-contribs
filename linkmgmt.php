@@ -877,11 +877,13 @@ function linkmgmt_renderObjectLinks($object_id) {
 	/*  switch display order depending on backend links */
 	$first = portlist::hasbackend($object_id);
 
+	$rowcount = 0;
 	foreach($ports as $key => $port) {
 
 		$plist = new portlist($port, $object_id, $allports, $allback);
 
-		$plist->printportlistrow($first, $hl_port_id, $key);
+		if($plist->printportlistrow($first, $hl_port_id, ($rowcount % 2 ? portlist::ALTERNATE_ROW_BGCOLOR : "#ffffff")) )
+			$rowcount++;
 
 	}
 
@@ -920,6 +922,7 @@ class portlist {
 	const CURRENT_PORT_BGCOLOR = '#ffff99';
 	const CURRENT_OBJECT_BGCOLOR = '#ff0000';
 	const HL_PORT_BGCOLOR = '#00ff00';
+	const ALTERNATE_ROW_BGCOLOR = '#f0f0f0';
 
 	/* TODO multilink */
 	/* Possible LOOP detected after count links print only */
@@ -1264,12 +1267,12 @@ class portlist {
 	/*
 	 * print <tr>..</tr>
 	 */
-	function printportlistrow($first = TRUE, $hl_port_id = NULL, $key = 0) {
+	function printportlistrow($first = TRUE, $hl_port_id = NULL, $rowbgcolor = '#ffffff') {
 
 		$this->loopcount = 0;
 
 		if($this->first_id == NULL)
-			return;
+			return false;
 
 		if($first)
 			$id = $this->first_id;
@@ -1280,7 +1283,7 @@ class portlist {
 		if($hl_port_id == $this->port_id)
 			$hlbgcolor = "bgcolor=".self::HL_PORT_BGCOLOR;
 		else
-			$hlbgcolor = ($key % 2 ? "" : "bgcolor=#f0f0f0");
+			$hlbgcolor = "bgcolor=$rowbgcolor";
 
 		$link = NULL;
 
@@ -1304,6 +1307,8 @@ class portlist {
 
 		/* horizontal line */
                 echo '<tr><td height=1 colspan=3 bgcolor=#e0e0e0></td></tr>';
+
+		return true;
 
 	} /* printportlist */
 
@@ -1331,7 +1336,7 @@ class portlist {
 			foreach($this->list[$src_port_id][$linktype] as $key => &$link) {
 
 				if($linkcount > 1) {
-					echo "<tr style=\"background-color:".( $key % 2 ? "#f0f0f0" : "#ffffff" )."\">";
+					echo "<tr style=\"background-color:".( $key % 2 ? self::ALTERNATE_ROW_BGCOLOR : "#ffffff" )."\">";
 				}
 
 				$dst_port_id = $link['id'];
