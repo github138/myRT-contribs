@@ -629,20 +629,28 @@ function linkmgmt_renderPopupPortSelectorbyName()
 
 	$object = spotEntity ('object', $object_id);
 
-	if(isset($_REQUEST['remote_object']))
-		$remote_object = $_REQUEST['remote_object'];
-	else
-		$remote_object = NULL;
-
-	if($remote_object)
-		$link_list = linkmgmt_findSparePortsbyName($object_id, $remote_object, $linktype);
-
-	$objectlist = linkmgmt_getObjectsList($object_id);
+	$objectlist = linkmgmt_getObjectsList(NULL, NULL, $linktype, 'name', $object_id);
 
 	$objectname = (isset($objectlist[$object_id]) ? $objectlist[$object_id] : $object['name']." (0)" );
 
 	/* remove self from list */
 	unset($objectlist[$object_id]);
+
+	if(isset($_REQUEST['remote_object']))
+		$remote_object = $_REQUEST['remote_object'];
+	else
+	{
+		/* choose first object from list */
+		$keys = array_keys($objectlist);
+
+		if(isset($keys[0]))
+			$remote_object = $keys[0];
+		else
+			$remote_object = NULL;
+	}
+
+	if($remote_object)
+		$link_list = linkmgmt_findSparePortsbyName($object_id, $remote_object, $linktype);
 
         // display search form
         echo 'Link '.$linktype.' of ' . formatPortLink($object_id, $objectname, NULL, NULL) . ' Ports by Name to...';
@@ -657,7 +665,7 @@ function linkmgmt_renderPopupPortSelectorbyName()
         echo 'Object name (count ports)<br>';
         echo getSelect ($objectlist, array ('name' => 'remote_object',
 						'size' => ($objectcount <= $maxsize ? $objectcount : $maxsize)),
-						 NULL, FALSE);
+						 $remote_object, FALSE);
         echo '</td><td><input type=submit value="show '.$linktype.' ports>"></td>';
         finishPortlet();
 
