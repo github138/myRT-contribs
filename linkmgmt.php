@@ -86,6 +86,8 @@ CREATE TABLE `LinkBackend` (
  * 03.08.12	fix display order for objects without links
  * 06.08.12	add port count to Link by Name
  *		change "Link by Name" dialog design
+ * 10.08.12	add portlist::_getlinkportsymbol
+ *		rename _LinkPort -> _printlinkportsymbol
  *
  *
  */
@@ -891,9 +893,6 @@ function linkmgmt_tabhandler($object_id) {
 		linkmgmt_renderObjectLinks($child['entity_id']);
 	}
 
-//	$plist->var_dump_html($plist->list);
-
-
 	return;
 
 } /* tabhandler */
@@ -957,7 +956,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 
 	echo '</tr></table>';
 
-	echo '<br><br><table>';
+	echo '<br><br><table id=renderobjectlinks0>';
 
 	/*  switch display order depending on backend links */
 	$first = portlist::hasbackend($object_id);
@@ -1030,18 +1029,7 @@ class portlist {
 
 		$this->allback = $allback;
 
-		/* Front Port */
-		$this->count = 0;
-		$this->_getportlist($this->_getportdata($port_id),FALSE);
-		$this->front_count = $this->count;
-
-		/* Back Port */
-		$this->count = 0;
-		$this->_getportlist($this->_getportdata($port_id), TRUE, FALSE);
-		$this->back_count = $this->count;
-
-		$this->count = $this->front_count + $this->back_count;
-
+		$this->_getportlists($port_id);
 
 		if(!$allports)
 			if($this->count == 0 || ( ($this->count == 1) && (!empty($this->list[$port_id]['back'])) ) ) {
@@ -1055,7 +1043,25 @@ class portlist {
 
 
 	/*
-         * gets front and back port of src_port
+	 * get front and back portlist
+	 */
+	function _getportlists($port_id) {
+
+		/* Front Port */
+		$this->count = 0;
+		$this->_getportlist($this->_getportdata($port_id),FALSE, TRUE);
+		$this->front_count = $this->count;
+
+		/* Back Port */
+		$this->count = 0;
+		$this->_getportlist($this->_getportdata($port_id), TRUE, FALSE);
+		$this->back_count = $this->count;
+
+		$this->count = $this->front_count + $this->back_count;
+	}
+
+	/*
+         * gets front or back port of src_port
 	 * and adds it to the list
 	 */
 	/* !!! recursive */
@@ -1142,7 +1148,7 @@ class portlist {
 
 		$result = usePreparedSelectBlade
 		(
-				'SELECT Port.id, Link.cable, Port.name,
+				'SELECT Port.id, Link.cable, Port.name, Port.label, Port.type, Port.l2address, Port.object_id,
 				 CONCAT(Link.porta,"_",Link.portb) as link_id from Link
 				 join Port
 				 where (? in (Link.porta,Link.portb)) and ((Link.porta ^ Link.portb) ^ ? ) = Port.id',
@@ -1152,7 +1158,7 @@ class portlist {
 
 		$result = usePreparedSelectBlade
 		(
-				'SELECT Port.id, LinkBackend.cable, Port.name,
+				'SELECT Port.id, LinkBackend.cable, Port.name, Port.label, Port.type, Port.l2address, Port.object_id,
 				 CONCAT(LinkBackend.porta,"_",LinkBackend.portb,"_back") as link_id from LinkBackend
 				 join Port
 				 where (? in (LinkBackend.porta,LinkBackend.portb)) and ((LinkBackend.porta ^ LinkBackend.portb) ^ ? ) = Port.id',
@@ -1181,7 +1187,11 @@ class portlist {
 
 	/*
 	 */
-	function printport(&$port) {
+	function printport(&$port, $edgeport) {
+		global $lm_multilink_port_types;
+
+		$multilink = false;
+
 		/* set bgcolor for current port */
 		if($port['id'] == $this->port_id) {
 			$bgcolor = 'bgcolor='.self::CURRENT_PORT_BGCOLOR;
@@ -1191,14 +1201,18 @@ class portlist {
 			$idtag = '';
 		}
 
+		if(!$edgeport)
+			if(in_array($port['type'], $lm_multilink_port_types))
+				$multilink = true;
+
 		$mac = trim(preg_replace('/(..)/','$1:',$port['l2address']),':');
 
-		$title = "Label: ${port['label']}\nMAC: $mac\nPortID: ${port['id']}";
+		$title = "Label: ${port['label']}\nMAC: $mac\nTypeID: ${port['type']}\nPortID: ${port['id']}";
 
 		echo '<td'.$idtag.' align=center '.$bgcolor.' title="'.$title.'"><pre>[<a href="'
 			.makeHref(array('page'=>'object', 'tab' => 'linkmgmt', 'object_id' => $port['object_id'], 'hl_port_id' => $port['id']))
 			.'#'.$port['id']
-			.'">'.$port['name'].'</a>]</pre></td>';
+			.'">'.$port['name'].'</a>]</pre>'.($multilink ? $this->_getlinkportsymbol($port['id'], 'back') : '' ).'</td>';
 
 	} /* printport */
 
@@ -1256,47 +1270,55 @@ class portlist {
 	 */
 	function _printportlink($src_port_id, $dst_port_id, &$src_link, $back = FALSE) {
 
-		//$port_id = $src_link['id'];
+	if(!isset($this->list[$dst_port_id]))
+	{
+		/* get port not in list */
+	//	echo "<td>AHHH $src_port_id $dst_port_id --> $back</td>";
+	//	echo "<td>load".$this->var_dump_html($src_link)." tree</td>";
+//		echo "<td>".$src_link['cable']." ".$src_link['name']."</td><td>not displayed</td>";
 
-/*
-	DEBUG
-		echo "$src_port_id --><br>";
-		$this->var_dump_html($src_link);
-		echo "-->$dst_port_id<br>";
-*/
-		$dst_port = $this->list[$dst_port_id];
-		$object_id = $dst_port['object_id'];
-		$obj_name = $dst_port['obj_name'];
+		if($back)
+			echo "<td>></td>";
 
-		$loop = FALSE;
+		$this->printport($src_link, true);
+		echo "<td>...</td>";
 
-		if($back) {
-			$linktype = 'back';
+		return TRUE;
+
+	//	$this->_getportlist($this->list[$src_port_id], $back, !$back);
+	}
+
+	$dst_port = $this->list[$dst_port_id];
+	$object_id = $dst_port['object_id'];
+	$obj_name = $dst_port['obj_name'];
+
+	$loop = FALSE;
+	$edgeport = ($src_link == NULL) || empty($dst_port['front']) || empty($dst_port['back']);
+
+	if($back) {
+		$linktype = 'back';
+	} else {
+		$linktype = 'front';
+	}
+
+	$sameobject = FALSE;
+
+	if(isset($src_link['loop']))
+		$loop = TRUE;
+
+	if($src_link != NULL) {
+
+		$src_object_id = $this->list[$src_port_id]['object_id'];
+
+		if(!$this->allback && $object_id == $src_object_id && $back) {
+			$sameobject = TRUE;
 		} else {
-			$linktype = 'front';
+			$this->printlink($src_link, $linktype);
 		}
 
-		$sameobject = FALSE;
-
-		if(isset($src_link['loop']))
-			$loop = TRUE;
-
-		if($src_link != NULL) {
-
-		/* TODO multilink */
-	//	foreach($port[$linktype] as &$link) {
-
-		//	$src_port_id = $dst_port[$linktype]['id'];
-			$src_object_id = $this->list[$src_port_id]['object_id'];
-
-			if(!$this->allback && $object_id == $src_object_id && $back) {
-				$sameobject = TRUE;
-			} else {
-				$this->printlink($src_link, $linktype);
-			}
-	//	}
-		} else {
-			$this->_LinkPort($dst_port_id, $linktype);
+	} else {
+		$this->_printlinkportsymbol($dst_port_id, $linktype);
+		$edgeport = true;
 
 			if(!$back)
 				$this->printcomment($dst_port);
@@ -1305,15 +1327,16 @@ class portlist {
 		if($back) {
 			if(!$sameobject)
 				$this->printobject($object_id,$obj_name);
+
 			echo "<td>></td>";
 
 			/* align ports nicely */
 			if($dst_port['id'] == $this->port_id)
-				echo '</td></tr></table></td><td><table align=left><tr>';
+				echo '</td></tr></table id=printportlink1></td><td><table align=left><tr>';
 		}
 
 		/* print [portname] */
-		$this->printport($dst_port);
+		$this->printport($dst_port, $edgeport);
 
 		if($loop)
 			echo '<td bgcolor=#ff9966>LOOP</td>';
@@ -1322,17 +1345,17 @@ class portlist {
 
 			/* align ports nicely */
 			if($dst_port['id'] == $this->port_id)
-				echo '</td></tr></table></td><td><table align=left><tr>';
+				echo '</td></tr></table id=printportlink2></td><td><table align=left><tr>';
 
 			echo "<td><</td>";
 			$this->printobject($object_id,$obj_name);
 
 			if(empty($dst_port['back']))
-				$this->_LinkPort($dst_port_id, 'back');
+				$this->_printlinkportsymbol($dst_port_id, 'back');
 		} else
 			if(empty($dst_port['front'])) {
 				$this->printcomment($dst_port);
-				$this->_LinkPort($dst_port_id, 'front');
+				$this->_printlinkportsymbol($dst_port_id, 'front');
 			}
 
 		if($loop) {
@@ -1374,12 +1397,12 @@ class portlist {
 
 		$port = $this->list[$id];
 
-		$title = "linkcount: ".$this->count." (".$this->front_count."/".$this->back_count.")";
+		$title = "linkcount: ".$this->count." (".$this->front_count."/".$this->back_count.")\nTypeID: ${port['type']}\nPortID: $id";
 
 		/* Current Port */
 		echo '<tr '.$hlbgcolor.'><td nowrap="nowrap" bgcolor='.self::CURRENT_PORT_BGCOLOR.' title="'.$title.'">'.$this->port['name'].': </td>';
 
-		echo "<td><table align=right><tr><td>";
+		echo "<td><table id=printportlistrow1 align=right><tr><td>";
 
 		/* TODO use linkcount for correct order */
 
@@ -1388,7 +1411,7 @@ class portlist {
 		$this->_printportlink(NULL, $id, $link, $back);
 
 		$this->_printportlist($id, !$back);
-		echo "</td></tr></table></td></tr>";
+		echo "</td></tr></table id=printportlistrow2></td></tr>";
 
 		/* horizontal line */
                 echo '<tr><td height=1 colspan=3 bgcolor=#e0e0e0></td></tr>';
@@ -1414,14 +1437,14 @@ class portlist {
 			$linkcount = count($this->list[$src_port_id][$linktype]);
 
 			if($linkcount > 1)
-				echo "<td><table>";
+				echo "<td bgcolor=#f00000></td><td><table id=_printportlist1>";
 
 			$lastkey = $linkcount - 1;
 
 			foreach($this->list[$src_port_id][$linktype] as $key => &$link) {
 
 				if($linkcount > 1) {
-					echo "<tr style=\"background-color:".( $key % 2 ? self::ALTERNATE_ROW_BGCOLOR : "#ffffff" )."\"><td><table><tr>";
+					echo "<tr style=\"background-color:".( $key % 2 ? self::ALTERNATE_ROW_BGCOLOR : "#ffffff" )."\"><td><table id=_printportlist2><tr>";
 				}
 
 				$dst_port_id = $link['id'];
@@ -1502,62 +1525,44 @@ class portlist {
 
         } /* _getRackInfo */
 
-
 	/*
 	 * return link symbol
+	 */
+	function _getlinkportsymbol($port_id, $linktype) {
+		$retval = '<span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
+			array('op' => 'PortLinkDialog','port' => $port_id,'linktype' => $linktype ))).'","name","height=800,width=800");'
+		        .'>';
+
+                $img = getImageHREF ('plug', $linktype.' Link this port');
+
+		if($linktype == 'back')
+			$img = str_replace('<img',
+				'<img style="transform:rotate(180deg);-o-transform:rotate(180deg);-ms-transform:rotate(180deg);-moz-transform:rotate(180deg);-webkit-transform:rotate(180deg);"',
+				$img);
+
+		$retval .= $img;
+		$retval .= "</span>";
+		return $retval;
+
+	} /* _getlinkportsymbol */
+
+	/*
+	 * print link symbol
 	 *
 	 */
-       function _LinkPort($port_id, $linktype = 'front') {
+       function _printlinkportsymbol($port_id, $linktype = 'front') {
 		global $lm_cache;
 
 		if(!$lm_cache['allowlink'])
 			return;
 
-               $helper_args = array
-                        (
-                                'port' => $port_id,
-                        );
-
                 echo "<td align=center>";
 
-		/*
-		if($linktype == 'front') {
-
-                        echo "<span";
-                        $popup_args = 'height=700, width=400, location=no, menubar=no, '.
-                                'resizable=yes, scrollbars=yes, status=no, titlebar=no, toolbar=no';
-                        echo " ondblclick='window.open(\"" . makeHrefForHelper ('portlist', $helper_args);
-                        echo "\",\"findlink\",\"${popup_args}\");'";
-                        // end of onclick=
-                        echo " onclick='window.open(\"" . makeHrefForHelper ('portlist', $helper_args);
-                        echo "\",\"findlink\",\"${popup_args}\");'";
-                        // end of onclick=
-                        echo '>';
-                        printImageHREF ('plug', 'Link this port');
-                        echo "</span>";
-
-		} else {
-		*/
-			/* backend link */
-
-			echo '<span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
-				array('op' => 'PortLinkDialog','port' => $port_id,'linktype' => $linktype ))).'","name","height=800,width=800");'
-                        .'>';
-                        $img = getImageHREF ('plug', $linktype.' Link this port');
-
-			if($linktype == 'back')
-				$img = str_replace('<img',
-					'<img style="transform:rotate(180deg);-o-transform:rotate(180deg);-ms-transform:rotate(180deg);-moz-transform:rotate(180deg);-webkit-transform:rotate(180deg);"',
-					$img);
-
-			echo $img;
-                        echo "</span>";
-
-	//	}
+		echo $this->_getlinkportsymbol($port_id, $linktype);
 
 		echo "</td>";
 
-        } /* _LinkPort */
+        } /* _printlinkportsymbol */
 
 	/*
 	 * return link cut symbol
