@@ -98,11 +98,10 @@ CREATE TABLE `LinkBackend` (
  *
  * - Multiport support for port types AC-in (16) AC-out (1322) DC (1399)
  * 	allow multi backend links
- *		alter table
- *		display link count in link dialog
  *	fetch multi links select ...
- *	display multi links
  *
+ * - cleanup getobjectlist and findspareports function
+ *		both use similar sql query
  *
  * - csv list
  *
