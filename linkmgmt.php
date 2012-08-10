@@ -415,28 +415,63 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype) {
 		$linkbacktable = 'Link';
 	}
 
+	$qparams = array();
+
 	// all ports with no link
 	/* port:object -> linked port:object */
-	$query = 'select Port.id, CONCAT(RackObject.name, " : ", Port.name,
+	$query = 'SELECT Port.id, CONCAT(RackObject.name, " : ", Port.name,
 			IFNULL(CONCAT(" -- ", '.$linktable.'.cable," --> ",lnkPort.name, " : ", lnkObject.name),"") )
-		from Port
-		left join '.$linkbacktable.' on Port.id in ('.$linkbacktable.'.porta,'.$linkbacktable.'.portb)
+		FROM Port';
+
+	$join = ' left join '.$linkbacktable.' on Port.id in ('.$linkbacktable.'.porta,'.$linkbacktable.'.portb)
 		left join RackObject on RackObject.id = Port.object_id
 		left join '.$linktable.' on Port.id in ('.$linktable.'.porta, '.$linktable.'.portb)
 		left join Port as lnkPort on lnkPort.id = (('.$linktable.'.porta ^ '.$linktable.'.portb) ^ Port.id)
 		left join RackObject as lnkObject on lnkObject.id = lnkPort.object_id';
 
-	$qparams = array();
+	if($linktype == 'front')
+	{
+		$join .= ' INNER JOIN PortInnerInterface pii ON Port.iif_id = pii.id
+			INNER JOIN Dictionary d ON d.dict_key = Port.type';
+		// porttype filter (non-strict match)
+		$join .= ' INNER JOIN (
+			SELECT Port.id FROM Port
+			INNER JOIN
+			(
+				SELECT DISTINCT pic2.iif_id
+					FROM PortInterfaceCompat pic2
+					INNER JOIN PortCompat pc ON pc.type2 = pic2.oif_id';
+
+                if ($port_info['iif_id'] != 1)
+                {
+                        $join .= " INNER JOIN PortInterfaceCompat pic ON pic.oif_id = pc.type1 WHERE pic.iif_id = ?";
+                        $qparams[] = $port_info['iif_id'];
+                }
+                else
+                {
+                        $join .= " WHERE pc.type1 = ?";
+                        $qparams[] = $port_info['oif_id'];
+                }
+                $join .= " AND pic2.iif_id <> 1
+			 ) AS sub1 USING (iif_id)
+			UNION
+			SELECT Port.id
+			FROM Port
+			INNER JOIN PortCompat ON type1 = type
+			WHERE iif_id = 1 and type2 = ?
+			) AS sub2 ON sub2.id = Port.id";
+			$qparams[] = $port_info['oif_id'];
+	}
 
 	 // self and linked ports filter
-        $query .= " WHERE Port.id <> ? ".
+        $where = " WHERE Port.id <> ? ".
 		    "AND $linkbacktable.porta is NULL ";
         $qparams[] = $port_info['id'];
 
 	 // rack filter
         if (! empty ($filter['racks']))
         {
-                $query .= 'AND Port.object_id IN (SELECT DISTINCT object_id FROM RackSpace WHERE rack_id IN (' .
+                $where .= 'AND Port.object_id IN (SELECT DISTINCT object_id FROM RackSpace WHERE rack_id IN (' .
                         questionMarks (count ($filter['racks'])) . ')) ';
                 $qparams = array_merge ($qparams, $filter['racks']);
         }
@@ -444,25 +479,27 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype) {
 	// object_id filterr
         if (! empty ($filter['object_id']))
         {
-                $query .= 'AND RackObject.id = ? ';
+                $where .= 'AND RackObject.id = ? ';
                 $qparams[] = $filter['object_id'];
         }
 	else
 	// objectname filter
         if (! empty ($filter['objects']))
         {
-                $query .= 'AND RackObject.name like ? ';
+                $where .= 'AND RackObject.name like ? ';
                 $qparams[] = '%' . $filter['objects'] . '%';
         }
         // portname filter
         if (! empty ($filter['ports']))
         {
-                $query .= 'AND Port.name LIKE ? ';
+                $where .= 'AND Port.name LIKE ? ';
                 $qparams[] = '%' . $filter['ports'] . '%';
         }
+
+	$query .= $join.$where;
+
         // ordering
         $query .= ' ORDER BY RackObject.name';
-
 
 	$result = usePreparedSelectBlade ($query, $qparams);
 
@@ -598,7 +635,12 @@ function linkmgmt_renderPopupPortSelector()
 
         // display results
         startPortlet ('Compatible spare '.$linktype.' ports');
-	echo 'back Object:Port -- front cableID --> front Port:Object<br>';
+	if($linktype == 'back')
+		$notlinktype = 'front';
+	else
+		$notlinktype = 'back';
+
+	echo "spare $linktype Object:Port -- $notlinktype cableID -->  $notlinktype Port:Object<br>";
 
         if (empty ($spare_ports))
                 echo '(nothing found)';
@@ -700,46 +742,6 @@ function linkmgmt_renderPopupPortSelectorbyName()
 function linkmgmt_getObjectsList($port_info, $filter, $linktype, $type = 'default', $src_object_id = NULL) {
 
 	/* TODO multilink ports */
-	/* TODO port combatibility for front links */
-
-/*
-INNER JOIN PortInnerInterface pii ON p.iif_id = pii.id
-INNER JOIN Dictionary d ON d.dict_key = p.type
-";
-        // porttype filter (non-strict match)
-        $query .= "
-INNER JOIN (
-        SELECT Port.id FROM Port
-        INNER JOIN
-        (
-                SELECT DISTINCT pic2.iif_id
-                FROM PortInterfaceCompat pic2
-                INNER JOIN PortCompat pc ON pc.type2 = pic2.oif_id
-";
-                if ($port_info['iif_id'] != 1)
-                {
-                        $query .= " INNER JOIN PortInterfaceCompat pic ON pic.oif_id = pc.type1 WHERE pic.iif_id = ? AND ";
-                        $qparams[] = $port_info['iif_id'];
-                }
-                else
-                {
-                        $query .= " WHERE pc.type1 = ? AND ";
-                        $qparams[] = $port_info['oif_id'];
-                }
-                $query .= "
-                        pic2.iif_id <> 1
-        ) AS sub1 USING (iif_id)
-        UNION
-        SELECT Port.id
-        FROM Port
-        INNER JOIN PortCompat ON type1 = type
-        WHERE
-                iif_id = 1 and type2 = ?
-) AS sub2 ON sub2.id = p.id
-";
-        $qparams[] = $port_info['oif_id'];
-*/
-
 
 	if($linktype == 'back')
 	{
@@ -752,40 +754,76 @@ INNER JOIN (
 		$linkbacktable = 'Link';
 	}
 
+	$qparams = array();
+
 	$query = 'SELECT RackObject.id, CONCAT(RackObject.name, " (", count(Port.id), ")") as name
-			FROM RackObject
-			JOIN Port on RackObject.id = Port.object_id
+			FROM RackObject';
+
+	$join = ' JOIN Port on RackObject.id = Port.object_id
 			LEFT JOIN '.$linkbacktable.' on Port.id in ('.$linkbacktable.'.porta, '.$linkbacktable.'.portb)';
 
-	if($type == 'name')
-		$query .= ' JOIN Port as srcPort on srcPort.name = Port.Name';
-	else
-		$query .= ' JOIN Port as srcPort on srcPort.id = Port.id';
+	if($linktype == 'front')
+	{
+		$join .= ' INNER JOIN PortInnerInterface pii ON Port.iif_id = pii.id
+			INNER JOIN Dictionary d ON d.dict_key = Port.type';
+		// porttype filter (non-strict match)
+		$join .= ' INNER JOIN (
+			SELECT Port.id FROM Port
+			INNER JOIN
+			(
+				SELECT DISTINCT pic2.iif_id
+					FROM PortInterfaceCompat pic2
+					INNER JOIN PortCompat pc ON pc.type2 = pic2.oif_id';
 
-	$query .= ' LEFT JOIN '.$linkbacktable.' as srcLinkBackend on srcPort.id in (srcLinkBackend.porta, srcLinkBackend.portb)';
+                if ($port_info['iif_id'] != 1)
+                {
+                        $join .= " INNER JOIN PortInterfaceCompat pic ON pic.oif_id = pc.type1 WHERE pic.iif_id = ?";
+                        $qparams[] = $port_info['iif_id'];
+                }
+                else
+                {
+                        $join .= " WHERE pc.type1 = ?";
+                        $qparams[] = $port_info['oif_id'];
+                }
+                $join .= " AND pic2.iif_id <> 1
+			 ) AS sub1 USING (iif_id)
+			UNION
+			SELECT Port.id
+			FROM Port
+			INNER JOIN PortCompat ON type1 = type
+			WHERE iif_id = 1 and type2 = ?
+			) AS sub2 ON sub2.id = Port.id";
+			$qparams[] = $port_info['oif_id'];
+	}
+
+	if($type == 'name')
+		$join .= ' JOIN Port as srcPort on srcPort.name = Port.Name';
+	else
+		$join .= ' JOIN Port as srcPort on srcPort.id = Port.id';
+
+	$join .= ' LEFT JOIN '.$linkbacktable.' as srcLinkBackend on srcPort.id in (srcLinkBackend.porta, srcLinkBackend.portb)';
 
 	/* WHERE */
-	$query .= ' WHERE '.$linkbacktable.'.porta is NULL AND '.$linkbacktable.'.portb is NULL
+	$where = ' WHERE '.$linkbacktable.'.porta is NULL AND '.$linkbacktable.'.portb is NULL
 			AND srcLinkBackend.porta is NULL AND srcLinkBackend.portb is NULL';
 
-	$qparams = array();
 
 	if($src_object_id !== NULL)
 	{
-		$query .= ' AND srcPort.object_id = ?';
+		$where .= ' AND srcPort.object_id = ?';
 		$qparams[] = $src_object_id;
 	}
 
 	if($port_info !== NULL )
 	{
-		$query .= ' AND srcPort.id != ?';
+		$where .= ' AND srcPort.id != ?';
 		$qparams[] = $port_info['id'];
 	}
 
 	 // rack filter
         if (! empty ($filter['racks']))
         {
-                $query .= 'AND Port.object_id IN (SELECT DISTINCT object_id FROM RackSpace WHERE rack_id IN (' .
+                $where .= 'AND Port.object_id IN (SELECT DISTINCT object_id FROM RackSpace WHERE rack_id IN (' .
                         questionMarks (count ($filter['racks'])) . ')) ';
                 $qparams = array_merge ($qparams, $filter['racks']);
         }
@@ -793,17 +831,18 @@ INNER JOIN (
 	// objectname filter
         if (! empty ($filter['objects']))
         {
-                $query .= 'AND RackObject.name like ? ';
+                $where .= 'AND RackObject.name like ? ';
                 $qparams[] = '%' . $filter['objects'] . '%';
         }
 
         // portname filter
         if (! empty ($filter['ports']))
         {
-                $query .= 'AND Port.name LIKE ? ';
+                $where .= 'AND Port.name LIKE ? ';
                 $qparams[] = '%' . $filter['ports'] . '%';
         }
 
+	$query .= $join.$where;
 	$query .= ' GROUP by RackObject.id';
 	$query .= ' ORDER by RackObject.Name';
 
