@@ -1520,6 +1520,7 @@ class portlist {
 
                 echo "<td align=center>";
 
+		/*
 		if($linktype == 'front') {
 
                         echo "<span";
@@ -1536,6 +1537,7 @@ class portlist {
                         echo "</span>";
 
 		} else {
+		*/
 			/* backend link */
 
 			echo '<span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
@@ -1543,14 +1545,15 @@ class portlist {
                         .'>';
                         $img = getImageHREF ('plug', $linktype.' Link this port');
 
-			$img = str_replace('<img',
+			if($linktype == 'back')
+				$img = str_replace('<img',
 					'<img style="transform:rotate(180deg);-o-transform:rotate(180deg);-ms-transform:rotate(180deg);-moz-transform:rotate(180deg);-webkit-transform:rotate(180deg);"',
 					$img);
 
 			echo $img;
                         echo "</span>";
 
-		}
+	//	}
 
 		echo "</td>";
 
