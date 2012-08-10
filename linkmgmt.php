@@ -1421,7 +1421,7 @@ class portlist {
 			foreach($this->list[$src_port_id][$linktype] as $key => &$link) {
 
 				if($linkcount > 1) {
-					echo "<tr style=\"background-color:".( $key % 2 ? self::ALTERNATE_ROW_BGCOLOR : "#ffffff" )."\">";
+					echo "<tr style=\"background-color:".( $key % 2 ? self::ALTERNATE_ROW_BGCOLOR : "#ffffff" )."\"><td><table><tr>";
 				}
 
 				$dst_port_id = $link['id'];
@@ -1448,7 +1448,8 @@ class portlist {
 				$this->_printportlist($dst_port_id,!$back);
 
 				if($linkcount > 1) {
-					echo "</tr>".( $key != $lastkey ? "<tr><td height=1 colspan=100% bgcolor=#c0c0c0><td></tr>" : "");
+					echo "</tr></table></td></tr>"
+						.( $key != $lastkey ? "<tr><td height=1 colspan=100% bgcolor=#c0c0c0><td></tr>" : "");
 				}
 			}
 
