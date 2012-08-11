@@ -147,9 +147,9 @@ function linkmgmt_opupdate() {
 	if(isset($ids[1])) {
 		if(permitted(NULL, NULL, 'set_link'))
 			if(isset($ids[2]) && $ids[2] == 'back')
-				linkmgmt_commitUpdatePortLink($ids[0], $retval, TRUE);
+				linkmgmt_commitUpdatePortLink($ids[0], $ids[1], $retval, TRUE);
 			else
-				linkmgmt_commitUpdatePortLink($ids[0], $retval);
+				linkmgmt_commitUpdatePortLink($ids[0], $ids[1], $retval);
 		else
 			$retval = "Permission denied!";
 	} else {
@@ -168,7 +168,7 @@ function linkmgmt_opupdate() {
 /* -------------------------------------------------- */
 
 /* similar to commitUpatePortLink in database.php with backend support */
-function linkmgmt_commitUpdatePortLink($port_id, $cable = NULL, $backend = FALSE) {
+function linkmgmt_commitUpdatePortLink($port_id1, $port_id2, $cable = NULL, $backend = FALSE) {
 
 	/* TODO check permissions */
 
@@ -177,13 +177,15 @@ function linkmgmt_commitUpdatePortLink($port_id, $cable = NULL, $backend = FALSE
 	else
 		$table = 'Link';
 
-	return usePreparedUpdateBlade
+	return usePreparedExecuteBlade
 		(
-			$table,
-			array ('cable' => mb_strlen ($cable) ? $cable : NULL),
-			array ('porta' => $port_id, 'portb' => $port_id),
-			'OR'
+			"UPDATE $table SET cable=\"".(mb_strlen ($cable) ? $cable : NULL).
+			"\" WHERE ( porta = ? and portb = ?) or (portb = ? and porta = ?)",
+			array (
+				$port_id1, $port_id2,
+				$port_id1, $port_id2)
 		);
+
 } /* linkmgmt_commitUpdatePortLink */
 
 /* -------------------------------------------------- */
