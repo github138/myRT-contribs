@@ -11,6 +11,8 @@
  * 		- Link object backend ports by name (e.g. handy for patch panels)
  *		- change/create CableID (needs jquery.jeditable.mini.js)
  *		- change/create Port Reservation Comment (needs jquery.jeditable.mini.js)
+		- multiple backend links for supported port types (e.g. AC-in, DC)
+ *		- GraphViz Maps (Objects, Ports and Links)
  *
  *	Usage:
  *		1. select "Link Management" tab
@@ -26,6 +28,8 @@
  *			e. "Link back" create the backend links
  *		5. If you have an backend link within the same Object the link isn't shown until
  *		   "Expand Backend Links on same Object" is hit
+ *		6. "Map" displays Graphviz Map of current object
+ *		7. To get a Graphviz Map of a single port click the port name on the left
  *
  *
  * INSTALL:
@@ -43,7 +47,7 @@ CREATE TABLE `LinkBackend` (
   CONSTRAINT `LinkBackend-FK-b` FOREIGN KEY (`portb`) REFERENCES `Port` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
- * Multilink
+ * Multilink table
 
 CREATE TABLE `LinkBackend` (
   `porta` int(10) unsigned NOT NULL DEFAULT '0',
@@ -88,6 +92,8 @@ CREATE TABLE `LinkBackend` (
  *		change "Link by Name" dialog design
  * 10.08.12	add portlist::_getlinkportsymbol
  *		rename _LinkPort -> _printlinkportsymbol
+ * 16.08.12	add multlink support (breaks column alignment!)
+ *		add GraphViz Maps
  *
  *
  */
@@ -98,11 +104,13 @@ CREATE TABLE `LinkBackend` (
  * - code cleanups
  * - bug fixing
  *
- * - Multiport support for port types AC-in (16) AC-out (1322) DC (1399)
- * 	allow multi backend links
- *	fetch multi links select ...
+ * - fix column alignment with multilinks
  *
- * - cleanup getobjectlist and findspareports function
+ * - urls in gv maps
+ * - objects rack info in Graphviz maps
+ * - multlink count for Graphviz maps empty or full dot
+ *
+ * - cleanup getobjectlist and findspareports ( also gvmap->_getObjectPortsAndLinks) function
  *		both use similar sql query
  *
  * - csv list
@@ -111,7 +119,9 @@ CREATE TABLE `LinkBackend` (
  *
  */
 
+
 require_once 'inc/popup.php';
+//require_once 'Image/GraphViz.php';
 
 $tab['object']['linkmgmt'] = 'Link Management';
 $tabhandler['object']['linkmgmt'] = 'linkmgmt_tabhandler';
@@ -122,11 +132,17 @@ $ophandler['object']['linkmgmt']['unlinkPort'] = 'linkmgmt_opunlinkPort';
 $ophandler['object']['linkmgmt']['PortLinkDialog'] = 'linkmgmt_opPortLinkDialog';
 $ophandler['object']['linkmgmt']['Help'] = 'linkmgmt_opHelp';
 
+$ophandler['object']['linkmgmt']['map'] = 'linkmgmt_opmap';
+
+/* ------------------------------------------------- */
+
+Const MULTILINK = TRUE;
+
 /* -------------------------------------------------- */
 
 $lm_multilink_port_types = array(
 				16, /* AC-in */
-				1322, /* AC-out */
+				//1322, /* AC-out */
 				1399, /* DC */
 				);
 
@@ -163,6 +179,539 @@ function linkmgmt_opHelp() {
 <?php
 	exit;
 } /* opHelp */
+
+/* -------------------------------------------------- */
+
+function linkmgmt_opmap() {
+
+	/* TODO disable errors -> no valid imgae content */
+
+	$object_id = NULL;
+
+	if(isset($_REQUEST['object_id']))
+		$object_id = $_REQUEST['object_id'];
+	else
+		return;
+
+	$urlparams = array(
+			'module' => 'redirect',
+			'page' => 'object',
+			'tab' => 'linkmgmt',
+			'op' => 'map',
+			'object_id' => $object_id,
+			);
+
+	if(isset($_REQUEST['type']))
+	{
+		$type = $_REQUEST['type'];
+		$urlparams['type'] = $type;
+	}
+	else
+		$type = 'gif';
+
+	$port_id = NULL;
+	$hl_port_id = NULL;
+	$allports = false;
+	$usemap = false;
+
+	if(isset($_REQUEST['port_id']))
+	{
+		$port_id = $_REQUEST['port_id'];
+		$urlparams['port_id'] = $port_id;
+	}
+
+	if(isset($_REQUEST['hl_port_id']))
+	{
+		$hl_port_id = $_REQUEST['hl_port_id'];
+		$urlparams['hl_port_id'] = $hl_port_id;
+	}
+
+	if(isset($_REQUEST['allports']))
+	{
+		$allports = $_REQUEST['allports'];
+		$urlparams['allprots'] = $allports;
+	}
+
+	if(isset($_REQUEST['usemap']))
+		$usemap = $_REQUEST['usemap'];
+
+	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl_port_id);
+
+	if($usemap)
+	{
+	//	header("Content-Type: text/html");
+	//	echo "<html>";
+		echo $gvmap->fetch('cmapx');
+
+		echo "<img src=\"data:image/$ctype;base64,".
+			base64_encode($gvmap->fetch($type)).
+			"\" usemap=#$object_id />";
+
+	//	echo "<img src=\"index.php?".http_build_query($urlparams)."\" usemap=\"#$object_id\" />";
+	//	echo "</html>";
+	}
+	else
+	{
+		switch($type) {
+			case 'gif':
+			case 'png':
+			case 'bmp':
+			case 'jpeg':
+			case 'tif':
+			case 'wbmp':
+				$ctype = "image/$type";
+				break;
+			case 'jpg':
+				$ctype = "image/jpeg";
+				break;
+			case 'svg':
+				$ctype = 'image/svg+xml';
+				break;
+			case 'pdf':
+				$ctype = 'application/pdf';
+				break;
+			case 'cmapx':
+				$ctype = 'text/plain';
+				break;
+
+		}
+
+		header("Content-Type: $ctype");
+		echo $gvmap->fetch($type);
+
+	}
+
+	exit;
+/*
+	echo '<img src="data:image/png;base64,'.
+	base64_encode($gvmap->fetch('png')).
+	"\" usemap=#G />";
+
+	exit;
+*/
+}
+
+/* ------------------------------------- */
+
+class linkmgmt_gvmap {
+
+	private $object_id = NULL;
+	private $port_id = NULL;
+
+	private $gv = NULL;
+
+	private $edges = array();
+	private $ports = array();
+
+	private $allports = false;
+	private $back = NULL;
+
+	private $alpa = 'ff';
+
+	private $lastnode = NULL;
+
+	function __construct($object_id, $port_id = NULL, $allports = false, $hl_port_id = NULL) {
+		$this->object_id = $object_id;
+		$this->allports = $allports;
+
+		//$this->objectlist = array();
+
+		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
+		$graphattr = array(
+					'rankdir' => 'LR',
+				//	'ranksep' => '0',
+					'nodesep' => '0',
+				);
+		$this->gv = new Image_GraphViz(true, $graphattr, $object_id);
+		//$this->gv->setDirected(FALSE);
+
+		if($hl_port_id !== NULL)
+		{
+			$port_id = NULL;
+			$this->alpha = '30';
+		}
+		else
+			$this->port_id = $port_id;
+
+		if($object_id === NULL)
+		{
+			$objects = listCells('object');
+			foreach($objects as $obj)
+				$this->_do($this->gv, $obj['id'], NULL);
+		}
+		else
+		{
+		$this->_do($this->gv, $object_id, $port_id);
+
+		// TODO  group children
+		$children = getEntityRelatives ('children', 'object', $object_id); //'entity_id'
+
+		foreach($children as $child)
+			$this->_do($this->gv, $child['entity_id'], NULL);
+		}
+
+		/* highlight port */
+		if($hl_port_id !== NULL)
+		{
+
+			$this->alpha = 'ff';
+
+			$this->edges = array();
+			$this->ports = array();
+			$this->back = NULL;
+
+			$this->port_id = $hl_port_id;
+
+			$hlgv = new Image_GraphViz(true, $graphattr, $object_id.'_hl'.$hl_port_id);
+
+			$this->_do($hlgv,$object_id , $hl_port_id);
+
+			//portlist::var_dump_html($hlgv);
+			// TODO check porta_portb / portb_porta
+			// edgedfrom - from - to - id
+			foreach($hlgv->graph['edgesFrom'] as $from => $nodes) {
+				foreach($nodes as $to => $ports) {
+				// TODO ports id
+
+				if(isset($this->gv->graph['edgesFrom'][$from][$to]))
+					$this->gv->graph['edgesFrom'][$from][$to] = $hlgv->graph['edgesFrom'][$from][$to];
+				else
+					if(isset($this->gv->graph['edgesFrom'][$to][$from]))
+					{
+						unset($this->gv->graph['edgesFrom'][$to][$from]);
+						$this->gv->graph['edgesFrom'][$from][$to] = $hlgv->graph['edgesFrom'][$from][$to];
+					}
+				}
+			}
+			// leads to duplicate edges from->to and to->from
+			//$this->gv->graph['edgesFrom'] = $hlgv->graph['edgesFrom'] + $this->gv->graph['edgesFrom'];
+
+			/* merge nodes */
+			foreach($hlgv->graph['nodes'] as $cluster => $node)
+			{
+				$this->gv->graph['nodes'][$cluster] = $hlgv->graph['nodes'][$cluster] + $this->gv->graph['nodes'][$cluster];
+			}
+
+			$this->gv->graph['clusters'] = $hlgv->graph['clusters'] + $this->gv->graph['clusters'];
+			$this->gv->graph['subgraphs'] = $hlgv->graph['subgraphs'] + $this->gv->graph['subgraphs'];
+
+		}
+
+
+	//	portlist::var_dump_html($this->gv);
+
+	//	echo $this->gv->parse();
+		error_reporting( E_ALL ^ E_NOTICE);
+	}
+
+	// !!!recursiv !!!
+	function _do($gv, $object_id, $port_id = NULL) {
+		global $lm_multilink_port_types;
+
+		if($port_id === NULL)
+		{
+			if(
+				isset($gv->graph['clusters'][$object_id]) ||
+				isset($gv->graph['subgraphs'][$object_id])
+			)
+			return;
+		}
+		else
+		{
+			if(isset($this->ports[$port_id]))
+				return;
+		}
+
+		$object = spotEntity ('object', $object_id);
+		$object['attr'] = getAttrValues($object_id);
+
+		/* get ports */
+		/* calls getObjectPortsAndLinks */
+		//amplifyCell ($object);
+
+		$clusterattr = array();
+
+		$this->_getcolor('cluster', 'default', $this->alpha, $clusterattr, 'color');
+		$this->_getcolor('cluster', 'default', $this->alpha, $clusterattr, 'fontcolor');
+
+		if($this->object_id == $object_id)
+		{
+			$clusterattr['rank'] = 'source';
+
+			$this->_getcolor('cluster', 'current', $this->alpha, $clusterattr, 'color');
+			$this->_getcolor('cluster', 'current', $this->alpha, $clusterattr, 'fontcolor');
+
+		//	$clusterattr['color'] = $this->current_cluster_color.$this->alpha;
+		//	$clusterattr['fontcolor'] = $this->current_cluster_color.$this->alpha;
+		}
+
+		$gv->addCluster($object_id, $object['name'], $clusterattr);
+
+		/* TODO gv_image empty cluster bug */
+		if($this->object_id === NULL)
+			$gv->addNode('dummy',array('style' => 'invis'),$object_id);
+
+		if($this->back != 'front' || $port_id === NULL || $this->allports)
+		$front = $this->_getObjectPortsAndLinks($object_id, 'front', $port_id);
+		else
+		$front = array();
+
+		if($this->back != 'back' || $port_id === NULL || $this->allports)
+		$backend = $this->_getObjectPortsAndLinks($object_id, 'back', $port_id);
+		else
+		$backend = array();
+
+		$ports = array_merge($front,$backend);
+
+	//	var_dump($ports);
+
+		$lastport = NULL;
+
+		foreach($ports as $port) {
+
+
+			$this->back = $port['linktype'];
+		/*
+			$nodelabel = "<TABLE>".
+					"<TR><TD PORT=\"front\">${port['name']}</TD></TR>".
+					"<TR><TD><FONT POINT-SIZE=\"8\">${port['iif_name']}</FONT><BR/>".
+					"<FONT POINT-SIZE=\"8\">${port['oif_name']}</FONT></TD></TR>".
+					"</TABLE>";
+		*/
+			//$nodelabel = "${port['name']}|{<front>front|<back>back}";
+			$nodelabel = "${port['name']}";
+			$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['iif_name']}</FONT>";
+			$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['oif_name']}</FONT>";
+
+			$nodeattr = array(
+						'label' => $nodelabel,
+					//	'shape' => 'record',
+					);
+
+			$this->_getcolor('port', 'default',$this->alpha, $nodeattr, 'fontcolor');
+			$this->_getcolor('oif_id', $port['oif_id'],$this->alpha, $nodeattr, 'color');
+
+			if($this->port_id == $port['id']) {
+				$nodeattr['style'] = 'filled';
+				$nodeattr['fillcolor'] = $this->_getcolor('port', 'current', $this->alpha);
+			}
+
+			$gv->addNode($port['id'],
+						$nodeattr,
+						$port['object_id']);
+
+			$this->ports[$port['id']] = true;
+
+			if(!empty($port['remote_id'])) {
+
+				$this->_do($gv, $port['remote_object_id'], ($port_id === NULL ? NULL : $port['remote_id']));
+
+				if(
+					!isset($this->edges[$port['remote_id'].'_'.$port['id']]) &&
+					!isset($this->edges[$port['id'].'_'.$port['remote_id']])
+				) {
+					$this->edges[$port['id'].'_'.$port['remote_id']] = true;
+
+					$linktype = $port['linktype'];
+
+					$edgetooltip = $port['object_name'].':'.$port['name'].
+							' - '.$port['cableid'].' -> '.
+							$port['remote_name'].':'.$port['remote_object_name'];
+
+					$edgeattr = array(
+							'fontsize' => 8,
+							'label' => $port['cableid'],
+							'tooltip' => $edgetooltip,
+							'sametail' => $linktype,
+							'samehead' => $linktype,
+						);
+
+					$this->_getcolor('edge', 'default', $this->alpha, $edgeattr, 'color');
+					$this->_getcolor('edge', 'default', $this->alpha, $edgeattr, 'fontcolor');
+
+					if($linktype == 'back' )
+					{
+						$edgeattr['style'] =  'dashed';
+						$edgeattr['arrowhead'] = 'none';
+						$edgeattr['arrowtail'] = 'none';
+
+						/* multilink ports */
+						if(in_array($port['oif_id'], $lm_multilink_port_types))
+						{
+							$edgeattr['dir'] = 'both';
+							$edgeattr['arrowtail'] = 'dot';
+						}
+
+						if(in_array($port['remote_oif_id'], $lm_multilink_port_types))
+						{
+							$edgeattr['dir'] = 'both';
+							$edgeattr['arrowhead'] = 'dot';
+						}
+					}
+
+	/*
+					if($this->port_id != $port['id'])
+						$edgeattr['dir'] = 'back';
+
+					if($this->port_id == $port['remote_id'])
+						$edgeattr['dir'] = 'back';
+	*/
+					$gv->addEdge(array($port['id'] => $port['remote_id']),
+								$edgeattr,
+								array(
+									$port['id'] => $linktype,
+									$port['remote_id'] => $linktype,
+								)
+							);
+				}
+			}
+
+			// TODO
+			if(0)
+			if($lastport)
+				$gv->addEdge(array($lastport => $port['id']), array('len' => 0));
+
+			$lastport = $port['id'];
+		}
+
+	//	portlist::var_dump_html($port);
+	}
+
+	function fetch($type = 'png') {
+		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
+	//	echo "<pre>".$this->gv->parse()."</pre>";
+		$ret = $this->gv->fetch($type);
+		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
+		return $ret;
+	}
+
+	function image($type = 'png') {
+		$this->gv->image($type);
+	}
+
+	function parse() {
+		return $this->gv->parse();
+	}
+
+	/* should be compatible with getObjectPortsAndLinks from RT database.php */
+	function _getObjectPortsAndLinks($object_id, $linktype = 'front', $port_id = NULL) {
+
+		if($linktype == 'front')
+			$linktable = 'Link';
+		else
+			$linktable = 'LinkBackend';
+
+		$qparams = array();
+
+		$query = "SELECT
+				'$linktype' as linktype,
+				Port.*,
+				Port.type AS oif_id,
+				PortInnerInterface.iif_name as iif_name,
+				Dictionary.dict_value as oif_name,
+				RackObject.id as object_id, RackObject.name as object_name,
+				LinkTable.cable as cableid,
+				remoteRackObject.id as remote_object_id, remoteRackObject.name as remote_object_name,
+				remotePort.id as remote_id, remotePort.name as remote_name,
+				remotePort.type AS remote_oif_id,
+				remotePortInnerInterface.iif_name as remote_iif_name,
+				remoteDictionary.dict_value as remoteoif_name
+			FROM Port";
+
+		// JOIN
+		$join = "	LEFT JOIN PortInnerInterface on PortInnerInterface.id = Port.iif_id
+				LEFT JOIN Dictionary on Dictionary.dict_key = Port.type
+				LEFT JOIN $linktable as LinkTable on Port.id in (LinkTable.porta, LinkTable.portb)
+				LEFT JOIN RackObject on RackObject.id = Port.object_id
+				LEFT JOIN Port as remotePort on remotePort.id = ((LinkTable.porta ^ LinkTable.portb) ^ Port.id)
+				LEFT JOIN RackObject as remoteRackObject on remoteRackObject.id = remotePort.object_id
+				LEFT JOIN PortInnerInterface as remotePortInnerInterface on remotePortInnerInterface.id = remotePort.iif_id
+				LEFT JOIN Dictionary as remoteDictionary on remoteDictionary.dict_key = remotePort.type
+			";
+
+		// WHERE
+		if($port_id === NULL)
+		{
+			$where = " WHERE RackObject.id = ?";
+			$qparams[] = $object_id;
+		}
+		else
+		{
+		//	$where = " WHERE Port.id = ? and remotePort.id is not NULL";
+			$where = " WHERE Port.id = ?";
+			$qparams[] = $port_id;
+		}
+
+		// ORDER
+		$order = " ORDER by Port.Name, oif_name";
+
+		$query .= $join.$where.$order;
+
+		$result = usePreparedSelectBlade ($query, $qparams);
+
+		$row = $result->fetchAll(PDO::FETCH_ASSOC);
+
+		return $row;
+	}
+
+	function _getcolor($type = 'object', $key = 'default', $alpha = 'ff', &$array = NULL , $arraykey = 'color') {
+
+		$current = array(
+				'port' => '#ffff90',
+				'object' => '#ff0000',
+				'cluster' => '#ff0000',
+				);
+
+		$object = array(
+				'current' => $current['object'],
+				);
+		$port = array(
+				'current' => $current['port'],
+				);
+
+		$cluster = array(
+				'current' => $current['cluster'],
+				);
+
+	/*
+		$edge = array (
+				);
+	 */
+
+		$oif_id = array(
+				'16' => '#0fff00', /* AC-in */
+				'1322' => '#00fff0', /* AC-out */
+				'24' => '#00ff00', /* 1000base-t */
+				);
+
+		$defaultcolor = '#000000'; /* black */
+		$default = true;
+
+		if(isset(${$type}[$key]))
+		{
+			$default = false;
+			$color = ${$type}[$key];
+		}
+		else
+			$color = $defaultcolor;
+
+
+		if($alpha != 'ff' || $default == false)
+		{
+			$color .= $alpha;
+
+			if($array !== NULL)
+				$array[$arraykey] = $color;
+			else
+				return $color;
+		}
+		else
+			return $defaultcolor;
+
+	} /* _getcolor */
+
+
+} /* class gvmap */
 
 /* -------------------------------------------------- */
 
@@ -261,9 +810,15 @@ function linkmgmt_oplinkPort() {
 	if(!isset($_REQUEST['link_list'])) {
 		//portlist::var_dump_html($_REQUEST);
 		$porta = $_REQUEST['port'];
-		$portb = $_REQUEST['remote_port'];
 
-		$link_list[] = "${porta}_${portb}";
+		foreach($_REQUEST['remote_ports'] as $portb)
+		{
+			$link_list[] = "${porta}_${portb}";
+
+			/* with no MULTILINK process first value only */
+			if(!MULTILINK)
+				break;
+		}
 	} else
 		$link_list = $_REQUEST['link_list'];
 
@@ -275,7 +830,7 @@ function linkmgmt_oplinkPort() {
 
 		$ret = linkmgmt_linkPorts($porta, $portb, $linktype, $cable);
 
-		error_log("$ret - $porta - $portb");
+		//error_log("$ret - $porta - $portb");
 		$port_info = getPortInfo ($porta);
 		$remote_port_info = getPortInfo ($portb);
 		showSuccess(
@@ -289,8 +844,6 @@ function linkmgmt_oplinkPort() {
                         )
                 );
 	}
-
-
 
 	addJS (<<<END
 window.opener.location.reload(true);
@@ -312,26 +865,35 @@ function linkmgmt_linkPorts ($porta, $portb, $linktype, $cable = NULL)
                 throw new InvalidArgException ('porta/portb', $porta, "Ports can't be the same");
 
 	if($linktype == 'back')
+	{
 		$table = 'LinkBackend';
+		$multilink = MULTILINK;
+	}
 	else
+	{
 		$table = 'Link';
+		$multilink = false;
+	}
 
         global $dbxlink;
         $dbxlink->exec ('LOCK TABLES '.$table.' WRITE');
-        $result = usePreparedSelectBlade
-        (
-                'SELECT COUNT(*) FROM '.$table.' WHERE porta IN (?,?) OR portb IN (?,?)',
-                array ($porta, $portb, $porta, $portb)
-        );
 
-	/* TODO multilink */
+	if(!$multilink)
+	{
+		$result = usePreparedSelectBlade
+		(
+			'SELECT COUNT(*) FROM '.$table.' WHERE porta IN (?,?) OR portb IN (?,?)',
+			array ($porta, $portb, $porta, $portb)
+		);
 
-        if ($result->fetchColumn () != 0)
-        {
-                $dbxlink->exec ('UNLOCK TABLES');
-                return "$linktype Port ${porta} or ${portb} is already linked";
-        }
-        $result->closeCursor ();
+	        if ($result->fetchColumn () != 0)
+	        {
+			$dbxlink->exec ('UNLOCK TABLES');
+			return "$linktype Port ${porta} or ${portb} is already linked";
+		}
+	        $result->closeCursor ();
+	}
+
         if ($porta > $portb)
         {
                 $tmp = $porta;
@@ -556,11 +1118,15 @@ function linkmgmt_findSparePortsbyName($object_id, $remote_object, $linktype) {
  */
 function linkmgmt_renderPopupPortSelector()
 {
+	global $lm_multilink_port_types;
+
         assertUIntArg ('port');
         $port_id = $_REQUEST['port'];
 	$linktype = $_REQUEST['linktype'];
 	$object_id = $_REQUEST['object_id'];
         $port_info = getPortInfo ($port_id);
+
+	$multilink = MULTILINK && $linktype == 'back' && in_array($port_info['oif_id'], $lm_multilink_port_types);
 
         if(isset ($_REQUEST['in_rack']))
 		$in_rack = $_REQUEST['in_rack'] != 'off';
@@ -643,11 +1209,26 @@ function linkmgmt_renderPopupPortSelector()
 
 	echo "spare $linktype Object:Port -- $notlinktype cableID -->  $notlinktype Port:Object<br>";
 
+	if($multilink)
+		echo "Multilink<br>";
+
         if (empty ($spare_ports))
                 echo '(nothing found)';
         else
         {
-                echo getSelect ($spare_ports, array ('name' => 'remote_port', 'size' => getConfigVar ('MAXSELSIZE')), NULL, FALSE);
+		$linkcount = count($spare_ports);
+
+                $options = array(
+				'name' => 'remote_ports[]',
+				'size' => getConfigVar ('MAXSELSIZE'),
+				'size' => ($linkcount <= $maxsize ? $linkcount : $maxsize),
+				);
+
+		if($multilink)
+			$options['multiple'] = 'multiple';
+
+                echo getSelect ($spare_ports, $options, NULL, FALSE);
+
                 echo "<p>$linktype Cable ID: <input type=text id=cable name=cable>";
                 echo "<p><input type='submit' value='Link $linktype' name='do_link'>";
         }
@@ -720,10 +1301,14 @@ function linkmgmt_renderPopupPortSelectorbyName()
         {
 		$linkcount = count($link_list);
 
-                echo getSelect ($link_list, array ('name' => 'link_list[]',
-					'multiple' => 'multiple',
-					'size' => ($linkcount <= $maxsize ? $linkcount : $maxsize)),
-					NULL, FALSE);
+		$options = array(
+				'name' => 'link_list[]',
+				'size' => ($linkcount <= $maxsize ? $linkcount : $maxsize),
+				'muliple' => 'multiple',
+				);
+
+                echo getSelect ($link_list,$options, NULL, FALSE);
+
                 echo "<p>$linktype Cable ID: <input type=text id=cable name=cable>";
                 echo "<p><input type='submit' value='Link $linktype' name='do_link'>";
         }
@@ -731,7 +1316,7 @@ function linkmgmt_renderPopupPortSelectorbyName()
         echo '</td></tr></table>';
         echo '</form>';
 
-} /* linkmgmt_renderPopUpPortSelector */
+} /* linkmgmt_renderPopUpPortSelectorByName */
 
 /* ------------------------------------------------ */
 
@@ -878,7 +1463,6 @@ function linkmgmt_tabhandler($object_id) {
 	if($lm_cache['allowlink'])
 		addJS('$(document).ready(function() { $(".editcable").editable("'.$target.'",{placeholder : "edit cableID"}); });' , TRUE);
 
-
 	/* linkmgmt for current object */
 	linkmgmt_renderObjectLinks($object_id);
 
@@ -945,6 +1529,10 @@ function linkmgmt_renderObjectLinks($object_id) {
 		echo '<td width=200><a href="'.makeHref(portlist::urlparams('allback','1','0'))
 			.'">Expand Backend Links on same Object</a></td>';
 
+	/* Graphviz map */
+	echo '<td width=100><span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
+                                array('op' => 'map','usemap' => 1))).'","name","height=800,width=800,scrollbars=yes");><a>Object Map</a></span></td>';
+
 	/* Help */
 	echo '<td width=200><span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
                                 array('op' => 'Help'))).'","name","height=400,width=500");><a>Help</a></span></td>';
@@ -956,6 +1544,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 
 	echo '</tr></table>';
 
+
 	echo '<br><br><table id=renderobjectlinks0>';
 
 	/*  switch display order depending on backend links */
@@ -966,6 +1555,8 @@ function linkmgmt_renderObjectLinks($object_id) {
 
 		$plist = new portlist($port, $object_id, $allports, $allback);
 
+		//echo "<td><img src=\"index.php?module=redirect&page=object&tab=linkmgmt&op=map&object_id=$object_id&port_id=${port['id']}&allports=$allports\" ></td>";
+
 		if($plist->printportlistrow($first, $hl_port_id, ($rowcount % 2 ? portlist::ALTERNATE_ROW_BGCOLOR : "#ffffff")) )
 			$rowcount++;
 
@@ -975,7 +1566,6 @@ function linkmgmt_renderObjectLinks($object_id) {
 
 } /* renderObjectLinks */
 
-/* --------------------------------------------------- */
 /* -------------------------------------------------- */
 
 /*
@@ -1002,17 +1592,20 @@ class portlist {
 
 	private $allback = FALSE;
 
+	private $multilink = MULTILINK;
+
 	const B2B_LINK_BGCOLOR = '#d8d8d8';
 	const CURRENT_PORT_BGCOLOR = '#ffff99';
 	const CURRENT_OBJECT_BGCOLOR = '#ff0000';
 	const HL_PORT_BGCOLOR = '#00ff00';
 	const ALTERNATE_ROW_BGCOLOR = '#f0f0f0';
 
-	/* TODO multilink */
 	/* Possible LOOP detected after count links print only */
 	const MAX_LOOP_COUNT = 130;
 
 	private $loopcount;
+
+	private $gv = NULL;
 
 	function __construct($port, $object_id, $allports = FALSE, $allback = FALSE) {
 
@@ -1187,10 +1780,7 @@ class portlist {
 
 	/*
 	 */
-	function printport(&$port, $edgeport) {
-		global $lm_multilink_port_types;
-
-		$multilink = false;
+	function printport(&$port, $multilink = false) {
 
 		/* set bgcolor for current port */
 		if($port['id'] == $this->port_id) {
@@ -1200,10 +1790,6 @@ class portlist {
 			$bgcolor = '';
 			$idtag = '';
 		}
-
-		if(!$edgeport)
-			if(in_array($port['type'], $lm_multilink_port_types))
-				$multilink = true;
 
 		$mac = trim(preg_replace('/(..)/','$1:',$port['l2address']),':');
 
@@ -1270,6 +1856,10 @@ class portlist {
 	 */
 	function _printportlink($src_port_id, $dst_port_id, &$src_link, $back = FALSE) {
 
+		global $lm_multilink_port_types;
+
+		$multilink = MULTILINK;
+
 	if(!isset($this->list[$dst_port_id]))
 	{
 		/* get port not in list */
@@ -1280,7 +1870,8 @@ class portlist {
 		if($back)
 			echo "<td>></td>";
 
-		$this->printport($src_link, true);
+		// TODO check if multilink is needed here
+		$this->printport($src_link, $multilink && in_array($src_link['type'], $lm_multilink_port_types));
 		echo "<td>...</td>";
 
 		return TRUE;
@@ -1336,7 +1927,8 @@ class portlist {
 		}
 
 		/* print [portname] */
-		$this->printport($dst_port, $edgeport);
+		// TODO check multilink symbols front/back edgeports
+		$this->printport($dst_port, $multilink && in_array($dst_port['type'], $lm_multilink_port_types));
 
 		if($loop)
 			echo '<td bgcolor=#ff9966>LOOP</td>';
@@ -1387,7 +1979,6 @@ class portlist {
 		else
 			$id = $this->last_id;
 
-
 		if($hl_port_id == $this->port_id)
 			$hlbgcolor = "bgcolor=".self::HL_PORT_BGCOLOR;
 		else
@@ -1397,14 +1988,31 @@ class portlist {
 
 		$port = $this->list[$id];
 
+		$urlparams = array(
+				'module' => 'redirect',
+				'page' => 'object',
+				'tab' => 'linkmgmt',
+				'op' => 'map',
+				'usemap' => 1,
+				'object_id' => $port['object_id'],
+				);
+
+		if($hl_port_id !== NULL)
+			$urlparams['hl_port_id'] = $hl_port_id;
+		else
+			$urlparams['port_id'] = $id;
+
 		$title = "linkcount: ".$this->count." (".$this->front_count."/".$this->back_count.")\nTypeID: ${port['type']}\nPortID: $id";
 
+		$onclick = 'onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
+                                $urlparams)).'","Map","height=500,width=800,scrollbars=yes");';
+
 		/* Current Port */
-		echo '<tr '.$hlbgcolor.'><td nowrap="nowrap" bgcolor='.self::CURRENT_PORT_BGCOLOR.' title="'.$title.'">'.$this->port['name'].': </td>';
+		echo '<tr '.$hlbgcolor.'><td nowrap="nowrap" bgcolor='.self::CURRENT_PORT_BGCOLOR.' title="'.$title.
+			'"><a '.$onclick.'>'.
+			$this->port['name'].': </a></td>';
 
 		echo "<td><table id=printportlistrow1 align=right><tr><td>";
-
-		/* TODO use linkcount for correct order */
 
 		$back = empty($this->list[$id]['back']);
 
