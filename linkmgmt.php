@@ -12,7 +12,7 @@
  *		- change/create CableID (needs jquery.jeditable.mini.js)
  *		- change/create Port Reservation Comment (needs jquery.jeditable.mini.js)
 		- multiple backend links for supported port types (e.g. AC-in, DC)
- *		- GraphViz Maps (Objects, Ports and Links)
+ *		- GraphViz Maps (Objects, Ports and Links) (needs GraphViz_Image 1.3.0)
  *
  *	Usage:
  *		1. select "Link Management" tab
@@ -31,6 +31,10 @@
  *		6. "Map" displays Graphviz Map of current object
  *		7. To get a Graphviz Map of a single port click the port name on the left
  *
+ *
+ * Requirements:
+ *	PHP 5
+ *	GraphViz_Image 1.3.0
  *
  * INSTALL:
  *
@@ -64,6 +68,7 @@ CREATE TABLE `LinkBackend` (
  * 	- add "include 'inc/linkmgmt.php';" to inc/local.php
  *
  * TESTED on FreeBSD 9.0, nginx/1.0.11, php 5.3.9
+ *	GraphViz_Image 1.3.0
  *	and RackTables 0.19.11
  *
  * (c)2012 Maik Ehinger <m.ehinger@ltur.de>
@@ -106,8 +111,7 @@ CREATE TABLE `LinkBackend` (
  *
  * - fix column alignment with multilinks
  *
- * - urls in gv maps
- * - objects rack info in Graphviz maps
+ * - put selected object/port top left of graph
  * - multlink count for Graphviz maps empty or full dot
  *
  * - cleanup getobjectlist and findspareports ( also gvmap->_getObjectPortsAndLinks) function
@@ -184,7 +188,7 @@ function linkmgmt_opHelp() {
 
 function linkmgmt_opmap() {
 
-	/* TODO disable errors -> no valid imgae content */
+	/* TODO disable errors -> corrupts image data */
 
 	$object_id = NULL;
 
@@ -237,44 +241,43 @@ function linkmgmt_opmap() {
 
 	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl_port_id);
 
+	switch($type) {
+		case 'gif':
+		case 'png':
+		case 'bmp':
+		case 'jpeg':
+		case 'tif':
+		case 'wbmp':
+			$ctype = "image/$type";
+			break;
+		case 'jpg':
+			$ctype = "image/jpeg";
+			break;
+		case 'svg':
+			$ctype = 'image/svg+xml';
+			break;
+		case 'pdf':
+			$ctype = 'application/pdf';
+			break;
+		case 'cmapx':
+			$ctype = 'text/plain';
+			break;
+
+	}
+
 	if($usemap)
 	{
-	//	header("Content-Type: text/html");
-	//	echo "<html>";
+
 		echo $gvmap->fetch('cmapx');
 
-		echo "<img src=\"data:image/$ctype;base64,".
+		echo "<img src=\"data:$ctype;base64,".
 			base64_encode($gvmap->fetch($type)).
 			"\" usemap=#$object_id />";
 
 	//	echo "<img src=\"index.php?".http_build_query($urlparams)."\" usemap=\"#$object_id\" />";
-	//	echo "</html>";
 	}
 	else
 	{
-		switch($type) {
-			case 'gif':
-			case 'png':
-			case 'bmp':
-			case 'jpeg':
-			case 'tif':
-			case 'wbmp':
-				$ctype = "image/$type";
-				break;
-			case 'jpg':
-				$ctype = "image/jpeg";
-				break;
-			case 'svg':
-				$ctype = 'image/svg+xml';
-				break;
-			case 'pdf':
-				$ctype = 'application/pdf';
-				break;
-			case 'cmapx':
-				$ctype = 'text/plain';
-				break;
-
-		}
 
 		header("Content-Type: $ctype");
 		echo $gvmap->fetch($type);
@@ -282,13 +285,6 @@ function linkmgmt_opmap() {
 	}
 
 	exit;
-/*
-	echo '<img src="data:image/png;base64,'.
-	base64_encode($gvmap->fetch('png')).
-	"\" usemap=#G />";
-
-	exit;
-*/
 }
 
 /* ------------------------------------- */
@@ -314,8 +310,6 @@ class linkmgmt_gvmap {
 		$this->object_id = $object_id;
 		$this->allports = $allports;
 
-		//$this->objectlist = array();
-
 		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
 		$graphattr = array(
 					'rankdir' => 'LR',
@@ -323,7 +317,6 @@ class linkmgmt_gvmap {
 					'nodesep' => '0',
 				);
 		$this->gv = new Image_GraphViz(true, $graphattr, $object_id);
-		//$this->gv->setDirected(FALSE);
 
 		if($hl_port_id !== NULL)
 		{
@@ -341,13 +334,13 @@ class linkmgmt_gvmap {
 		}
 		else
 		{
-		$this->_do($this->gv, $object_id, $port_id);
+		$this->_add($this->gv, $object_id, $port_id);
 
 		// TODO  group children
 		$children = getEntityRelatives ('children', 'object', $object_id); //'entity_id'
 
 		foreach($children as $child)
-			$this->_do($this->gv, $child['entity_id'], NULL);
+			$this->_add($this->gv, $child['entity_id'], NULL);
 		}
 
 		/* highlight port */
@@ -364,10 +357,9 @@ class linkmgmt_gvmap {
 
 			$hlgv = new Image_GraphViz(true, $graphattr, $object_id.'_hl'.$hl_port_id);
 
-			$this->_do($hlgv,$object_id , $hl_port_id);
+			$this->_add($hlgv,$object_id , $hl_port_id);
 
-			//portlist::var_dump_html($hlgv);
-			// TODO check porta_portb / portb_porta
+			/* merge higlight graph */
 			// edgedfrom - from - to - id
 			foreach($hlgv->graph['edgesFrom'] as $from => $nodes) {
 				foreach($nodes as $to => $ports) {
@@ -397,7 +389,6 @@ class linkmgmt_gvmap {
 
 		}
 
-
 	//	portlist::var_dump_html($this->gv);
 
 	//	echo $this->gv->parse();
@@ -405,7 +396,7 @@ class linkmgmt_gvmap {
 	}
 
 	// !!!recursiv !!!
-	function _do($gv, $object_id, $port_id = NULL) {
+	function _add($gv, $object_id, $port_id = NULL) {
 		global $lm_multilink_port_types;
 
 		if($port_id === NULL)
@@ -440,12 +431,36 @@ class linkmgmt_gvmap {
 
 			$this->_getcolor('cluster', 'current', $this->alpha, $clusterattr, 'color');
 			$this->_getcolor('cluster', 'current', $this->alpha, $clusterattr, 'fontcolor');
-
-		//	$clusterattr['color'] = $this->current_cluster_color.$this->alpha;
-		//	$clusterattr['fontcolor'] = $this->current_cluster_color.$this->alpha;
 		}
 
-		$gv->addCluster($object_id, $object['name'], $clusterattr);
+		$clusterattr['tooltip'] = "${object['name']}";
+		$clusterattr['URL'] = makeHrefProcess(
+					portlist::urlparamsarray(
+						array(
+							'op' => 'map',
+							'usemap' => 1,
+							'object_id' => $object_id,
+							'port_id' => NULL,
+						)
+					)
+				);
+
+		//has_problems
+		if($object['has_problems'] != 'no')
+		{
+			$clusterattr['style'] = 'filled';
+			$this->_getcolor('cluster', 'problem', $this->alpha, $clusterattr, 'fillcolor');
+		}
+
+		$clustertitle = "${object['name']}";
+
+		if(!empty($object['container_name']))
+			$clustertitle .= "<BR/>${object['container_name']}";
+
+		if(!empty($object['Row_name']) || !empty($object['Rack_name']))
+			$clustertitle .= "<BR/>${object['Row_name']} / ${object['Rack_name']}";
+
+		$gv->addCluster($object_id, $clustertitle, $clusterattr);
 
 		/* TODO gv_image empty cluster bug */
 		if($this->object_id === NULL)
@@ -463,10 +478,6 @@ class linkmgmt_gvmap {
 
 		$ports = array_merge($front,$backend);
 
-	//	var_dump($ports);
-
-		$lastport = NULL;
-
 		foreach($ports as $port) {
 
 
@@ -478,9 +489,11 @@ class linkmgmt_gvmap {
 					"<FONT POINT-SIZE=\"8\">${port['oif_name']}</FONT></TD></TR>".
 					"</TABLE>";
 		*/
-			//$nodelabel = "${port['name']}|{<front>front|<back>back}";
 			$nodelabel = "${port['name']}";
-			$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['iif_name']}</FONT>";
+
+			if($port['iif_id'] != '1' )
+				$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['iif_name']}</FONT>";
+
 			$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['oif_name']}</FONT>";
 
 			$nodeattr = array(
@@ -496,6 +509,18 @@ class linkmgmt_gvmap {
 				$nodeattr['fillcolor'] = $this->_getcolor('port', 'current', $this->alpha);
 			}
 
+			$nodeattr['tooltip'] = "${port['name']}";
+			$nodeattr['URL'] = makeHrefProcess(
+						portlist::urlparamsarray(
+							array(
+								'op' => 'map',
+								'usemap' => 1,
+								'object_id' => $port['object_id'],
+								'port_id' => $port['id'],
+							)
+						)
+					);
+
 			$gv->addNode($port['id'],
 						$nodeattr,
 						$port['object_id']);
@@ -504,7 +529,7 @@ class linkmgmt_gvmap {
 
 			if(!empty($port['remote_id'])) {
 
-				$this->_do($gv, $port['remote_object_id'], ($port_id === NULL ? NULL : $port['remote_id']));
+				$this->_add($gv, $port['remote_object_id'], ($port_id === NULL ? NULL : $port['remote_id']));
 
 				if(
 					!isset($this->edges[$port['remote_id'].'_'.$port['id']]) &&
@@ -524,6 +549,14 @@ class linkmgmt_gvmap {
 							'tooltip' => $edgetooltip,
 							'sametail' => $linktype,
 							'samehead' => $linktype,
+					/*		'headtooltip' => ' OHHHHHHH ',
+							'tailtooltip' => ' AHHHHHHH ',
+							'labelURL' => 'google.de',
+							'headURL' => 'google.de',
+							'tailURL' => 'google.de',
+							'headlabel' => 'XX',
+							'taillabel' => 'TEST',
+					 */
 						);
 
 					$this->_getcolor('edge', 'default', $this->alpha, $edgeattr, 'color');
@@ -549,13 +582,10 @@ class linkmgmt_gvmap {
 						}
 					}
 
-	/*
-					if($this->port_id != $port['id'])
-						$edgeattr['dir'] = 'back';
-
-					if($this->port_id == $port['remote_id'])
-						$edgeattr['dir'] = 'back';
-	*/
+				/*
+					if($port['object_id'] == $port['remote_object_id'])
+						$edgeattr['constraint'] = 'false';
+				 */
 					$gv->addEdge(array($port['id'] => $port['remote_id']),
 								$edgeattr,
 								array(
@@ -566,12 +596,6 @@ class linkmgmt_gvmap {
 				}
 			}
 
-			// TODO
-			if(0)
-			if($lastport)
-				$gv->addEdge(array($lastport => $port['id']), array('len' => 0));
-
-			$lastport = $port['id'];
 		}
 
 	//	portlist::var_dump_html($port);
@@ -579,7 +603,6 @@ class linkmgmt_gvmap {
 
 	function fetch($type = 'png') {
 		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
-	//	echo "<pre>".$this->gv->parse()."</pre>";
 		$ret = $this->gv->fetch($type);
 		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
 		return $ret;
@@ -615,7 +638,7 @@ class linkmgmt_gvmap {
 				remotePort.id as remote_id, remotePort.name as remote_name,
 				remotePort.type AS remote_oif_id,
 				remotePortInnerInterface.iif_name as remote_iif_name,
-				remoteDictionary.dict_value as remoteoif_name
+				remoteDictionary.dict_value as remote_oif_name
 			FROM Port";
 
 		// JOIN
@@ -643,7 +666,7 @@ class linkmgmt_gvmap {
 		}
 
 		// ORDER
-		$order = " ORDER by Port.Name, oif_name";
+		$order = " ORDER by oif_name, Port.Name";
 
 		$query .= $join.$where.$order;
 
@@ -656,21 +679,16 @@ class linkmgmt_gvmap {
 
 	function _getcolor($type = 'object', $key = 'default', $alpha = 'ff', &$array = NULL , $arraykey = 'color') {
 
-		$current = array(
-				'port' => '#ffff90',
-				'object' => '#ff0000',
-				'cluster' => '#ff0000',
-				);
-
 		$object = array(
-				'current' => $current['object'],
+				'current' => '#ff0000',
 				);
 		$port = array(
-				'current' => $current['port'],
+				'current' => '#ffff90',
 				);
 
 		$cluster = array(
-				'current' => $current['cluster'],
+				'current' => '#ff0000',
+				'problem' => '#ff3030',
 				);
 
 	/*
@@ -679,9 +697,9 @@ class linkmgmt_gvmap {
 	 */
 
 		$oif_id = array(
-				'16' => '#0fff00', /* AC-in */
-				'1322' => '#00fff0', /* AC-out */
-				'24' => '#00ff00', /* 1000base-t */
+				'16' => '#800000', /* AC-in */
+				'1322' => '#ff4500', /* AC-out */
+				'24' => '#000080', /* 1000base-t */
 				);
 
 		$defaultcolor = '#000000'; /* black */
