@@ -98,7 +98,7 @@ CREATE TABLE `LinkBackend` (
  * 10.08.12	add portlist::_getlinkportsymbol
  *		rename _LinkPort -> _printlinkportsymbol
  * 16.08.12	add multlink support (breaks column alignment!)
- *		add GraphViz Maps
+ *		add GraphViz Maps ( with port / object highlighting )
  *
  *
  */
@@ -331,18 +331,19 @@ class linkmgmt_gvmap {
 
 	private $alpa = 'ff';
 
-	private $lastnode = NULL;
-
 	function __construct($object_id = NULL, $port_id = NULL, $allports = false, $hl = NULL) {
 		$this->allports = $allports;
 
 		$hl_object_id = NULL;
 		$hl_port_id = NULL;
 
+		$hllabel = "";
+
 		switch($hl)
 		{
 			case 'p':
 			case 'port':
+				$hllabel = " (Port highlight)";
 				$hl_object_id = $object_id;
 				$hl_port_id = $port_id;
 				$port_id = NULL;
@@ -350,6 +351,7 @@ class linkmgmt_gvmap {
 				break;
 			case 'o':
 			case 'object':
+				$hllabel = " (Object highlight)";
 				$hl_object_id = $object_id;
 				$object_id = NULL;
 				$this->alpha = '30';
@@ -372,7 +374,7 @@ class linkmgmt_gvmap {
 		if($object_id === NULL)
 		{
 			$this->gv->addAttributes(array(
-						'label' => 'Showing all objects',
+						'label' => 'Showing all objects'.$hllabel,
 						'labelloc' => 't',
 						)
 				);
@@ -386,7 +388,7 @@ class linkmgmt_gvmap {
 			$object = spotEntity ('object', $object_id);
 
 			$this->gv->addAttributes(array(
-						'label' => "Graph for ${object['name']}",
+						'label' => "Graph for ${object['name']}$hllabel",
 						'labelloc' => 't',
 						)
 				);
@@ -474,10 +476,6 @@ class linkmgmt_gvmap {
 		$object = spotEntity ('object', $object_id);
 	//	$object['attr'] = getAttrValues($object_id);
 
-		/* get ports */
-		/* calls getObjectPortsAndLinks */
-		//amplifyCell ($object);
-
 		$clusterattr = array();
 
 		$this->_getcolor('cluster', 'default', $this->alpha, $clusterattr, 'color');
@@ -522,6 +520,7 @@ class linkmgmt_gvmap {
 		$gv->addCluster($object_id, $clustertitle, $clusterattr, $parent);
 
 		/* TODO gv_image empty cluster bug */
+		/* show all only */
 		if($this->object_id === NULL)
 			$gv->addNode('dummy',array('style' => 'invis'),$object_id);
 
@@ -537,17 +536,10 @@ class linkmgmt_gvmap {
 
 		$ports = array_merge($front,$backend);
 
-		foreach($ports as $port) {
-
+		foreach($ports as $key => $port) {
 
 			$this->back = $port['linktype'];
-		/*
-			$nodelabel = "<TABLE>".
-					"<TR><TD PORT=\"front\">${port['name']}</TD></TR>".
-					"<TR><TD><FONT POINT-SIZE=\"8\">${port['iif_name']}</FONT><BR/>".
-					"<FONT POINT-SIZE=\"8\">${port['oif_name']}</FONT></TD></TR>".
-					"</TABLE>";
-		*/
+
 			$nodelabel = "${port['name']}";
 
 			if($port['iif_id'] != '1' )
@@ -557,7 +549,6 @@ class linkmgmt_gvmap {
 
 			$nodeattr = array(
 						'label' => $nodelabel,
-					//	'shape' => 'record',
 					);
 
 			$this->_getcolor('port', 'default',$this->alpha, $nodeattr, 'fontcolor');
@@ -608,14 +599,6 @@ class linkmgmt_gvmap {
 							'tooltip' => $edgetooltip,
 							'sametail' => $linktype,
 							'samehead' => $linktype,
-					/*		'headtooltip' => ' OHHHHHHH ',
-							'tailtooltip' => ' AHHHHHHH ',
-							'labelURL' => 'google.de',
-							'headURL' => 'google.de',
-							'tailURL' => 'google.de',
-							'headlabel' => 'XX',
-							'taillabel' => 'TEST',
-					 */
 						);
 
 					$this->_getcolor('edge', 'default', $this->alpha, $edgeattr, 'color');
@@ -641,10 +624,6 @@ class linkmgmt_gvmap {
 						}
 					}
 
-				/*
-					if($port['object_id'] == $port['remote_object_id'])
-						$edgeattr['constraint'] = 'false';
-				 */
 					$gv->addEdge(array($port['id'] => $port['remote_id']),
 								$edgeattr,
 								array(
