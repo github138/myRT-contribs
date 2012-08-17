@@ -191,11 +191,9 @@ function linkmgmt_opmap() {
 	/* TODO disable errors -> corrupts image data */
 
 	$object_id = NULL;
-
-	if(isset($_REQUEST['object_id']))
-		$object_id = $_REQUEST['object_id'];
-	else
-		return;
+	$port_id = NULL;
+	$allports = false;
+	$usemap = false;
 
 	$urlparams = array(
 			'module' => 'redirect',
@@ -205,6 +203,30 @@ function linkmgmt_opmap() {
 			'object_id' => $object_id,
 			);
 
+
+	/* highlight object */
+	$hl = NULL;
+	if(isset($_REQUEST['hl']))
+	{
+		$hl = $_REQUEST['hl'];
+		unset($_REQUEST['hl_object_id']);
+		unset($_REQUEST['hl_port_id']);
+
+	}
+
+	if(!$hl && isset($_REQUEST['hl_object_id']))
+	{
+		$hl = 'o';
+		$object_id = $_REQUEST['hl_object_id'];
+		$urlparams['hl_object_id'] = $object_id;
+		unset($_REQUEST['object_id']);
+		unset($_REQUEST['hl_port_id']);
+		unset($_REQUEST['port_id']);
+	}
+
+	if(isset($_REQUEST['object_id']))
+		$object_id = $_REQUEST['object_id'];
+
 	if(isset($_REQUEST['type']))
 	{
 		$type = $_REQUEST['type'];
@@ -213,21 +235,13 @@ function linkmgmt_opmap() {
 	else
 		$type = 'gif';
 
-	$port_id = NULL;
-	$hl_port_id = NULL;
-	$allports = false;
-	$usemap = false;
-
-	if(isset($_REQUEST['port_id']))
+	/* highlight port */
+	if(!$hl && isset($_REQUEST['hl_port_id']))
 	{
-		$port_id = $_REQUEST['port_id'];
-		$urlparams['port_id'] = $port_id;
-	}
-
-	if(isset($_REQUEST['hl_port_id']))
-	{
-		$hl_port_id = $_REQUEST['hl_port_id'];
-		$urlparams['hl_port_id'] = $hl_port_id;
+		$hl = 'p';
+		$port_id = $_REQUEST['hl_port_id'];
+		$urlparams['hl_port_id'] = $port_id;
+		unset($_REQUEST['port_id']);
 	}
 
 	if(isset($_REQUEST['allports']))
@@ -236,10 +250,23 @@ function linkmgmt_opmap() {
 		$urlparams['allprots'] = $allports;
 	}
 
+	if(isset($_REQUEST['port_id']))
+	{
+		$port_id = $_REQUEST['port_id'];
+		$urlparams['port_id'] = $port_id;
+	}
+
 	if(isset($_REQUEST['usemap']))
 		$usemap = $_REQUEST['usemap'];
 
-	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl_port_id);
+	if(isset($_REQUEST['all']))
+	{
+		$object_id = NULL;
+		$port_id = NULL;
+		$hl = NULL;
+	}
+
+	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl);
 
 	switch($type) {
 		case 'gif':
@@ -306,9 +333,32 @@ class linkmgmt_gvmap {
 
 	private $lastnode = NULL;
 
-	function __construct($object_id, $port_id = NULL, $allports = false, $hl_port_id = NULL) {
-		$this->object_id = $object_id;
+	function __construct($object_id = NULL, $port_id = NULL, $allports = false, $hl = NULL) {
 		$this->allports = $allports;
+
+		$hl_object_id = NULL;
+		$hl_port_id = NULL;
+
+		switch($hl)
+		{
+			case 'p':
+			case 'port':
+				$hl_object_id = $object_id;
+				$hl_port_id = $port_id;
+				$port_id = NULL;
+				$this->alpha = '30';
+				break;
+			case 'o':
+			case 'object':
+				$hl_object_id = $object_id;
+				$object_id = NULL;
+				$this->alpha = '30';
+				break;
+
+		}
+
+		$this->object_id = $object_id;
+		$this->port_id = $port_id;
 
 		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
 		$graphattr = array(
@@ -316,35 +366,42 @@ class linkmgmt_gvmap {
 				//	'ranksep' => '0',
 					'nodesep' => '0',
 				);
-		$this->gv = new Image_GraphViz(true, $graphattr, $object_id);
 
-		if($hl_port_id !== NULL)
-		{
-			$port_id = NULL;
-			$this->alpha = '30';
-		}
-		else
-			$this->port_id = $port_id;
+		$this->gv = new Image_GraphViz(true, $graphattr, $object_id);
 
 		if($object_id === NULL)
 		{
+			$this->gv->addAttributes(array(
+						'label' => 'Showing all objects',
+						'labelloc' => 't',
+						)
+				);
+
 			$objects = listCells('object');
 			foreach($objects as $obj)
-				$this->_do($this->gv, $obj['id'], NULL);
+				$this->_add($this->gv, $obj['id'], NULL);
 		}
 		else
 		{
-		$this->_add($this->gv, $object_id, $port_id);
+			$object = spotEntity ('object', $object_id);
 
-		// TODO  group children
-		$children = getEntityRelatives ('children', 'object', $object_id); //'entity_id'
+			$this->gv->addAttributes(array(
+						'label' => "Graph for ${object['name']}",
+						'labelloc' => 't',
+						)
+				);
 
-		foreach($children as $child)
-			$this->_add($this->gv, $child['entity_id'], NULL);
+			$this->_add($this->gv, $object_id, $port_id);
+
+			// TODO  group children
+			$children = getEntityRelatives ('children', 'object', $object_id); //'entity_id'
+
+			foreach($children as $child)
+				$this->_add($this->gv, $child['entity_id'], NULL);
 		}
 
-		/* highlight port */
-		if($hl_port_id !== NULL)
+		/* highlight object/port */
+		if($hl !== NULL)
 		{
 
 			$this->alpha = 'ff';
@@ -353,11 +410,12 @@ class linkmgmt_gvmap {
 			$this->ports = array();
 			$this->back = NULL;
 
+			$this->object_id = $hl_object_id;
 			$this->port_id = $hl_port_id;
 
-			$hlgv = new Image_GraphViz(true, $graphattr, $object_id.'_hl'.$hl_port_id);
+			$hlgv = new Image_GraphViz(true, $graphattr);
 
-			$this->_add($hlgv,$object_id , $hl_port_id);
+			$this->_add($hlgv, $hl_object_id , $hl_port_id);
 
 			/* merge higlight graph */
 			// edgedfrom - from - to - id
@@ -396,7 +454,7 @@ class linkmgmt_gvmap {
 	}
 
 	// !!!recursiv !!!
-	function _add($gv, $object_id, $port_id = NULL) {
+	function _add($gv, $object_id, $port_id = NULL, $parent = 'default') {
 		global $lm_multilink_port_types;
 
 		if($port_id === NULL)
@@ -414,7 +472,7 @@ class linkmgmt_gvmap {
 		}
 
 		$object = spotEntity ('object', $object_id);
-		$object['attr'] = getAttrValues($object_id);
+	//	$object['attr'] = getAttrValues($object_id);
 
 		/* get ports */
 		/* calls getObjectPortsAndLinks */
@@ -460,7 +518,8 @@ class linkmgmt_gvmap {
 		if(!empty($object['Row_name']) || !empty($object['Rack_name']))
 			$clustertitle .= "<BR/>${object['Row_name']} / ${object['Rack_name']}";
 
-		$gv->addCluster($object_id, $clustertitle, $clusterattr);
+		/* TODO fix parent */
+		$gv->addCluster($object_id, $clustertitle, $clusterattr, $parent);
 
 		/* TODO gv_image empty cluster bug */
 		if($this->object_id === NULL)
