@@ -194,6 +194,7 @@ function linkmgmt_opmap() {
 	$port_id = NULL;
 	$allports = false;
 	$usemap = false;
+	$command = NULL;
 
 	$urlparams = array(
 			'module' => 'redirect',
@@ -266,6 +267,9 @@ function linkmgmt_opmap() {
 		$hl = NULL;
 	}
 
+	if(isset($_REQUEST['cmd']))
+		$command = $_REQUEST['cmd'];
+
 	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl);
 
 	switch($type) {
@@ -295,10 +299,10 @@ function linkmgmt_opmap() {
 	if($usemap)
 	{
 
-		echo $gvmap->fetch('cmapx');
+		echo $gvmap->fetch('cmapx', $command);
 
 		echo "<img src=\"data:$ctype;base64,".
-			base64_encode($gvmap->fetch($type)).
+			base64_encode($gvmap->fetch($type, $command)).
 			"\" usemap=#$object_id />";
 
 	//	echo "<img src=\"index.php?".http_build_query($urlparams)."\" usemap=\"#$object_id\" />";
@@ -307,7 +311,7 @@ function linkmgmt_opmap() {
 	{
 
 		header("Content-Type: $ctype");
-		echo $gvmap->fetch($type);
+		echo $gvmap->fetch($type, $command);
 
 	}
 
@@ -639,15 +643,15 @@ class linkmgmt_gvmap {
 	//	portlist::var_dump_html($port);
 	}
 
-	function fetch($type = 'png') {
+	function fetch($type = 'png', $command = NULL) {
 		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
-		$ret = $this->gv->fetch($type);
+		$ret = $this->gv->fetch($type, $command);
 		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
 		return $ret;
 	}
 
-	function image($type = 'png') {
-		$this->gv->image($type);
+	function image($type = 'png', $command = NULL) {
+		$this->gv->image($type, $command);
 	}
 
 	function parse() {
