@@ -274,6 +274,9 @@ function linkmgmt_opmap() {
 	if(isset($_REQUEST['cmd']))
 		$command = $_REQUEST['cmd'];
 
+	if(isset($_REQUEST['debug']))
+		$debug = $_REQUEST['debug'];
+
 	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl);
 
 	switch($type) {
@@ -310,6 +313,15 @@ function linkmgmt_opmap() {
 			"\" usemap=#$object_id />";
 
 	//	echo "<img src=\"index.php?".http_build_query($urlparams)."\" usemap=\"#$object_id\" />";
+
+		if($debug)
+		{
+			echo "<pre>";
+			echo var_dump($gvmap->dump());
+			echo "</pre>";
+
+			echo "<pre>".$gvmap->parse()."</pre>";
+		}
 	}
 	else
 	{
@@ -372,9 +384,10 @@ class linkmgmt_gvmap {
 
 		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
 		$graphattr = array(
-					'rankdir' => 'LR',
+					'rankdir' => 'RL',
 				//	'ranksep' => '0',
 					'nodesep' => '0',
+				//	'overlay' => false,
 				);
 
 		$this->gv = new Image_GraphViz(true, $graphattr, $object_id);
@@ -388,6 +401,7 @@ class linkmgmt_gvmap {
 				);
 
 			$objects = listCells('object');
+
 			foreach($objects as $obj)
 				$this->_add($this->gv, $obj['id'], NULL);
 		}
@@ -403,7 +417,6 @@ class linkmgmt_gvmap {
 
 			$this->_add($this->gv, $object_id, $port_id);
 
-			// TODO  group children
 			$children = getEntityRelatives ('children', 'object', $object_id); //'entity_id'
 
 			foreach($children as $child)
@@ -464,14 +477,19 @@ class linkmgmt_gvmap {
 	}
 
 	// !!!recursiv !!!
-	function _add($gv, $object_id, $port_id = NULL, $parent = 'default') {
+	function _add($gv, $object_id, $port_id = NULL) {
 		global $lm_multilink_port_types;
+
+		/* used only for Graphviz ...
+		 * !! numeric ids cause Image_Graphviz problems on nested clusters !!
+		 */
+		$cluster_id = "c$object_id";
 
 		if($port_id === NULL)
 		{
 			if(
-				isset($gv->graph['clusters'][$object_id]) ||
-				isset($gv->graph['subgraphs'][$object_id])
+				isset($gv->graph['clusters'][$cluster_id]) ||
+				isset($gv->graph['subgraphs'][$cluster_id])
 			)
 			return;
 		}
@@ -524,13 +542,18 @@ class linkmgmt_gvmap {
 		if(!empty($object['Row_name']) || !empty($object['Rack_name']))
 			$clustertitle .= "<BR/>${object['Row_name']} / ${object['Rack_name']}";
 
-		/* TODO fix parent */
-		$gv->addCluster($object_id, $clustertitle, $clusterattr, $parent);
+		$embedin = $object['container_id'];
+		if(empty($embedin))
+			$embedin = 'default';
+		else
+		{
+			$embedin = "c$embedin";
 
-		/* TODO gv_image empty cluster bug */
-		/* show all only */
-		if($this->object_id === NULL)
-			$gv->addNode('dummy',array('style' => 'invis'),$object_id);
+			/* add container / cluster if not already exists */
+			$this->_add($gv, $object['container_id'], NULL);
+		}
+
+		$gv->addCluster($cluster_id, $clustertitle, $clusterattr, $embedin);
 
 		if($this->back != 'front' || $port_id === NULL || $this->allports)
 		$front = $this->_getObjectPortsAndLinks($object_id, 'front', $port_id);
@@ -543,6 +566,21 @@ class linkmgmt_gvmap {
 		$backend = array();
 
 		$ports = array_merge($front,$backend);
+
+		if(empty($ports))
+		{
+			/* needed because of  gv_image empty cluster bug (invalid foreach argument) */
+			$gv->addNode('dummy', array(
+					//	'label' =>'No Ports found/connected',
+						'label' =>'',
+						'fontsize' => 0,
+						'size' => 0,
+						'width' => 0,
+						'height' => 0,
+						'shape' => 'point',
+						'style' => 'invis',
+						), $cluster_id);
+		}
 
 		foreach($ports as $key => $port) {
 
@@ -581,7 +619,7 @@ class linkmgmt_gvmap {
 
 			$gv->addNode($port['id'],
 						$nodeattr,
-						$port['object_id']);
+						"c".$port['object_id']); /* see cluster_id */
 
 			$this->ports[$port['id']] = true;
 
@@ -774,6 +812,9 @@ class linkmgmt_gvmap {
 
 	} /* _getcolor */
 
+	function dump() {
+		var_dump($this->gv);
+	}
 
 } /* class gvmap */
 
