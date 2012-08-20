@@ -109,6 +109,10 @@ CREATE TABLE `LinkBackend` (
  * - code cleanups
  * - bug fixing
  *
+ * - fix loopdectect for multiport
+ *	MAX_LOOP_COUNT
+ *	loop highlight gv map
+ *
  * - fix column alignment with multilinks
  *
  * - put selected object/port top left of graph
@@ -1661,7 +1665,7 @@ class portlist {
 	const ALTERNATE_ROW_BGCOLOR = '#f0f0f0';
 
 	/* Possible LOOP detected after count links print only */
-	const MAX_LOOP_COUNT = 130;
+	const MAX_LOOP_COUNT = 13;
 
 	private $loopcount;
 
@@ -1730,7 +1734,7 @@ class portlist {
 		if(!empty($src_port[$linktype])) {
 
 			/* multilink */
-			foreach($src_port[$linktype] as $src_link) {
+			foreach($src_port[$linktype] as &$src_link) {
 				$dst_port_id = $src_link['id'];
 
 				if(!$this->_loopdetect($src_port,$dst_port_id,$src_link,$linktype)) {
@@ -1763,16 +1767,18 @@ class portlist {
 
 		//	$dst_port = $this->list[$dst_port_id];
 
-			$src_link['loop'] = $dst_port_id;
+			//echo "LOOP :".$src_port['id']."-->".$dst_port_id;
 
-		//	echo "LOOP :".$src_port['id']."-->".$dst_port_id;
+			/* print loop at least once */
+			if($dst_port_id == $this->port_id)
+			{
+				$src_link['loop'] = $dst_port_id;
+				return TRUE;
+			}
 
-			return TRUE;
-
-		} else {
-			//error_log(__FUNCTION__."$dst_port_id not exists");
-			return FALSE;
 		}
+
+		return FALSE;
 
 	} /* _loopdetect */
 
