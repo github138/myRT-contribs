@@ -343,7 +343,6 @@ class linkmgmt_gvmap {
 
 	private $gv = NULL;
 
-	private $edges = array();
 	private $ports = array();
 
 	private $allports = false;
@@ -429,7 +428,6 @@ class linkmgmt_gvmap {
 
 			$this->alpha = 'ff';
 
-			$this->edges = array();
 			$this->ports = array();
 			$this->back = NULL;
 
@@ -628,10 +626,9 @@ class linkmgmt_gvmap {
 				$this->_add($gv, $port['remote_object_id'], ($port_id === NULL ? NULL : $port['remote_id']));
 
 				if(
-					!isset($this->edges[$port['remote_id'].'_'.$port['id']]) &&
-					!isset($this->edges[$port['id'].'_'.$port['remote_id']])
+					!isset($gv->graph['edgesFrom'][$port['id']][$port['remote_id']]) &&
+					!isset($gv->graph['edgesFrom'][$port['remote_id']][$port['id']])
 				) {
-					$this->edges[$port['id'].'_'.$port['remote_id']] = true;
 
 					$linktype = $port['linktype'];
 
