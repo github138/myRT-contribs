@@ -658,6 +658,12 @@ class linkmgmt_gvmap {
 						}
 					}
 
+					unset($_GET['module']);
+					$_GET['object_id'] = $port['object_id'];
+					$_GET['port_id'] = $port['id'];
+
+					$edgeattr['URL'] = makeHrefProcess($_GET);
+
 					$gv->addEdge(array($port['id'] => $port['remote_id']),
 								$edgeattr,
 								array(
