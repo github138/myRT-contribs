@@ -200,15 +200,6 @@ function linkmgmt_opmap() {
 	$usemap = false;
 	$command = NULL;
 
-	$urlparams = array(
-			'module' => 'redirect',
-			'page' => 'object',
-			'tab' => 'linkmgmt',
-			'op' => 'map',
-			'object_id' => $object_id,
-			);
-
-
 	/* highlight object */
 	$hl = NULL;
 	if(isset($_REQUEST['hl']))
@@ -217,13 +208,14 @@ function linkmgmt_opmap() {
 		unset($_REQUEST['hl_object_id']);
 		unset($_REQUEST['hl_port_id']);
 
+		if($hl == 'o')
+			unset($_GET['port_id']);
 	}
 
 	if(!$hl && isset($_REQUEST['hl_object_id']))
 	{
 		$hl = 'o';
 		$object_id = $_REQUEST['hl_object_id'];
-		$urlparams['hl_object_id'] = $object_id;
 		unset($_REQUEST['object_id']);
 		unset($_REQUEST['hl_port_id']);
 		unset($_REQUEST['port_id']);
@@ -235,7 +227,6 @@ function linkmgmt_opmap() {
 	if(isset($_REQUEST['type']))
 	{
 		$type = $_REQUEST['type'];
-		$urlparams['type'] = $type;
 	}
 	else
 		$type = 'gif';
@@ -245,30 +236,34 @@ function linkmgmt_opmap() {
 	{
 		$hl = 'p';
 		$port_id = $_REQUEST['hl_port_id'];
-		$urlparams['hl_port_id'] = $port_id;
 		unset($_REQUEST['port_id']);
 	}
 
 	if(isset($_REQUEST['allports']))
 	{
 		$allports = $_REQUEST['allports'];
-		$urlparams['allprots'] = $allports;
 	}
 
 	if(isset($_REQUEST['port_id']))
 	{
 		$port_id = $_REQUEST['port_id'];
-		$urlparams['port_id'] = $port_id;
 	}
 
 	if(isset($_REQUEST['usemap']))
 		$usemap = $_REQUEST['usemap'];
+
+	if($hl == 'p' && $port_id === NULL)
+	{
+		unset($_GET['hl']);
+		unset($_GET['port_id']);
+	}
 
 	if(isset($_REQUEST['all']))
 	{
 		$object_id = NULL;
 		$port_id = NULL;
 		$hl = NULL;
+		unset($_GET['hl']);
 	}
 
 	if(isset($_REQUEST['cmd']))
@@ -310,9 +305,7 @@ function linkmgmt_opmap() {
 
 		echo "<img src=\"data:$ctype;base64,".
 			base64_encode($gvmap->fetch($type, $command)).
-			"\" usemap=#$object_id />";
-
-	//	echo "<img src=\"index.php?".http_build_query($urlparams)."\" usemap=\"#$object_id\" />";
+			"\" usemap=#map$object_id />";
 
 		if($debug)
 		{
@@ -358,6 +351,16 @@ class linkmgmt_gvmap {
 
 		$hllabel = "";
 
+		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
+		$graphattr = array(
+					'rankdir' => 'RL',
+				//	'ranksep' => '0',
+					'nodesep' => '0',
+				//	'overlay' => false,
+				);
+
+		$this->gv = new Image_GraphViz(true, $graphattr, "map".$object_id);
+
 		switch($hl)
 		{
 			case 'p':
@@ -381,18 +384,11 @@ class linkmgmt_gvmap {
 		$this->object_id = $object_id;
 		$this->port_id = $port_id;
 
-		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
-		$graphattr = array(
-					'rankdir' => 'RL',
-				//	'ranksep' => '0',
-					'nodesep' => '0',
-				//	'overlay' => false,
-				);
-
-		$this->gv = new Image_GraphViz(true, $graphattr, $object_id);
-
 		if($object_id === NULL)
 		{
+			unset($_GET['all']);
+			$_GET['hl'] = 'o';
+
 			$this->gv->addAttributes(array(
 						'label' => 'Showing all objects'.$hllabel,
 						'labelloc' => 't',
@@ -518,6 +514,10 @@ class linkmgmt_gvmap {
 		unset($_GET['module']); // makeHrefProcess adds this
 		unset($_GET['port_id']);
 		$_GET['object_id'] = $object_id;
+
+		if(isset($_GET['hl']))
+			$_GET['hl'] = 'o';
+
 		$clusterattr['URL'] = makeHrefProcess($_GET);
 
 		//has_problems
@@ -603,6 +603,9 @@ class linkmgmt_gvmap {
 			unset($_GET['module']);
 			$_GET['object_id'] = $port['object_id'];
 			$_GET['port_id'] = $port['id'];
+
+			if(isset($_GET['hl']))
+				$_GET['hl'] = 'p';
 
 			$nodeattr['URL'] = makeHrefProcess($_GET);
 
