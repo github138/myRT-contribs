@@ -11,7 +11,7 @@
  * 		- Link object backend ports by name (e.g. handy for patch panels)
  *		- change/create CableID (needs jquery.jeditable.mini.js)
  *		- change/create Port Reservation Comment (needs jquery.jeditable.mini.js)
-		- multiple backend links for supported port types (e.g. AC-in, DC)
+ *		- multiple backend links for supported port types (e.g. AC-in, DC)
  *		- GraphViz Maps (Objects, Ports and Links) (needs GraphViz_Image 1.3.0)
  *
  *	Usage:
@@ -514,16 +514,11 @@ class linkmgmt_gvmap {
 		}
 
 		$clusterattr['tooltip'] = "${object['name']}";
-		$clusterattr['URL'] = makeHrefProcess(
-					portlist::urlparamsarray(
-						array(
-							'op' => 'map',
-							'usemap' => 1,
-							'object_id' => $object_id,
-							'port_id' => NULL,
-						)
-					)
-				);
+
+		unset($_GET['module']); // makeHrefProcess adds this
+		unset($_GET['port_id']);
+		$_GET['object_id'] = $object_id;
+		$clusterattr['URL'] = makeHrefProcess($_GET);
 
 		//has_problems
 		if($object['has_problems'] != 'no')
@@ -604,16 +599,12 @@ class linkmgmt_gvmap {
 			}
 
 			$nodeattr['tooltip'] = "${port['name']}";
-			$nodeattr['URL'] = makeHrefProcess(
-						portlist::urlparamsarray(
-							array(
-								'op' => 'map',
-								'usemap' => 1,
-								'object_id' => $port['object_id'],
-								'port_id' => $port['id'],
-							)
-						)
-					);
+
+			unset($_GET['module']);
+			$_GET['object_id'] = $port['object_id'];
+			$_GET['port_id'] = $port['id'];
+
+			$nodeattr['URL'] = makeHrefProcess($_GET);
 
 			$gv->addNode($port['id'],
 						$nodeattr,
