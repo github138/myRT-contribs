@@ -196,6 +196,7 @@ function linkmgmt_opmap() {
 
 	$object_id = NULL;
 	$port_id = NULL;
+	$remote_id = NULL;
 	$allports = false;
 	$usemap = false;
 	$command = NULL;
@@ -209,7 +210,11 @@ function linkmgmt_opmap() {
 		unset($_REQUEST['hl_port_id']);
 
 		if($hl == 'o')
+		{
 			unset($_GET['port_id']);
+			unset($_GET['remote_id']);
+		}
+
 	}
 
 	if(!$hl && isset($_REQUEST['hl_object_id']))
@@ -256,7 +261,14 @@ function linkmgmt_opmap() {
 	{
 		unset($_GET['hl']);
 		unset($_GET['port_id']);
+		unset($_GET['remote_id']);
 	}
+
+	if($hl == 'o')
+		unset($_GET['remote_id']);
+
+	if(isset($_REQUEST['remote_id']))
+		$remote_id = $_REQUEST['remote_id'];
 
 	if(isset($_REQUEST['all']))
 	{
@@ -272,7 +284,7 @@ function linkmgmt_opmap() {
 	if(isset($_REQUEST['debug']))
 		$debug = $_REQUEST['debug'];
 
-	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl);
+	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl, $remote_id);
 
 	switch($type) {
 		case 'gif':
@@ -333,6 +345,8 @@ class linkmgmt_gvmap {
 
 	private $object_id = NULL;
 	private $port_id = NULL;
+	private $remote_id = NULL;
+	private $hl = NULL;
 
 	private $gv = NULL;
 
@@ -343,8 +357,10 @@ class linkmgmt_gvmap {
 
 	private $alpa = 'ff';
 
-	function __construct($object_id = NULL, $port_id = NULL, $allports = false, $hl = NULL) {
+	function __construct($object_id = NULL, $port_id = NULL, $allports = false, $hl = NULL, $remote_id = NULL) {
 		$this->allports = $allports;
+
+		$this->hl = $hl;
 
 		$hl_object_id = NULL;
 		$hl_port_id = NULL;
@@ -358,6 +374,16 @@ class linkmgmt_gvmap {
 					'nodesep' => '0',
 				//	'overlay' => false,
 				);
+
+		unset($_GET['module']);
+		unset($_GET['all']);
+
+		if($this->hl)
+			$_GET['hl'] = 'o';
+		else
+			$_GET['all'] = 1;
+
+		$graphattr['URL'] = makeHrefProcess($_GET);
 
 		$this->gv = new Image_GraphViz(true, $graphattr, "map".$object_id);
 
@@ -383,6 +409,7 @@ class linkmgmt_gvmap {
 
 		$this->object_id = $object_id;
 		$this->port_id = $port_id;
+		$this->remote_id = $remote_id;
 
 		if($object_id === NULL)
 		{
@@ -513,9 +540,10 @@ class linkmgmt_gvmap {
 
 		unset($_GET['module']); // makeHrefProcess adds this
 		unset($_GET['port_id']);
+		unset($_GET['remote_id']);
 		$_GET['object_id'] = $object_id;
 
-		if(isset($_GET['hl']))
+		if($this->hl)
 			$_GET['hl'] = 'o';
 
 		$clusterattr['URL'] = makeHrefProcess($_GET);
@@ -598,13 +626,19 @@ class linkmgmt_gvmap {
 				$nodeattr['fillcolor'] = $this->_getcolor('port', 'current', $this->alpha);
 			}
 
+			if($this->remote_id == $port['id']) {
+				$nodeattr['style'] = 'filled';
+				$nodeattr['fillcolor'] = $this->_getcolor('port', 'remote', $this->alpha);
+			}
+
 			$nodeattr['tooltip'] = "${port['name']}";
 
 			unset($_GET['module']);
+			unset($_GET['remote_id']);
 			$_GET['object_id'] = $port['object_id'];
 			$_GET['port_id'] = $port['id'];
 
-			if(isset($_GET['hl']))
+			if($this->hl)
 				$_GET['hl'] = 'p';
 
 			$nodeattr['URL'] = makeHrefProcess($_GET);
@@ -661,9 +695,19 @@ class linkmgmt_gvmap {
 						}
 					}
 
+					if(
+						($port['id'] == $this->port_id && $port['remote_id'] == $this->remote_id) ||
+						($port['id'] == $this->remote_id && $port['remote_id'] == $this->port_id)
+					)
+					{
+						$this->_getcolor('edge', 'highlight', 'ff', $edgeattr, 'color');
+						$edgeattr['penwidth'] = 2; /* bold */
+					}
+
 					unset($_GET['module']);
 					$_GET['object_id'] = $port['object_id'];
 					$_GET['port_id'] = $port['id'];
+					$_GET['remote_id'] = $port['remote_id'];
 
 					$edgeattr['URL'] = makeHrefProcess($_GET);
 
@@ -765,6 +809,7 @@ class linkmgmt_gvmap {
 				);
 		$port = array(
 				'current' => '#ffff90',
+				'remote' => '#ffffD0',
 				);
 
 		$cluster = array(
@@ -772,10 +817,9 @@ class linkmgmt_gvmap {
 				'problem' => '#ff3030',
 				);
 
-	/*
 		$edge = array (
+				'highlight' => '#ff0000',
 				);
-	 */
 
 		$oif_id = array(
 				'16' => '#800000', /* AC-in */
