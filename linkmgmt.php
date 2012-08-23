@@ -129,6 +129,7 @@ CREATE TABLE `LinkBackend` (
 
 
 require_once 'inc/popup.php';
+require_once 'inc/interface.php'; /* renderCell */
 //require_once 'Image/GraphViz.php';
 
 $tab['object']['linkmgmt'] = 'Link Management';
@@ -141,6 +142,7 @@ $ophandler['object']['linkmgmt']['PortLinkDialog'] = 'linkmgmt_opPortLinkDialog'
 $ophandler['object']['linkmgmt']['Help'] = 'linkmgmt_opHelp';
 
 $ophandler['object']['linkmgmt']['map'] = 'linkmgmt_opmap';
+$ophandler['object']['linkmgmt']['mapinfo'] = 'linkmgmt_opmapinfo';
 
 /* ------------------------------------------------- */
 
@@ -187,6 +189,247 @@ function linkmgmt_opHelp() {
 <?php
 	exit;
 } /* opHelp */
+
+/* -------------------------------------------------- */
+
+function linkmgmt_opmapinfo() {
+
+	$object_id = NULL;
+	$port_id = NULL;
+	$remote_id = NULL;
+	$linktype = NULL;
+
+	if(isset($_REQUEST['object_id']))
+		$object_id = $_REQUEST['object_id'];
+
+	if(isset($_REQUEST['port_id']))
+		$port_id = $_REQUEST['port_id'];
+
+	if(isset($_REQUEST['remote_id']))
+		$remote_id = $_REQUEST['remote_id'];
+
+	if(isset($_REQUEST['linktype']))
+		$linktype = $_REQUEST['linktype'];
+
+	$debug = NULL;
+	if(isset($_REQUEST['debug']))
+		$debug['value'] = $_REQUEST['debug'];
+
+	$info = array();
+
+	echo "<table style=\"font-size:12;\"><tr>";
+
+	if($port_id != NULL)
+	{
+		$port = new linkmgmt_RTport($port_id);
+
+		echo "<td>";
+		$port->printtable();
+		echo "</td>";
+
+		if($debug)
+			$debug['port'] = &$port;
+
+		if($remote_id != NULL)
+		{
+
+			$remote_port = new linkmgmt_RTport($remote_id);
+
+			echo "<td><table align=\"center\">";
+
+			// TODO cableid
+			echo "<tr><td><pre>".($linktype == 'back' ? ' ===> ' : ' ---> ')."</pre></td></tr>";
+
+			$port->printunlinktr($linktype, $remote_port);
+
+			echo "</table></td>";
+
+
+			echo "<td>";
+			$remote_port->printtable();
+			echo "</td>";
+
+			if($debug)
+				$debug['remote_port'] = &$remote_port;
+
+		}
+		else
+			$port->printunlinktr();
+
+
+	}
+	echo "</tr><tr>";
+
+	echo "<td>";
+	$object = linkmgmt_RTport::printobjecttable($object_id);
+	echo "</td>";
+
+	if($debug)
+		$debug['object'] = &$object;
+
+	if($remote_id != NULL)
+	{
+
+		echo "<td></td>"; /* link */
+		echo "<td>";
+		$remote_object = linkmgmt_RTport::printobjecttable($remote_port->port['object_id']);
+		echo "</td>";
+
+		if($debug)
+			$debug['remote_object'] = &$remote_object;
+	}
+
+	echo "</tr></table>";
+
+	if($debug)
+	{
+		echo "<pre>--- Debug ---";
+		var_dump($debug);
+		echo "</pre>";
+	}
+
+	exit;
+}
+
+/* -------------------------------------- */
+
+class linkmgmt_RTport {
+
+	private $port_id = NULL;
+
+	public $port = false;
+
+	function __construct($port_id) {
+
+		$this->port = getPortInfo($port_id);
+
+		if($this->port === false)
+			return;
+
+		/* successfully get port info */
+		$this->port_id = $port_id;
+
+	} /* __construct */
+
+	function isvalid() {
+		return ($port_id !== NULL);
+	}
+
+	function getlinks($type = 'front') {
+	} /* getlinks */
+
+	function printtable() {
+
+		if($this->port_id == NULL)
+			return;
+
+		echo "<table>";
+
+		$this->_printinforow($this->port,
+					array(
+						'id' => 'Port ID',
+						'name' => 'Port Name',
+						'oif_name' => 'Port Type',
+						'l2address' => 'MAC',
+						'reservation_comment' => 'comment',
+					)
+		); /* printinforow */
+
+		$this->printlinktr();
+
+		echo "</table>";
+	} /* printtable */
+
+	function printlinktr() {
+		if($this->port_id === NULL)
+			return;
+
+		echo "<tr><td align=\"center\"><a href='".
+                                makeHrefProcess(array(
+					'tab' => 'linkmgmt',
+                                        'op'=>'PortLinkDialog',
+                                        'port'=>$this->port_id,
+                                        'object_id'=>$this->port['object_id'],
+					'linktype' => 'front')).
+                        "'>";
+                        printImageHREF ('plug', 'Link this port');
+                        echo "</a></td></tr>";
+	} /* link */
+
+	function printunlinktr($linktype = 'front', $remote_port = NULL) {
+		if($this->port_id === NULL)
+			return;
+
+		$urlparams = array(
+					'tab' => 'linkmgmt',
+                                        'op'=>'unlinkPort',
+                                        'port_id'=>$this->port_id,
+                                        'object_id'=>$this->port['object_id'],
+					'linktype' => $linktype,
+				);
+
+		$confirmmsg = "unlink port ".$this->port['name'];
+
+		if($remote_port !== NULL)
+		{
+			$urlparams['remote_id'] = $remote_port->port['id'];
+			$confirmmsg .= ' -> '.$remote_port->port['name'];
+		}
+
+		$confirmmsg .= " ($linktype)"; // TODO cableid
+
+		echo "<tr><td align=\"center\"><a href='".makeHrefProcess($urlparams).
+		"' onclick=\"return confirm('$confirmmsg');\">";
+		printImageHREF ('cut', 'Unlink this port');
+		echo "</a></td></tr>";
+
+	} /* unlink */
+
+	/* TODO move to object class */
+	static function printobjecttable($object_id = NULL) {
+
+		if($object_id === NULL)
+			return;
+
+		$object = spotEntity ('object', $object_id);
+
+		if($object === false)
+			return;
+
+		echo "<table><tr><td>";
+		renderCell($object);
+	//	renderLBCell($object_id);
+	//	renderRackObject($object_id);
+		echo "</td></tr><tr><td><table>";
+
+		self::_printinforow($object,
+				array(
+					'id' => 'ID',
+					'name' => 'Name',
+					'label' => 'Label',
+					'Rack_name' => 'Rack',
+					'Row_name' => 'Row',
+				)
+
+		); /* printinforow */
+
+		echo "</table></td></tr></table>";
+
+		return $object;
+
+	} /* printobjecttable */
+
+	static function _printinforow(&$data, $config) {
+
+		foreach($config as $key => $name)
+		{
+			$value = $data[$key];
+			if(!empty($value))
+				echo "<tr><td align=\"right\" nowrap=\"nowrap\" style=\"font-size:10;\">$name:</td><td nowrap=\"nowrap\">$value</td></tr>";
+		}
+
+	} /* _printinforow */
+} /* class RTport */
 
 /* -------------------------------------------------- */
 
@@ -312,6 +555,110 @@ function linkmgmt_opmap() {
 
 	if($usemap)
 	{
+
+		/* TODO add context menu to Ports, Objects, Links, ...
+		 */
+
+		echo "<script>
+			function initcontextmenu() {
+				maps = document.getElementsByTagName('map');
+                                for(i=0;i<maps.length;i++) {
+					areas = maps[i].childNodes;
+
+					for(j=0;j<areas.length;j++) {
+						if(areas[j].nodeType == 1)
+						{
+						//	console.log(areas[j].id);
+						//	attr = document.createAttribute('onmouseover','ahh');
+						//	areas[j].setAttribute(attr);
+						//	areas[j].onmouseover = 'menu(this);';
+							areas[j].oncontextmenu = 'menu(this);';
+						}
+					}
+
+                                }
+
+			};
+
+			function menu(parent) {
+
+			//	console.log('Menu');
+			//	console.log('--' + parent);
+				event = window.event;
+
+				ids = parent.id.split('-');
+
+				if(ids[0] == 'graph1')
+					return false;
+
+				object_id = ids[0];
+
+				url ='?module=redirect&page=object&tab=linkmgmt&op=mapinfo&object_id=' + object_id;
+			//	links ='<li><a href=' + object_id + '>Object</a></li>';
+
+				if(ids[1] != '')
+				{
+					port_id = ids[1];
+					url += '&port_id=' + port_id;
+				//	links += '<li><a href=' + port_id + '>Port</a></li>';
+
+					if(ids[2] != '')
+					{
+						remote_id = ids[2];
+
+						if(ids[3] != '')
+						{
+							linktype = ids[3];
+							url += '&remote_id=' + remote_id + '&linktype=' + linktype;
+						//	links += '<li><a href=' + port_id + '_' + remote_id + '_' + linktype + '>Unlink</a></li>';
+						}
+					}
+
+				}
+
+
+				xmlHttp = new XMLHttpRequest();
+				xmlHttp.open('GET', url, false);
+				xmlHttp.send(null);
+
+				infodiv = document.getElementById('info');
+				infodiv.innerHTML = xmlHttp.responseText;
+
+		//		linkdiv = document.getElementById('link');
+		//		linkdiv.innerHTML = links;
+
+				menudiv = document.getElementById('menu');
+				menudiv.style.position  = 'absolute';
+				menudiv.style.top  = (event.clientY + document.body.scrollTop) + 'px';
+				menudiv.style.left  = (event.clientX + document.body.scrollLeft) + 'px';
+				menudiv.style.display  = '';
+
+				return false;
+			};
+
+			function mousedown() {
+				console.log('mouse down');
+
+				event = window.event;
+
+				if(event.button != 2)
+					return true;
+
+				menudiv = document.getElementById('menu');
+
+				menudiv.style.display = 'none';
+
+				return false;
+			};
+
+			</script>";
+
+		echo "<body oncontextmenu=\"return false\" onmousedown=\"mousedown();\" onload=\"initcontextmenu();\">";
+
+		echo "<div id=\"menu\" style=\"display:none; background-color:#ffff90\">
+				<div id=\"info\"></div>
+				<ul id=\"link\" style=\"list-style-type:none\"></ul>
+			</div>";
 
 		echo $gvmap->fetch('cmapx', $command);
 
@@ -568,11 +915,13 @@ class linkmgmt_gvmap {
 			$embedin = 'default';
 		else
 		{
-			$embedin = "c$embedin";
+			$embedin = "c$embedin"; /* see cluster_id */
 
 			/* add container / cluster if not already exists */
 			$this->_add($gv, $object['container_id'], NULL);
 		}
+
+		$clusterattr['id'] = "$object_id----"; /* used for js context menu */
 
 		$gv->addCluster($cluster_id, $clustertitle, $clusterattr, $embedin);
 
@@ -642,10 +991,11 @@ class linkmgmt_gvmap {
 				$_GET['hl'] = 'p';
 
 			$nodeattr['URL'] = makeHrefProcess($_GET);
+			$nodeattr['id'] = "${port['object_id']}-${port['id']}--"; /* for js context menu */
 
 			$gv->addNode($port['id'],
 						$nodeattr,
-						"c".$port['object_id']); /* see cluster_id */
+						"c${port['object_id']}"); /* see cluster_id */
 
 			$this->ports[$port['id']] = true;
 
@@ -710,6 +1060,8 @@ class linkmgmt_gvmap {
 					$_GET['remote_id'] = $port['remote_id'];
 
 					$edgeattr['URL'] = makeHrefProcess($_GET);
+
+					$edgeattr['id'] = $port['object_id']."-".$port['id']."-".$port['remote_id']."-".$linktype; /* for js context menu  */
 
 					$gv->addEdge(array($port['id'] => $port['remote_id']),
 								$edgeattr,
@@ -919,24 +1271,40 @@ function linkmgmt_opunlinkPort() {
 	$port_id = $_REQUEST['port_id'];
 	$linktype = $_REQUEST['linktype'];
 
+	portlist::var_dump_html($_REQUEST);
+
 	/* check permissions */
 	if(!permitted(NULL, NULL, 'set_link')) {
 		exit;
 	}
 
 	if($linktype == 'back')
+	{
 		$table = 'LinkBackend';
+		$remote_id = $_REQUEST['remote_id'];
+
+		$retval =  usePreparedExecuteBlade
+			(
+				"DELETE FROM $table WHERE ( porta = ? and portb = ?) or (portb = ? and porta = ?)",
+				array (
+					$port_id, $remote_id,
+					$port_id, $remote_id)
+			);
+	}
 	else
+	{
 		$table = 'Link';
 
-	$retval = usePreparedDeleteBlade ($table, array('porta' => $port_id, 'portb' => $port_id), 'OR');
+		$retval = usePreparedDeleteBlade ($table, array('porta' => $port_id, 'portb' => $port_id), 'OR');
+	}
 
 	if($retval == 0)
 		echo " Link not found";
 	else
 		echo " $retval Links deleted";
 
-	header('Location: ?page='.$_REQUEST['page'].'&tab='.$_REQUEST['tab'].'&object_id='.$_REQUEST['object_id']);
+//	header('Location: ?page='.$_REQUEST['page'].'&tab='.$_REQUEST['tab'].'&object_id='.$_REQUEST['object_id']);
+	echo "goto ..";
 	exit;
 } /* opunlinkPort */
 
@@ -1109,9 +1477,7 @@ header ('Content-Type: text/html; charset=UTF-8');
 /*
  * like findSparePorts in popup.php extended with linktype
  */
-function linkmgmt_findSparePorts($port_info, $filter, $linktype) {
-
-	/* TODO multilink */
+function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = false) {
 
 	if($linktype == 'back')
 	{
@@ -1137,6 +1503,12 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype) {
 		left join '.$linktable.' on Port.id in ('.$linktable.'.porta, '.$linktable.'.portb)
 		left join Port as lnkPort on lnkPort.id = (('.$linktable.'.porta ^ '.$linktable.'.portb) ^ Port.id)
 		left join RackObject as lnkObject on lnkObject.id = lnkPort.object_id';
+
+	if(!$multilink)
+	{
+		$join .= ' left join '.$linkbacktable.' as selfLinkTable on ? in (selfLinkTable.porta,selfLinkTable.portb)';
+		$qparams[] = $port_info['id'];
+	}
 
 	if($linktype == 'front')
 	{
@@ -1176,6 +1548,9 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype) {
         $where = " WHERE Port.id <> ? ".
 		    "AND $linkbacktable.porta is NULL ";
         $qparams[] = $port_info['id'];
+
+	if(!$multilink)
+		$where .= "AND selfLinkTable.porta is NULL ";
 
 	 // rack filter
         if (! empty ($filter['racks']))
@@ -1312,9 +1687,9 @@ function linkmgmt_renderPopupPortSelector()
         }
 
 	$objectlist = array('NULL' => '- Show All -');
-	$objectlist = $objectlist + linkmgmt_getObjectsList($port_info, $filter, $linktype, 'default', NULL);
+	$objectlist = $objectlist + linkmgmt_getObjectsList($port_info, $filter, $linktype, $multilink, 'default', NULL);
 
-	$spare_ports = linkmgmt_findSparePorts ($port_info, $filter, $linktype);
+	$spare_ports = linkmgmt_findSparePorts ($port_info, $filter, $linktype, $multilink);
 
 	$maxsize  = getConfigVar('MAXSELSIZE');
 	$objectcount = count($objectlist);
@@ -1397,7 +1772,7 @@ function linkmgmt_renderPopupPortSelectorbyName()
 
 	$object = spotEntity ('object', $object_id);
 
-	$objectlist = linkmgmt_getObjectsList(NULL, NULL, $linktype, 'name', $object_id);
+	$objectlist = linkmgmt_getObjectsList(NULL, NULL, $linktype, false, 'name', $object_id);
 
 	$objectname = (isset($objectlist[$object_id]) ? $objectlist[$object_id] : $object['name']." (0)" );
 
@@ -1471,7 +1846,7 @@ function linkmgmt_renderPopupPortSelectorbyName()
  * type 'default':
 	'name':  that match those of src_object_id
  */
-function linkmgmt_getObjectsList($port_info, $filter, $linktype, $type = 'default', $src_object_id = NULL) {
+function linkmgmt_getObjectsList($port_info, $filter, $linktype, $multilink = false, $type = 'default', $src_object_id = NULL) {
 
 	/* TODO multilink ports */
 
@@ -1493,6 +1868,12 @@ function linkmgmt_getObjectsList($port_info, $filter, $linktype, $type = 'defaul
 
 	$join = ' JOIN Port on RackObject.id = Port.object_id
 			LEFT JOIN '.$linkbacktable.' on Port.id in ('.$linkbacktable.'.porta, '.$linkbacktable.'.portb)';
+
+	if(!$multilink)
+	{
+		$join .= ' left join '.$linkbacktable.' as selfLinkTable on ? in (selfLinkTable.porta,selfLinkTable.portb)';
+		$qparams[] = $port_info['id'];
+	}
 
 	if($linktype == 'front')
 	{
@@ -1539,6 +1920,8 @@ function linkmgmt_getObjectsList($port_info, $filter, $linktype, $type = 'defaul
 	$where = ' WHERE '.$linkbacktable.'.porta is NULL AND '.$linkbacktable.'.portb is NULL
 			AND srcLinkBackend.porta is NULL AND srcLinkBackend.portb is NULL';
 
+	if(!$multilink)
+		$where .= " AND selfLinkTable.porta is NULL";
 
 	if($src_object_id !== NULL)
 	{
@@ -2345,6 +2728,7 @@ class portlist {
                                makeHrefProcess(array(
 					'op'=>'unlinkPort',
 					'port_id'=>$src_port_id,
+					'remote_id' => $dst_port['id'],
 					'object_id'=>$this->object_id,
 					'tab' => $tab,
 					'linktype' => $linktype)).
