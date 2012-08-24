@@ -1982,7 +1982,7 @@ class portlist {
 
 	/*
 	 */
-	function printlink(&$src_link, $linktype) {
+	function printlink($src_port_id, &$dst_link, $linktype) {
 
 		if($linktype == 'back')
 			$arrow = '====>';
@@ -1992,9 +1992,9 @@ class portlist {
 		/* link */
 		echo '<td align=center>';
 
-		echo '<pre><a class="editcable" id='.$src_link['link_id'].'>'.$src_link['cable']
+		echo '<pre><a class="editcable" id='.$dst_link['link_id'].'>'.$dst_link['cable']
 			."</a></pre><pre>$arrow</pre>"
-			.$this->_printUnLinkPort($src_link['id'], $src_link, $linktype);
+			.$this->_printUnLinkPort($src_port_id, $dst_link, $linktype);
 
 		echo '</td>';
 	} /* printlink */
@@ -2002,7 +2002,7 @@ class portlist {
 	/*
 	 * print cableID dst_port:dst_object
 	 */
-	function _printportlink($src_port_id, $dst_port_id, &$src_link, $back = FALSE) {
+	function _printportlink($src_port_id, $dst_port_id, &$dst_link, $back = FALSE) {
 
 		global $lm_multilink_port_types;
 
@@ -2012,14 +2012,14 @@ class portlist {
 	{
 		/* get port not in list */
 	//	echo "<td>AHHH $src_port_id $dst_port_id --> $back</td>";
-	//	echo "<td>load".$this->var_dump_html($src_link)." tree</td>";
-//		echo "<td>".$src_link['cable']." ".$src_link['name']."</td><td>not displayed</td>";
+	//	echo "<td>load".$this->var_dump_html($dst_link)." tree</td>";
+//		echo "<td>".$dst_link['cable']." ".$dst_link['name']."</td><td>not displayed</td>";
 
 		if($back)
 			echo "<td>></td>";
 
 		// TODO check if multilink is needed here
-		$this->printport($src_link, $multilink && in_array($src_link['type'], $lm_multilink_port_types));
+		$this->printport($dst_link, $multilink && in_array($dst_link['type'], $lm_multilink_port_types));
 		echo "<td>...</td>";
 
 		return TRUE;
@@ -2032,7 +2032,7 @@ class portlist {
 	$obj_name = $dst_port['obj_name'];
 
 	$loop = FALSE;
-	$edgeport = ($src_link == NULL) || empty($dst_port['front']) || empty($dst_port['back']);
+	$edgeport = ($dst_link == NULL) || empty($dst_port['front']) || empty($dst_port['back']);
 
 	if($back) {
 		$linktype = 'back';
@@ -2042,17 +2042,17 @@ class portlist {
 
 	$sameobject = FALSE;
 
-	if(isset($src_link['loop']))
+	if(isset($dst_link['loop']))
 		$loop = TRUE;
 
-	if($src_link != NULL) {
+	if($dst_link != NULL) {
 
 		$src_object_id = $this->list[$src_port_id]['object_id'];
 
 		if(!$this->allback && $object_id == $src_object_id && $back) {
 			$sameobject = TRUE;
 		} else {
-			$this->printlink($src_link, $linktype);
+			$this->printlink($src_port_id, $dst_link, $linktype);
 		}
 
 	} else {
@@ -2099,7 +2099,7 @@ class portlist {
 			}
 
 		if($loop) {
-			if(isset($src_link['loopmaxcount']))
+			if(isset($dst_link['loopmaxcount']))
 				$reason = " (MAX LOOP COUNT reached)";
 			else
 				$reason = '';
@@ -2325,7 +2325,7 @@ class portlist {
 	 *
          * TODO $opspec_list
 	 */
-	function _printUnLinkPort($src_port_id, &$src_link, $linktype) {
+	function _printUnLinkPort($src_port_id, &$dst_link, $linktype) {
 		global $lm_cache;
 
 		if(!$lm_cache['allowlink'])
@@ -2333,7 +2333,7 @@ class portlist {
 
 		$src_port = $this->list[$src_port_id];
 
-		$dst_port = $this->list[$src_link['id']];
+		$dst_port = $this->list[$dst_link['id']];
 
 		/* use RT unlink for front link, linkmgmt unlink for back links */
 		if($linktype == 'back')
@@ -2349,7 +2349,7 @@ class portlist {
 					'tab' => $tab,
 					'linktype' => $linktype)).
                        ' onclick="return confirm(\'unlink ports '.$src_port['name']. ' -> '.$dst_port['name']
-					.' ('.$linktype.') with cable ID: '.$src_link['cable'].'?\');">'.
+					.' ('.$linktype.') with cable ID: '.$dst_link['cable'].'?\');">'.
                        getImageHREF ('cut', $linktype.' Unlink this port').'</a>';
 
 	} /* _printUnLinkPort */
