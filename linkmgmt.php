@@ -1643,7 +1643,16 @@ function linkmgmt_renderPopupPortSelector()
 
         assertUIntArg ('port');
         $port_id = $_REQUEST['port'];
-	$linktype = $_REQUEST['linktype'];
+
+	/* prefer POST data */
+	if(isset($_POST['linktype']))
+		$linktype = $_POST['linktype'];
+	else
+		if(isset($_GET['linktype']))
+			$linktype = $_GET['linktype'];
+		else
+			$linktype = 'front';
+
 	$object_id = $_REQUEST['object_id'];
         $port_info = getPortInfo ($port_id);
 
@@ -1655,7 +1664,8 @@ function linkmgmt_renderPopupPortSelector()
 		$in_rack = true;
 
 //	portlist::var_dump_html($port_info);
-//	portlist::var_dump_html($_REQUEST);
+//	portlist::var_dump_html($_GET);
+//	portlist::var_dump_html($_POST);
 
         // fill port filter structure
         $filter = array
@@ -1705,6 +1715,7 @@ function linkmgmt_renderPopupPortSelector()
         echo '<table><tr><td valign="top"><table><tr><td>';
 
 	echo '<table align="center"><tr>';
+	echo '<td nowrap="nowrap"><input type="hidden" name="linktype" value="front" /><input type="checkbox" name="linktype" value="back"'.($linktype == 'back' ? ' checked="checked"' : '' ).'>link backend</input></td></tr><tr>';
         echo '<td class="tdleft"><label>Object name:<br><input type=text size=8 name="filter-obj" value="' . htmlspecialchars ($filter['objects'], ENT_QUOTES) . '"></label></td>';
         echo '<td class="tdleft"><label>Port name:<br><input type=text size=6 name="filter-port" value="' . htmlspecialchars ($filter['ports'], ENT_QUOTES) . '"></label></td>';
         echo '<td class="tdleft" valign="bottom"><input type="hidden" name="in_rack" value="off" /><label><input type=checkbox value="1" name="in_rack"'.($in_rack ? ' checked="checked"' : '').'>Nearest racks</label></td>';
@@ -1717,7 +1728,7 @@ function linkmgmt_renderPopupPortSelector()
 						 $remote_object, FALSE);
 
 	echo '</td></tr></table></td>';
-        echo '<td valign="top"><br><input type=submit value="show '.$linktype.' ports"></td>';
+        echo '<td valign="top"><br><input type=submit value="update objects / ports"></td>';
         finishPortlet();
         echo '</td><td>';
 
