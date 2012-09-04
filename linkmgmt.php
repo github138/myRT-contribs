@@ -1300,7 +1300,12 @@ function linkmgmt_opunlinkPort() {
 	else
 		echo " $retval Links deleted";
 
-	header('Location: ?page='.$_REQUEST['page'].'&tab='.$_REQUEST['tab'].'&object_id='.$_REQUEST['object_id']);
+
+	unset($_GET['module']);
+	unset($_GET['op']);
+
+	header('Location: ?'.http_build_query($_GET));
+	//header('Location: ?page='.$_REQUEST['page'].'&tab='.$_REQUEST['tab'].'&object_id='.$_REQUEST['object_id']);
 	exit;
 } /* opunlinkPort */
 
