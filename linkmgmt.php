@@ -13,6 +13,8 @@
  *		- change/create Port Reservation Comment (needs jquery.jeditable.mini.js)
  *		- multiple backend links for supported port types (e.g. AC-in, DC)
  *		- GraphViz Maps (Objects, Ports and Links) (needs GraphViz_Image 1.3.0)
+ *			- object,port or link  highligthing (just click on it)
+ *			- context menu to link and unlink ports
  *
  *	Usage:
  *		1. select "Link Management" tab
@@ -28,13 +30,13 @@
  *			e. "Link back" create the backend links
  *		5. If you have an backend link within the same Object the link isn't shown until
  *		   "Expand Backend Links on same Object" is hit
- *		6. "Map" displays Graphviz Map of current object
+ *		6. "Object Map" displays Graphviz Map of current object
  *		7. To get a Graphviz Map of a single port click the port name on the left
  *
  *
  * Requirements:
  *	PHP 5
- *	GraphViz_Image 1.3.0
+ *	GraphViz_Image 1.3.0 or newer
  *
  * INSTALL:
  *
