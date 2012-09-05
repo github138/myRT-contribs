@@ -221,7 +221,7 @@ function linkmgmt_opmapinfo() {
 		$port = new linkmgmt_RTport($port_id);
 
 		echo "<td>";
-		$port->printtable();
+		$port->printtable('both');
 		echo "</td>";
 
 		if($debug)
@@ -243,7 +243,7 @@ function linkmgmt_opmapinfo() {
 
 
 			echo "<td>";
-			$remote_port->printtable();
+			$remote_port->printtable('both');
 			echo "</td>";
 
 			if($debug)
@@ -315,7 +315,7 @@ class linkmgmt_RTport {
 	function getlinks($type = 'front') {
 	} /* getlinks */
 
-	function printtable() {
+	function printtable($linktype = 'front') {
 
 		if($this->port_id == NULL)
 			return;
@@ -332,22 +332,25 @@ class linkmgmt_RTport {
 					)
 		); /* printinforow */
 
-		$this->printlinktr();
+		$this->printlinktr($linktype);
 
 		echo "</table>";
 	} /* printtable */
 
-	function printlinktr() {
+	function printlinktr($linktype = 'front') {
 		if($this->port_id === NULL)
 			return;
 
+                $urlparams = array(
+				'tab' => 'linkmgmt',
+                                'op'=>'PortLinkDialog',
+                                'port'=>$this->port_id,
+                                'object_id'=>$this->port['object_id'],
+				'linktype' => $linktype,
+				);
+
 		echo "<tr><td align=\"center\"><a href='".
-                                makeHrefProcess(array(
-					'tab' => 'linkmgmt',
-                                        'op'=>'PortLinkDialog',
-                                        'port'=>$this->port_id,
-                                        'object_id'=>$this->port['object_id'],
-					'linktype' => 'front')).
+                                makeHrefProcess($urlparams).
                         "'>";
                         printImageHREF ('plug', 'Link this port');
                         echo "</a></td></tr>";
@@ -1657,14 +1660,31 @@ function linkmgmt_renderPopupPortSelector()
         assertUIntArg ('port');
         $port_id = $_REQUEST['port'];
 
-	/* prefer POST data */
-	if(isset($_POST['linktype']))
-		$linktype = $_POST['linktype'];
+	$showlinktypeswitch = false;
+
+	if(isset($_GET['linktype']))
+		$linktype = $_GET['linktype'];
 	else
-		if(isset($_GET['linktype']))
-			$linktype = $_GET['linktype'];
+		$linktype = 'front';
+
+	if($linktype == 'both')
+	{
+
+		/*
+		 * 	use POST front/back_view to set linktype
+		 *	and show linktype switch button
+		 */
+
+		$showlinktypeswitch = true;
+
+		if(isset($_POST['front_view']))
+			$linktype = 'front';
+		else
+		if(isset($_POST['back_view']))
+			$linktype = 'back';
 		else
 			$linktype = 'front';
+	}
 
 	$object_id = $_REQUEST['object_id'];
         $port_info = getPortInfo ($port_id);
@@ -1717,6 +1737,11 @@ function linkmgmt_renderPopupPortSelector()
 	$maxsize  = getConfigVar('MAXSELSIZE');
 	$objectcount = count($objectlist);
 
+	if($linktype == 'back')
+		$notlinktype = 'front';
+	else
+		$notlinktype = 'back';
+
         // display search form
         echo 'Link '.$linktype.' of ' . formatPort ($port_info) . ' to...';
         echo '<form method=POST>';
@@ -1728,7 +1753,8 @@ function linkmgmt_renderPopupPortSelector()
         echo '<table><tr><td valign="top"><table><tr><td>';
 
 	echo '<table align="center"><tr>';
-	echo '<td nowrap="nowrap"><input type="hidden" name="linktype" value="front" /><input type="checkbox" name="linktype" value="back"'.($linktype == 'back' ? ' checked="checked"' : '' ).'>link backend</input></td></tr><tr>';
+
+//	echo '<td nowrap="nowrap"><input type="hidden" name="linktype" value="front" /><input type="checkbox" name="linktype" value="back"'.($linktype == 'back' ? ' checked="checked"' : '' ).'>link backend</input></td></tr><tr>';
         echo '<td class="tdleft"><label>Object name:<br><input type=text size=8 name="filter-obj" value="' . htmlspecialchars ($filter['objects'], ENT_QUOTES) . '"></label></td>';
         echo '<td class="tdleft"><label>Port name:<br><input type=text size=6 name="filter-port" value="' . htmlspecialchars ($filter['ports'], ENT_QUOTES) . '"></label></td>';
         echo '<td class="tdleft" valign="bottom"><input type="hidden" name="in_rack" value="off" /><label><input type=checkbox value="1" name="in_rack"'.($in_rack ? ' checked="checked"' : '').'>Nearest racks</label></td>';
@@ -1741,17 +1767,18 @@ function linkmgmt_renderPopupPortSelector()
 						 $remote_object, FALSE);
 
 	echo '</td></tr></table></td>';
-        echo '<td valign="top"><br><input type=submit value="update objects / ports"></td>';
+        echo '<td valign="top"><table><tr><td><input type=submit value="update objects / ports"></td></tr>';
+
+	if($showlinktypeswitch)
+		echo '<tr height=150px><td><input type=submit value="Switch to '.$notlinktype.' view" name="'.$notlinktype.'_view"></tr></td>';
+
+	echo '</table></td>';
+
         finishPortlet();
         echo '</td><td>';
 
         // display results
         startPortlet ('Compatible spare '.$linktype.' ports');
-	if($linktype == 'back')
-		$notlinktype = 'front';
-	else
-		$notlinktype = 'back';
-
 	echo "spare $linktype Object:Port -- $notlinktype cableID -->  $notlinktype Port:Object<br>";
 
 	if($multilink)
