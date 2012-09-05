@@ -324,6 +324,21 @@ class linkmgmt_RTport {
 
 		echo "<table>";
 
+		$urlparams = array(
+					'module' => 'redirect',
+					'page' => 'object',
+					'tab' => 'linkmgmt',
+					'op' => 'map',
+					'object_id' => $this->port['object_id'],
+					'port_id' => $this->port_id,
+					'usemap' => 1,
+				);
+
+		echo '<tr><td><a title="don\'t highlight port" href="?'.http_build_query($urlparams).'">-phl</a></td>';
+
+		$urlparams['hl'] = 'p';
+		echo '<td><a title="highlight port" href="?'.http_build_query($urlparams).'">+phl</a></td></tr>';
+
 		$this->_printinforow($this->port,
 					array(
 						'id' => 'Port ID',
@@ -414,6 +429,20 @@ class linkmgmt_RTport {
 				)
 
 		); /* printinforow */
+
+		$urlparams = array(
+					'module' => 'redirect',
+					'page' => 'object',
+					'tab' => 'linkmgmt',
+					'op' => 'map',
+					'object_id' => $object_id,
+					'usemap' => 1,
+				);
+
+		echo '<tr><td><a title="don\'t highlight object" href="?'.http_build_query($urlparams).'">-ohl</a></td>';
+
+		$urlparams['hl'] = 'o';
+		echo '<td><a title="highlight object" href="?'.http_build_query($urlparams).'">+ohl</a></td></tr>';
 
 		echo "</table></td></tr></table>";
 
@@ -515,6 +544,7 @@ function linkmgmt_opmap() {
 	if(isset($_REQUEST['remote_id']))
 		$remote_id = $_REQUEST['remote_id'];
 
+	/* show all objects */
 	if(isset($_REQUEST['all']))
 	{
 		$object_id = NULL;
@@ -558,7 +588,7 @@ function linkmgmt_opmap() {
 	if($usemap)
 	{
 
-		/* TODO add context menu to Ports, Objects, Links, ...
+		/* add context menu to Ports, Objects, Links, ...
 		 */
 
 		echo "<script>
@@ -596,6 +626,7 @@ function linkmgmt_opmap() {
 				object_id = ids[0];
 
 				url ='?module=redirect&page=object&tab=linkmgmt&op=mapinfo&object_id=' + object_id;
+
 			//	links ='<li><a href=' + object_id + '>Object</a></li>';
 
 				if(ids[1] != '')
@@ -689,13 +720,11 @@ function linkmgmt_opmap() {
 }
 
 /* ------------------------------------- */
-
 class linkmgmt_gvmap {
 
 	private $object_id = NULL;
 	private $port_id = NULL;
 	private $remote_id = NULL;
-	private $hl = NULL;
 
 	private $gv = NULL;
 
@@ -708,8 +737,6 @@ class linkmgmt_gvmap {
 
 	function __construct($object_id = NULL, $port_id = NULL, $allports = false, $hl = NULL, $remote_id = NULL) {
 		$this->allports = $allports;
-
-		$this->hl = $hl;
 
 		$hl_object_id = NULL;
 		$hl_port_id = NULL;
@@ -725,14 +752,12 @@ class linkmgmt_gvmap {
 				);
 
 		unset($_GET['module']);
-		unset($_GET['all']);
 
-		if($this->hl)
-			$_GET['hl'] = 'o';
-		else
-			$_GET['all'] = 1;
+		$_GET['all'] = 1;
 
 		$graphattr['URL'] = makeHrefProcess($_GET);
+
+		unset($_GET['all']);
 
 		$this->gv = new Image_GraphViz(true, $graphattr, "map".$object_id);
 
@@ -891,9 +916,7 @@ class linkmgmt_gvmap {
 		unset($_GET['port_id']);
 		unset($_GET['remote_id']);
 		$_GET['object_id'] = $object_id;
-
-		if($this->hl)
-			$_GET['hl'] = 'o';
+		$_GET['hl'] = 'o';
 
 		$clusterattr['URL'] = makeHrefProcess($_GET);
 
@@ -988,9 +1011,7 @@ class linkmgmt_gvmap {
 			unset($_GET['remote_id']);
 			$_GET['object_id'] = $port['object_id'];
 			$_GET['port_id'] = $port['id'];
-
-			if($this->hl)
-				$_GET['hl'] = 'p';
+			$_GET['hl'] = 'p';
 
 			$nodeattr['URL'] = makeHrefProcess($_GET);
 			$nodeattr['id'] = "${port['object_id']}-${port['id']}--"; /* for js context menu */
