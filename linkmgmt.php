@@ -466,8 +466,6 @@ class linkmgmt_RTport {
 
 function linkmgmt_opmap() {
 
-	/* TODO disable errors -> corrupts image data */
-
 	$object_id = NULL;
 	$port_id = NULL;
 	$remote_id = NULL;
@@ -710,10 +708,7 @@ function linkmgmt_opmap() {
 	}
 	else
 	{
-
-		header("Content-Type: $ctype");
-		echo $gvmap->fetch($type, $command);
-
+		$gvmap->image($type);
 	}
 
 	exit;
@@ -735,6 +730,8 @@ class linkmgmt_gvmap {
 
 	private $alpa = 'ff';
 
+	private $errorlevel = NULL;
+
 	function __construct($object_id = NULL, $port_id = NULL, $allports = false, $hl = NULL, $remote_id = NULL) {
 		$this->allports = $allports;
 
@@ -743,7 +740,11 @@ class linkmgmt_gvmap {
 
 		$hllabel = "";
 
-		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
+		/* suppress strict standards warnings for Image_GraphViz and PHP 5.4.0
+		 * output would corrupt image data
+		 */
+		$this->errorlevel = error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
+
 		$graphattr = array(
 					'rankdir' => 'RL',
 				//	'ranksep' => '0',
@@ -868,7 +869,11 @@ class linkmgmt_gvmap {
 	//	portlist::var_dump_html($this->gv);
 
 	//	echo $this->gv->parse();
-		error_reporting( E_ALL ^ E_NOTICE);
+	//	error_reporting( E_ALL ^ E_NOTICE);
+	 } /* __construct */
+
+	function __destruct() {
+		error_reporting($this->errorlevel);
 	}
 
 	// !!!recursiv !!!
@@ -1102,9 +1107,7 @@ class linkmgmt_gvmap {
 	}
 
 	function fetch($type = 'png', $command = NULL) {
-		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
 		$ret = $this->gv->fetch($type, $command);
-		error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
 		return $ret;
 	}
 
