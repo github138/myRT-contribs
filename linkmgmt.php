@@ -1550,13 +1550,24 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = fa
 	else
 		if($byname)
 		{
+			if($linktype == 'back')
+				$arrow = '=?=>';
+			else
+				$arrow = '-?->';
+
 			$query .= ' CONCAT(localPort.id, "_", remotePort.id),
-				 CONCAT(localRackObject.name, " : ", localPort.Name, " -?-> ", remotePort.name, " : ", remoteRackObject.name)';
+				 CONCAT(localRackObject.name, " : ", localPort.Name, " '.$arrow.'", remotePort.name, " : ", remoteRackObject.name)';
 		}
 		else
 		{
+
+			if($linktype == 'front')
+				$arrow = '==';
+			else
+				$arrow = '--';
+
 			$query .= " remotePort.id, CONCAT(remoteRackObject.name, ' : ', remotePort.name,
-				IFNULL(CONCAT(' -- ', infolnk.cable, ' --> ', InfoPort.name, ' : ', InfoRackObject.name),'') ) as Text";
+				IFNULL(CONCAT(' $arrow ', infolnk.cable, ' $arrow> ', InfoPort.name, ' : ', InfoRackObject.name),'') ) as Text";
 		}
 
 	$query .= " FROM Port as remotePort";
