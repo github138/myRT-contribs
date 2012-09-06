@@ -1177,6 +1177,8 @@ class linkmgmt_gvmap {
 
 		$row = $result->fetchAll(PDO::FETCH_ASSOC);
 
+		$result->closeCursor();
+
 		return $row;
 	}
 
@@ -1679,6 +1681,8 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = fa
 	$result = usePreparedSelectBlade ($query, $qparams);
 
 	$row = $result->fetchAll(PDO::FETCH_GROUP|PDO::FETCH_UNIQUE|PDO::FETCH_COLUMN);
+
+	$result->closeCursor();
 
 	/* [id] => displaystring */
 	return $row;
@@ -2234,6 +2238,9 @@ class portlist {
 		);
 		$datarow = $result->fetchAll(PDO::FETCH_ASSOC);
 
+		$result->closeCursor();
+		unset($result);
+
 		$result = usePreparedSelectBlade
 		(
 				'SELECT Port.id, Link.cable, Port.name, Port.label, Port.type, Port.l2address, Port.object_id,
@@ -2244,6 +2251,9 @@ class portlist {
 		);
 		$frontrow = $result->fetchAll(PDO::FETCH_ASSOC);
 
+		$result->closeCursor();
+		unset($result);
+
 		$result = usePreparedSelectBlade
 		(
 				'SELECT Port.id, LinkBackend.cable, Port.name, Port.label, Port.type, Port.l2address, Port.object_id,
@@ -2253,6 +2263,9 @@ class portlist {
 				array($port_id, $port_id)
 		);
 		$backrow = $result->fetchAll(PDO::FETCH_ASSOC);
+
+		$result->closeCursor();
+		unset($result);
 
 		$retval = $datarow[0];
 
@@ -2610,6 +2623,8 @@ class portlist {
                          );
                          $row = $result->fetchAll(PDO::FETCH_ASSOC);
 
+			$result->closeCursor();
+
                         if(!empty($row)) {
 
                                 $rackinfocache[$object_id] = $row[0];
@@ -2763,6 +2778,8 @@ class portlist {
 				array($object_id)
 		);
 		$retval = $result->fetchColumn();
+
+		$result->closeCursor();
 
 		return $retval != 0;
 
