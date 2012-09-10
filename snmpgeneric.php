@@ -866,6 +866,8 @@ function snmpgeneric_snmpconfig($object_id) {
 
 	foreach( getObjectIPv4Allocations($object_id) as $ip => $value) {
 
+		$ip = ip_format($ip);
+
 		if(!in_array($ip, $endpoints))
 			$endpoints[$ip] = $ip;
 	}
@@ -873,7 +875,7 @@ function snmpgeneric_snmpconfig($object_id) {
 	unset($value);
 
 	foreach( getObjectIPv6Allocations($object_id) as $value) {
-		$ip = $value['addrinfo']['ip'];
+		$ip = ip_format($value['addrinfo']['ip']);
 
 		if(!in_array($ip, $endpoints))
 			$endpoints[$ip] = $ip;
@@ -1352,7 +1354,7 @@ function snmpgeneric_list($object_id) {
 			switch($addrtype) {
 				case 'ipv4':
 				case 'ipv4z':
-					$netid = getIPv4AddressNetworkId($ipaddr);
+					$netid = getIPv4AddressNetworkId(ip_parse($ipaddr));
 					break;
 
 				case 'ipv6':
@@ -1362,7 +1364,7 @@ function snmpgeneric_list($object_id) {
 
 					$ipv6 = new IPv6Address();
 					if($ipv6->parse($ipaddr)) {
-						$netid = getIPv6AddressNetworkId($ipv6);
+						$netid = getIPv6AddressNetworkId(ip_parse($ipv6));
 						$netaddr = $ipv6->get_first_subnet_address($maskbits)->format();
 						$linklocal = ($ipv6->get_first_subnet_address(10)->format() == 'fe80::');
 					}
@@ -1569,7 +1571,7 @@ function snmpgeneric_list($object_id) {
 
 				}
 
-				$address = getIPAddress($ipaddr);
+				$address = getIPAddress(ip_parse($ipaddr));
 
 				/* only if ip not already allocated */
 				if(empty($address['allocs'])) {
@@ -1752,7 +1754,7 @@ function snmpgeneric_opcreate() {
 			$ip = new IPv6Address();
 			if($ip->parse($ipaddr)) {
 
-				bindIPv6ToObject($ip, $object_id,$_POST['ifName'][$if], 1); /* connected */
+				bindIPv6ToObject(ip_parse($ip), $object_id,$_POST['ifName'][$if], 1); /* connected */
 				showSuccess("$ipaddr allocated");
 			} else
 				showError("$ipaddr parse failed!");
@@ -1764,7 +1766,7 @@ function snmpgeneric_opcreate() {
 	if(isset($_POST['ipaddrcreate'])) {
 		foreach($_POST['ipaddrcreate'] as $ipaddr => $if) {
 
-			bindIpToObject($ipaddr, $object_id,$_POST['ifName'][$if], 1); /* connected */
+			bindIpToObject(ip_parse($ipaddr), $object_id,$_POST['ifName'][$if], 1); /* connected */
 			showSuccess("$ipaddr allocated");
 		}
 		unset($ipaddr);
