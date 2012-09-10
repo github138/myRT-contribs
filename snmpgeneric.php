@@ -2,7 +2,7 @@
 
 /********************************************
  *
- * RackTables 0.19.x snmpgeneric extension
+ * RackTables 0.20.x snmpgeneric extension
  *
  *	sync an RackTables object with an SNMP device.
  *
@@ -41,7 +41,7 @@
  * needs PHP 5
  *
  * TESTED on FreeBSD 9.0, nginx/1.0.12, php 5.3.10, NET-SNMP 5.7.1
- *	and RackTables 0.19.11
+ *	and RackTables 0.20.0
  *
  * (c)2012 Maik Ehinger <m.ehinger@ltur.de>
  */
@@ -148,9 +148,11 @@
  *		fix whitespaces
  * 03.08.12	don't display ips with 0.0.0.0 netmask
  *
+ * continues on github
+ *
  */
 
-require_once('snmp.php');
+require_once('inc/snmp.php');
 
 $tab['object']['snmpgeneric'] = 'SNMP Generic sync';
 $tabhandler['object']['snmpgeneric'] = 'snmpgeneric_tabhandler';
