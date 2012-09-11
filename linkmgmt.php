@@ -416,14 +416,12 @@ class linkmgmt_RTport {
 
 		echo "<table><tr><td>";
 		renderCell($object);
-	//	renderLBCell($object_id);
-	//	renderRackObject($object_id);
 		echo "</td></tr><tr><td><table>";
 
 		self::_printinforow($object,
 				array(
 					'id' => 'ID',
-					'name' => 'Name',
+					'dname' => 'Name',
 					'label' => 'Label',
 					'Rack_name' => 'Rack',
 					'Row_name' => 'Row',
@@ -455,9 +453,12 @@ class linkmgmt_RTport {
 
 		foreach($config as $key => $name)
 		{
-			$value = $data[$key];
-			if(!empty($value))
-				echo "<tr><td align=\"right\" nowrap=\"nowrap\" style=\"font-size:10;\">$name:</td><td nowrap=\"nowrap\">$value</td></tr>";
+			if(isset($data[$key]))
+			{
+				$value = $data[$key];
+				if(!empty($value))
+					echo "<tr><td align=\"right\" nowrap=\"nowrap\" style=\"font-size:10;\">$name:</td><td nowrap=\"nowrap\">$value</td></tr>";
+			}
 		}
 
 	} /* _printinforow */
@@ -808,7 +809,7 @@ class linkmgmt_gvmap {
 			$object = spotEntity ('object', $object_id);
 
 			$this->gv->addAttributes(array(
-						'label' => "Graph for ${object['name']}$hllabel",
+						'label' => "Graph for ${object['dname']}$hllabel",
 						'labelloc' => 't',
 						)
 				);
@@ -916,7 +917,8 @@ class linkmgmt_gvmap {
 			$this->_getcolor('cluster', 'current', $this->alpha, $clusterattr, 'fontcolor');
 		}
 
-		$clusterattr['tooltip'] = "${object['name']}";
+		$clustertitle = "${object['dname']}";
+		$clusterattr['tooltip'] = $clustertitle;
 
 		unset($_GET['module']); // makeHrefProcess adds this
 		unset($_GET['port_id']);
@@ -932,8 +934,6 @@ class linkmgmt_gvmap {
 			$clusterattr['style'] = 'filled';
 			$this->_getcolor('cluster', 'problem', $this->alpha, $clusterattr, 'fillcolor');
 		}
-
-		$clustertitle = "${object['name']}";
 
 		if(!empty($object['container_name']))
 			$clustertitle .= "<BR/>${object['container_name']}";
@@ -1550,7 +1550,7 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = fa
 
 	if($objectsonly)
 	{
-		$query .= " remotePort.object_id, CONCAT(remoteRackObject.name, ' (', count(remotePort.id), ')') as name";
+		$query .= " remotePort.object_id, CONCAT(IFNULL(remoteRackObject.name, '[No Name]'), ' (', count(remotePort.id), ')') as name";
 		$group .= " GROUP by remoteRackObject.id";
 	}
 	else
@@ -1562,7 +1562,7 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = fa
 				$arrow = '-?->';
 
 			$query .= ' CONCAT(localPort.id, "_", remotePort.id),
-				 CONCAT(localRackObject.name, " : ", localPort.Name, " '.$arrow.'", remotePort.name, " : ", remoteRackObject.name)';
+				 CONCAT(IFNULL(localRackObject.name, "[No Name]"), " : ", localPort.Name, " '.$arrow.'", remotePort.name, " : ", IFNULL(remoteRackObject.name,"[No Name]"))';
 		}
 		else
 		{
@@ -1572,8 +1572,8 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = fa
 			else
 				$arrow = '--';
 
-			$query .= " remotePort.id, CONCAT(remoteRackObject.name, ' : ', remotePort.name,
-				IFNULL(CONCAT(' $arrow ', infolnk.cable, ' $arrow> ', InfoPort.name, ' : ', InfoRackObject.name),'') ) as Text";
+			$query .= " remotePort.id, CONCAT(IFNULL(remoteRackObject.name, '[No Name]'), ' : ', remotePort.name,
+				IFNULL(CONCAT(' $arrow ', infolnk.cable, ' $arrow> ', InfoPort.name, ' : ', IFNULL(InfoRackObject.name,'[No Name]')),'') ) as Text";
 		}
 
 	$query .= " FROM Port as remotePort";
@@ -2391,6 +2391,13 @@ class portlist {
 	$dst_port = $this->list[$dst_port_id];
 	$object_id = $dst_port['object_id'];
 	$obj_name = $dst_port['obj_name'];
+
+	if($obj_name == NULL)
+	{
+		$tmpobj = spotEntity('object', $dst_port['object_id']);
+		$dst_port['obj_name'] = $tmpobj['dname'];
+		$obj_name = $tmpobj['dname'];
+	}
 
 	$loop = FALSE;
 	$edgeport = ($dst_link == NULL) || empty($dst_port['front']) || empty($dst_port['back']);
