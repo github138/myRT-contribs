@@ -1,6 +1,6 @@
 <?php
 /*
- * Link Management
+ * Link Management for RT 0.20.x
  *
  *	Features:
  *		- create links between ports
@@ -71,7 +71,7 @@ CREATE TABLE `LinkBackend` (
  *
  * TESTED on FreeBSD 9.0, nginx/1.0.11, php 5.3.9
  *	GraphViz_Image 1.3.0
- *	and RackTables 0.19.11
+ *	and RackTables 0.20.0
  *
  * (c)2012 Maik Ehinger <m.ehinger@ltur.de>
  */
@@ -102,6 +102,7 @@ CREATE TABLE `LinkBackend` (
  * 16.08.12	add multlink support (breaks column alignment!)
  *		add GraphViz Maps ( with port / object highlighting )
  *
+ * continued on github
  *
  */
 
@@ -127,9 +128,9 @@ CREATE TABLE `LinkBackend` (
  */
 
 
-require_once 'inc/popup.php';
+//require_once 'inc/popup.php';
 require_once 'inc/interface.php'; /* renderCell */
-//require_once 'Image/GraphViz.php';
+require_once 'Image/GraphViz.php';
 
 $tab['object']['linkmgmt'] = 'Link Management';
 $tabhandler['object']['linkmgmt'] = 'linkmgmt_tabhandler';
@@ -2609,28 +2610,13 @@ class portlist {
                 /* if not in cache get it */
                 if(!array_key_exists($object_id,$rackinfocache)) {
 
-                        /* SQL from database.php SQLSchema 'object' */
-                        $result = usePreparedSelectBlade
-                        (
-                                'SELECT rack_id, Rack.name as Rack_name, row_id, RackRow.name as Row_name
-                                FROM RackSpace
-                                LEFT JOIN EntityLink on RackSpace.object_id = EntityLink.parent_entity_id
-                                JOIN Rack on Rack.id = RackSpace.rack_id
-                                JOIN RackRow on RackRow.id = Rack.row_id
-                                WHERE ( RackSpace.object_id = ? ) or (EntityLink.child_entity_id = ?)
-                                ORDER by rack_id asc limit 1',
-                                array($object_id, $object_id)
-                         );
-                         $row = $result->fetchAll(PDO::FETCH_ASSOC);
+                                $object = spotEntity('object', $object_id);
+				$rack_id = $object['rack_id'];
 
-			$result->closeCursor();
-
-                        if(!empty($row)) {
-
-                                $rackinfocache[$object_id] = $row[0];
-                        }
-
+				if($rack_id)
+					$rackinfocache[$object_id] = spotEntity('rack', $object['rack_id']);
                 }
+
 
                 $obj = &$rackinfocache[$object_id];
 
