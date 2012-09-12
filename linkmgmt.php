@@ -414,6 +414,14 @@ class linkmgmt_RTport {
 		if($object === false)
 			return;
 
+		if($object['rack_id'])
+		{
+			$rack = spotEntity('rack', $object['rack_id']);
+
+			$object['row_name'] = $rack['row_name'];
+			$object['rack_name'] = $rack['name'];
+		}
+
 		echo "<table><tr><td>";
 		renderCell($object);
 		echo "</td></tr><tr><td><table>";
@@ -423,8 +431,8 @@ class linkmgmt_RTport {
 					'id' => 'ID',
 					'dname' => 'Name',
 					'label' => 'Label',
-					'Rack_name' => 'Rack',
-					'Row_name' => 'Row',
+					'rack_name' => 'Rack',
+					'row_name' => 'Row',
 				)
 
 		); /* printinforow */
@@ -938,8 +946,13 @@ class linkmgmt_gvmap {
 		if(!empty($object['container_name']))
 			$clustertitle .= "<BR/>${object['container_name']}";
 
-		if(!empty($object['Row_name']) || !empty($object['Rack_name']))
-			$clustertitle .= "<BR/>${object['Row_name']} / ${object['Rack_name']}";
+		if($object['rack_id'])
+		{
+			$rack = spotEntity('rack', $object['rack_id']);
+
+			if(!empty($rack['row_name']) || !empty($rack['name']))
+				$clustertitle .= "<BR/>${rack['row_name']} / ${rack['name']}";
+		}
 
 		$embedin = $object['container_id'];
 		if(empty($embedin))
@@ -2625,14 +2638,14 @@ class portlist {
                 }
 
 
-                $obj = &$rackinfocache[$object_id];
+                $rack = &$rackinfocache[$object_id];
 
-                if(empty($obj))
+                if(empty($rack))
                         return  '<span style="'.$style.'">Unmounted</span>';
                 else
-                        return '<a style="'.$style.'" href='.makeHref(array('page'=>'row', 'row_id'=>$obj['row_id'])).'>'.$obj['Row_name']
-                                .'</a>/<a style="'.$style.'" href='.makeHref(array('page'=>'rack', 'rack_id'=>$obj['rack_id'])).'>'
-                                .$obj['Rack_name'].'</a>';
+                        return '<a style="'.$style.'" href='.makeHref(array('page'=>'row', 'row_id'=>$rack['row_id'])).'>'.$rack['row_name']
+                                .'</a>/<a style="'.$style.'" href='.makeHref(array('page'=>'rack', 'rack_id'=>$rack['id'])).'>'
+                                .$rack['name'].'</a>';
 
         } /* _getRackInfo */
 
