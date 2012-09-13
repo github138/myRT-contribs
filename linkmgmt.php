@@ -137,7 +137,7 @@ $ophandler['object']['linkmgmt']['PortLinkDialog'] = 'linkmgmt_opPortLinkDialog'
 $ophandler['object']['linkmgmt']['Help'] = 'linkmgmt_opHelp';
 
 $ophandler['object']['linkmgmt']['map'] = 'linkmgmt_opmap';
-$ophandler['object']['linkmgmt']['mapinfo'] = 'linkmgmt_opmapinfo';
+$ajaxhandler['lm_mapinfo'] = 'linkmgmt_ajax_mapinfo';
 
 /* ------------------------------------------------- */
 
@@ -187,7 +187,7 @@ function linkmgmt_opHelp() {
 
 /* -------------------------------------------------- */
 
-function linkmgmt_opmapinfo() {
+function linkmgmt_ajax_mapinfo() {
 
 	require_once 'inc/interface.php'; /* renderCell */
 
@@ -632,7 +632,7 @@ function linkmgmt_opmap() {
 
 				object_id = ids[0];
 
-				url ='?module=redirect&page=object&tab=linkmgmt&op=mapinfo&object_id=' + object_id;
+				url ='?module=ajax&ac=lm_mapinfo&object_id=' + object_id;
 
 			//	links ='<li><a href=' + object_id + '>Object</a></li>';
 
