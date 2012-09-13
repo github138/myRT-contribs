@@ -1585,7 +1585,7 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = fa
 				$arrow = '--';
 
 			$query .= " remotePort.id, CONCAT(IFNULL(remoteRackObject.name, '[No Name]'), ' : ', remotePort.name,
-				IFNULL(CONCAT(' $arrow ', infolnk.cable, ' $arrow> ', InfoPort.name, ' : ', IFNULL(InfoRackObject.name,'[No Name]')),'') ) as Text";
+				IFNULL(CONCAT(' $arrow ', IFNULL(infolnk.cable,''), ' $arrow> ', InfoPort.name, ' : ', IFNULL(InfoRackObject.name,'[No Name]')),'') ) as Text";
 		}
 
 	$query .= " FROM Port as remotePort";
