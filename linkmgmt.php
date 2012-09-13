@@ -1148,9 +1148,9 @@ class linkmgmt_gvmap {
 				Port.type AS oif_id,
 				PortInnerInterface.iif_name as iif_name,
 				Dictionary.dict_value as oif_name,
-				RackObject.id as object_id, RackObject.name as object_name,
+				Object.id as object_id, Object.name as object_name,
 				LinkTable.cable as cableid,
-				remoteRackObject.id as remote_object_id, remoteRackObject.name as remote_object_name,
+				remoteObject.id as remote_object_id, remoteObject.name as remote_object_name,
 				remotePort.id as remote_id, remotePort.name as remote_name,
 				remotePort.type AS remote_oif_id,
 				remotePortInnerInterface.iif_name as remote_iif_name,
@@ -1161,9 +1161,9 @@ class linkmgmt_gvmap {
 		$join = "	LEFT JOIN PortInnerInterface on PortInnerInterface.id = Port.iif_id
 				LEFT JOIN Dictionary on Dictionary.dict_key = Port.type
 				LEFT JOIN $linktable as LinkTable on Port.id in (LinkTable.porta, LinkTable.portb)
-				LEFT JOIN RackObject on RackObject.id = Port.object_id
+				LEFT JOIN Object on Object.id = Port.object_id
 				LEFT JOIN Port as remotePort on remotePort.id = ((LinkTable.porta ^ LinkTable.portb) ^ Port.id)
-				LEFT JOIN RackObject as remoteRackObject on remoteRackObject.id = remotePort.object_id
+				LEFT JOIN Object as remoteObject on remoteObject.id = remotePort.object_id
 				LEFT JOIN PortInnerInterface as remotePortInnerInterface on remotePortInnerInterface.id = remotePort.iif_id
 				LEFT JOIN Dictionary as remoteDictionary on remoteDictionary.dict_key = remotePort.type
 			";
@@ -1171,7 +1171,7 @@ class linkmgmt_gvmap {
 		// WHERE
 		if($port_id === NULL)
 		{
-			$where = " WHERE RackObject.id = ?";
+			$where = " WHERE Object.id = ?";
 			$qparams[] = $object_id;
 		}
 		else
@@ -1562,8 +1562,8 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = fa
 
 	if($objectsonly)
 	{
-		$query .= " remotePort.object_id, CONCAT(IFNULL(remoteRackObject.name, CONCAT('[',remoteObjectDictionary.dict_value,']')), ' (', count(remotePort.id), ')') as name";
-		$group .= " GROUP by remoteRackObject.id";
+		$query .= " remotePort.object_id, CONCAT(IFNULL(remoteObject.name, CONCAT('[',remoteObjectDictionary.dict_value,']')), ' (', count(remotePort.id), ')') as name";
+		$group .= " GROUP by remoteObject.id";
 	}
 	else
 		if($byname)
@@ -1574,7 +1574,7 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = fa
 				$arrow = '-?->';
 
 			$query .= ' CONCAT(localPort.id, "_", remotePort.id),
-				 CONCAT(IFNULL(localRackObject.name, CONCAT("[",localObjectDictionary.dict_value,"]")), " : ", localPort.Name, " '.$arrow.'", remotePort.name, " : ", IFNULL(remoteRackObject.name,CONCAT("[",remoteObjectDictionary.dict_value,"]")))';
+				 CONCAT(IFNULL(localObject.name, CONCAT("[",localObjectDictionary.dict_value,"]")), " : ", localPort.Name, " '.$arrow.'", remotePort.name, " : ", IFNULL(remoteObject.name,CONCAT("[",remoteObjectDictionary.dict_value,"]")))';
 		}
 		else
 		{
@@ -1584,16 +1584,16 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = fa
 			else
 				$arrow = '--';
 
-			$query .= " remotePort.id, CONCAT(IFNULL(remoteRackObject.name, CONCAT('[',remoteObjectDictionary.dict_value,']')), ' : ', remotePort.name,
-				IFNULL(CONCAT(' $arrow ', IFNULL(infolnk.cable,''), ' $arrow> ', InfoPort.name, ' : ', IFNULL(InfoRackObject.name,CONCAT('[',InfoObjectDictionary.dict_value,']'))),'') ) as Text";
+			$query .= " remotePort.id, CONCAT(IFNULL(remoteObject.name, CONCAT('[',remoteObjectDictionary.dict_value,']')), ' : ', remotePort.name,
+				IFNULL(CONCAT(' $arrow ', IFNULL(infolnk.cable,''), ' $arrow> ', InfoPort.name, ' : ', IFNULL(InfoObject.name,CONCAT('[',InfoObjectDictionary.dict_value,']'))),'') ) as Text";
 		}
 
 	$query .= " FROM Port as remotePort";
-	$join .= " LEFT JOIN RackObject as remoteRackObject on remotePort.object_id = remoteRackObject.id";
-	$order .= " remoteRackObject.name";
+	$join .= " LEFT JOIN Object as remoteObject on remotePort.object_id = remoteObject.id";
+	$order .= " remoteObject.name";
 
 	/* object type name */
-	$join .= " LEFT JOIN Dictionary as remoteObjectDictionary on (remoteObjectDictionary.chapter_id = 1 AND remoteRackObject.objtype_id = remoteObjectDictionary.dict_key)";
+	$join .= " LEFT JOIN Dictionary as remoteObjectDictionary on (remoteObjectDictionary.chapter_id = 1 AND remoteObject.objtype_id = remoteObjectDictionary.dict_key)";
 
 	if($byname)
 	{
@@ -1605,11 +1605,11 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = fa
 
 		/* own port not linked */
 		$join .= " LEFT JOIN $linktable as localLink on localPort.id in (localLink.porta, localLink.portb)";
-		$join .= " LEFT JOIN RackObject as localRackObject on localRackObject.id = localPort.object_id";
+		$join .= " LEFT JOIN Object as localObject on localObject.id = localPort.object_id";
 		$where .= " AND localLink.porta is NULL";
 
 		/* object type name */
-		$join .= " LEFT JOIN Dictionary as localObjectDictionary on (localRackObject.objtype_id = localObjectDictionary.dict_key  AND localObjectDictionary.chapter_id = 1)";
+		$join .= " LEFT JOIN Dictionary as localObjectDictionary on (localObject.objtype_id = localObjectDictionary.dict_key  AND localObjectDictionary.chapter_id = 1)";
 	}
 	else
 	{
@@ -1621,10 +1621,10 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = fa
 		/* add info to remoteport */
 		$join .= " LEFT JOIN $linkinfotable as infolnk on remotePort.id in (infolnk.porta, infolnk.portb)";
 		$join .= " LEFT JOIN Port as InfoPort on InfoPort.id = ((infolnk.porta ^ infolnk.portb) ^ remotePort.id)";
-		$join .= " LEFT JOIN RackObject as InfoRackObject on InfoRackObject.id = InfoPort.object_id";
+		$join .= " LEFT JOIN Object as InfoObject on InfoObject.id = InfoPort.object_id";
 
 		/* object type name */
-		$join .= " LEFT JOIN Dictionary as InfoObjectDictionary on (InfoRackObject.objtype_id = InfoObjectDictionary.dict_key  AND InfoObjectDictionary.chapter_id = 1)";
+		$join .= " LEFT JOIN Dictionary as InfoObjectDictionary on (InfoObject.objtype_id = InfoObjectDictionary.dict_key  AND InfoObjectDictionary.chapter_id = 1)";
 	}
 
 	/* only ports which are not linked already */
@@ -1680,14 +1680,14 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = fa
 	// object_id filter
         if (! empty ($filter['object_id']))
         {
-                $where .= ' AND remoteRackObject.id = ?';
+                $where .= ' AND remoteObject.id = ?';
                 $qparams[] = $filter['object_id'];
         }
 	else
 	// objectname filter
         if (! empty ($filter['objects']))
         {
-                $where .= ' AND remoteRackObject.name like ? ';
+                $where .= ' AND remoteObject.name like ? ';
                 $qparams[] = '%' . $filter['objects'] . '%';
         }
 
@@ -2254,9 +2254,9 @@ class portlist {
 		$result = usePreparedSelectBlade
 		(
 			'SELECT Port.id, Port.name, Port.label, Port.type, Port.l2address, Port.object_id, Port.reservation_comment,
-					RackObject.name as "obj_name"
+					Object.name as "obj_name"
 				 from Port
-				 join RackObject on RackObject.id = Port.object_id
+				 join Object on Object.id = Port.object_id
 				 where Port.id = ?',
 				array($port_id)
 		);
