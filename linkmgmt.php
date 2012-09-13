@@ -127,11 +127,6 @@ CREATE TABLE `LinkBackend` (
  *
  */
 
-
-//require_once 'inc/popup.php';
-require_once 'inc/interface.php'; /* renderCell */
-require_once 'Image/GraphViz.php';
-
 $tab['object']['linkmgmt'] = 'Link Management';
 $tabhandler['object']['linkmgmt'] = 'linkmgmt_tabhandler';
 //$trigger['object']['linkmgmt'] = 'linkmgmt_tabtrigger';
@@ -193,6 +188,8 @@ function linkmgmt_opHelp() {
 /* -------------------------------------------------- */
 
 function linkmgmt_opmapinfo() {
+
+	require_once 'inc/interface.php'; /* renderCell */
 
 	$object_id = NULL;
 	$port_id = NULL;
@@ -475,6 +472,8 @@ class linkmgmt_RTport {
 /* -------------------------------------------------- */
 
 function linkmgmt_opmap() {
+
+	require_once 'Image/GraphViz.php';
 
 	$object_id = NULL;
 	$port_id = NULL;
@@ -1710,6 +1709,8 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = fa
  */
 function linkmgmt_renderPopupPortSelector()
 {
+	require_once 'inc/popup.php'; /* getProximateRacks */
+
 	global $lm_multilink_port_types;
 
         assertUIntArg ('port');
