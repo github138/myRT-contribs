@@ -1851,7 +1851,10 @@ function linkmgmt_renderPopupPortSelector()
 		echo '<tr height=150px><td><input type=submit value="Switch to '.$notlinktype.' view" name="'.$notlinktype.'_view"></tr></td>';
 
 	if($linktype == 'back')
+	{
 		echo '<tr height=150px><td><input type=submit value="'.($portcompat ? "Disable" : "Enable"). ' port compat" name="portcompat_'.($portcompat ? '0' : '1').'"></tr></td>';
+		echo '<input type="hidden" name="back_view">';
+	}
 
 	echo '</table></td>';
 
