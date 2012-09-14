@@ -1525,7 +1525,7 @@ header ('Content-Type: text/html; charset=UTF-8');
  * multilink
  *
  */
-function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = false, $objectsonly = false, $byname = false, $src_object_id = NULL) {
+function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = false, $objectsonly = false, $byname = false, $portcompat = true, $src_object_id = NULL) {
 
 
 	/*
@@ -1631,7 +1631,7 @@ function linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink = fa
 	$join .= " LEFT JOIN $linktable as lnk on remotePort.id in (lnk.porta, lnk.portb)";
 	$where .= " AND lnk.porta is NULL";
 
-	if($linktype == 'front')
+	if($portcompat)
 	{
 		/* port compat */
 		$join .= ' INNER JOIN PortInnerInterface pii ON remotePort.iif_id = pii.id
@@ -1751,6 +1751,18 @@ function linkmgmt_renderPopupPortSelector()
 			$linktype = 'front';
 	}
 
+//	portlist::var_dump_html($_POST);
+
+	if($linktype == 'back')
+	{
+		if(isset($_POST['portcompat_1']))
+			$portcompat = true;
+		else
+			$portcompat = false;
+	}
+	else
+		$portcompat = true; /* front */
+
 	$object_id = $_REQUEST['object_id'];
         $port_info = getPortInfo ($port_id);
 
@@ -1795,9 +1807,9 @@ function linkmgmt_renderPopupPortSelector()
         }
 
 	$objectlist = array('NULL' => '- Show All -');
-	$objectlist = $objectlist + linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink, true);
+	$objectlist = $objectlist + linkmgmt_findSparePorts($port_info, $filter, $linktype, $multilink, true, false, $portcompat);
 
-	$spare_ports = linkmgmt_findSparePorts ($port_info, $filter, $linktype, $multilink);
+	$spare_ports = linkmgmt_findSparePorts ($port_info, $filter, $linktype, $multilink, false, false, $portcompat);
 
 	$maxsize  = getConfigVar('MAXSELSIZE');
 	$objectcount = count($objectlist);
@@ -1836,6 +1848,9 @@ function linkmgmt_renderPopupPortSelector()
 
 	if($showlinktypeswitch)
 		echo '<tr height=150px><td><input type=submit value="Switch to '.$notlinktype.' view" name="'.$notlinktype.'_view"></tr></td>';
+
+	if($linktype == 'back')
+		echo '<tr height=150px><td><input type=submit value="'.($portcompat ? "Disable" : "Enable"). ' port compat" name="portcompat_'.($portcompat ? '0' : '1').'"></tr></td>';
 
 	echo '</table></td>';
 
@@ -1888,7 +1903,7 @@ function linkmgmt_renderPopupPortSelectorbyName()
 
 	$object = spotEntity ('object', $object_id);
 
-	$objectlist = linkmgmt_findSparePorts(NULL, NULL, $linktype, false, true, TRUE, $object_id);
+	$objectlist = linkmgmt_findSparePorts(NULL, NULL, $linktype, false, true, TRUE, false, $object_id);
 
 	$objectname = $object['dname'];
 
@@ -1911,10 +1926,10 @@ function linkmgmt_renderPopupPortSelectorbyName()
 	if($remote_object)
 	{
 		$filter['object_id'] = $remote_object;
-		$link_list = linkmgmt_findSparePorts(NULL, $filter, $linktype, false, false, TRUE, $object_id);
+		$link_list = linkmgmt_findSparePorts(NULL, $filter, $linktype, false, false, TRUE, false, $object_id);
 	}
 	else
-		$link_list = linkmgmt_findSparePorts(NULL, NULL, $linktype, false, false, TRUE, $object_id);
+		$link_list = linkmgmt_findSparePorts(NULL, NULL, $linktype, false, false, TRUE, false, $object_id);
 
         // display search form
         echo 'Link '.$linktype.' of ' . formatPortLink($object_id, $objectname, NULL, NULL) . ' Ports by Name to...';
