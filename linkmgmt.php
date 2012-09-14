@@ -358,6 +358,7 @@ class linkmgmt_RTport {
 
                 $urlparams = array(
 				'tab' => 'linkmgmt',
+				'page' => 'object',
                                 'op'=>'PortLinkDialog',
                                 'port'=>$this->port_id,
                                 'object_id'=>$this->port['object_id'],
