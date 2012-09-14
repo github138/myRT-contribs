@@ -1754,15 +1754,13 @@ function linkmgmt_renderPopupPortSelector()
 
 //	portlist::var_dump_html($_POST);
 
+	$portcompat = true;
+
 	if($linktype == 'back')
 	{
-		if(isset($_POST['portcompat_1']))
-			$portcompat = true;
-		else
-			$portcompat = false;
+		if(isset($_POST['portcompat']))
+			$portcompat = $_POST['portcompat'];
 	}
-	else
-		$portcompat = true; /* front */
 
 	$object_id = $_REQUEST['object_id'];
         $port_info = getPortInfo ($port_id);
@@ -1835,7 +1833,7 @@ function linkmgmt_renderPopupPortSelector()
 //	echo '<td nowrap="nowrap"><input type="hidden" name="linktype" value="front" /><input type="checkbox" name="linktype" value="back"'.($linktype == 'back' ? ' checked="checked"' : '' ).'>link backend</input></td></tr><tr>';
         echo '<td class="tdleft"><label>Object name:<br><input type=text size=8 name="filter-obj" value="' . htmlspecialchars ($filter['objects'], ENT_QUOTES) . '"></label></td>';
         echo '<td class="tdleft"><label>Port name:<br><input type=text size=6 name="filter-port" value="' . htmlspecialchars ($filter['ports'], ENT_QUOTES) . '"></label></td>';
-        echo '<td class="tdleft" valign="bottom"><input type="hidden" name="in_rack" value="off" /><label><input type=checkbox value="1" name="in_rack"'.($in_rack ? ' checked="checked"' : '').'>Nearest racks</label></td>';
+        echo '<td class="tdleft" valign="bottom"><input type="hidden" name="in_rack" value="off" /><label><input type=checkbox value="1" name="in_rack"'.($in_rack ? ' checked="checked"' : '').' onchange="this.form.submit();">Nearest racks</label></td>';
         echo '</tr></table>';
 
 	echo '</td></tr><tr><td>';
@@ -1852,7 +1850,8 @@ function linkmgmt_renderPopupPortSelector()
 
 	if($linktype == 'back')
 	{
-		echo '<tr height=150px><td><input type=submit value="'.($portcompat ? "Disable" : "Enable"). ' port compat" name="portcompat_'.($portcompat ? '0' : '1').'"></tr></td>';
+		echo '<input type="hidden" name="portcompat" value="0">';
+		echo '<tr height=150px><td><input type=checkbox onchange="this.form.submit();" name="portcompat"'.( $portcompat ? 'checked="checked" ' : '' ).'value="1">Port Compatibility</input></tr></td>';
 		echo '<input type="hidden" name="back_view">';
 	}
 
