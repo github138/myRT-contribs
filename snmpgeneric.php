@@ -826,6 +826,7 @@ function snmpgeneric_snmpconfig($object_id) {
         $endpoints = findAllEndpoints ($object_id, $object['name']);
 
 	addJS('function showsnmpv3(element) {
+				var style;
 				if(element.value != \''.SNMPgeneric::VERSION_3.'\') {
 					style = \'none\';
 					document.getElementById(\'snmp_community_label\').style.display=\'\';
@@ -834,14 +835,14 @@ function snmpgeneric_snmpconfig($object_id) {
 					document.getElementById(\'snmp_community_label\').style.display=\'none\';
 				}
 
-				elements = document.getElementsByName(\'snmpv3\');
-				for(i=0;i<elements.length;i++) {
+				var elements = document.getElementsByName(\'snmpv3\');
+				for(var i=0;i<elements.length;i++) {
 					elements[i].style.display=style;
 				}
 			};',TRUE);
 
 	addJS('function checkInput() {
-				host = document.getElementById(\'host\');
+				var host = document.getElementById(\'host\');
 
 				if(host.value == "-1") {
 					var newvalue = prompt("Enter Hostname or IP Address","");
@@ -1008,7 +1009,7 @@ function snmpgeneric_list($object_id) {
 	echo '<body onload="document.getElementById(\'createbutton\').focus();">';
 
 	addJS('function setchecked(classname) { var boxes = document.getElementsByClassName(classname);
-				 value = document.getElementById(classname).checked;
+				 var value = document.getElementById(classname).checked;
 				 for(i=0;i<boxes.length;i++) {
 					if(boxes[i].disabled == false)
 						boxes[i].checked=value;
