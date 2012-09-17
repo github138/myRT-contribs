@@ -601,9 +601,9 @@ function linkmgmt_opmap() {
 
 		echo "<script>
 			function initcontextmenu() {
-				maps = document.getElementsByTagName('map');
-                                for(i=0;i<maps.length;i++) {
-					areas = maps[i].childNodes;
+				var maps = document.getElementsByTagName('map');
+                                for(var i=0;i<maps.length;i++) {
+					var areas = maps[i].childNodes;
 
 					for(j=0;j<areas.length;j++) {
 						if(areas[j].nodeType == 1)
@@ -624,32 +624,32 @@ function linkmgmt_opmap() {
 
 			//	console.log('Menu');
 			//	console.log('--' + parent);
-				event = window.event;
+				var event = window.event;
 
-				ids = parent.id.split('-');
+				var ids = parent.id.split('-');
 
 				if(ids[0] == 'graph1')
 					return false;
 
-				object_id = ids[0];
+				var object_id = ids[0];
 
-				url ='?module=ajax&ac=lm_mapinfo&object_id=' + object_id;
+				var url ='?module=ajax&ac=lm_mapinfo&object_id=' + object_id;
 
 			//	links ='<li><a href=' + object_id + '>Object</a></li>';
 
 				if(ids[1] != '')
 				{
-					port_id = ids[1];
+					var port_id = ids[1];
 					url += '&port_id=' + port_id;
 				//	links += '<li><a href=' + port_id + '>Port</a></li>';
 
 					if(ids[2] != '')
 					{
-						remote_id = ids[2];
+						var remote_id = ids[2];
 
 						if(ids[3] != '')
 						{
-							linktype = ids[3];
+							var linktype = ids[3];
 							url += '&remote_id=' + remote_id + '&linktype=' + linktype;
 						//	links += '<li><a href=' + port_id + '_' + remote_id + '_' + linktype + '>Unlink</a></li>';
 						}
@@ -658,17 +658,17 @@ function linkmgmt_opmap() {
 				}
 
 
-				xmlHttp = new XMLHttpRequest();
+				var xmlHttp = new XMLHttpRequest();
 				xmlHttp.open('GET', url, false);
 				xmlHttp.send(null);
 
-				infodiv = document.getElementById('info');
+				var infodiv = document.getElementById('info');
 				infodiv.innerHTML = xmlHttp.responseText;
 
 		//		linkdiv = document.getElementById('link');
 		//		linkdiv.innerHTML = links;
 
-				menudiv = document.getElementById('menu');
+				var menudiv = document.getElementById('menu');
 				menudiv.style.position  = 'absolute';
 				menudiv.style.top  = (event.clientY + document.body.scrollTop) + 'px';
 				menudiv.style.left  = (event.clientX + document.body.scrollLeft) + 'px';
@@ -680,12 +680,12 @@ function linkmgmt_opmap() {
 			function mousedown() {
 				console.log('mouse down');
 
-				event = window.event;
+				var event = window.event;
 
 				if(event.button != 2)
 					return true;
 
-				menudiv = document.getElementById('menu');
+				var menudiv = document.getElementById('menu');
 
 				menudiv.style.display = 'none';
 
