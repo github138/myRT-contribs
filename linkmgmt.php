@@ -63,7 +63,13 @@ CREATE TABLE `LinkBackend` (
   KEY `LinkBackend_FK_b` (`portb`),
   CONSTRAINT `LinkBackend_FK_a` FOREIGN KEY (`porta`) REFERENCES `Port` (`id`) ON DELETE CASCADE,
   CONSTRAINT `LinkBackend_FK_b` FOREIGN KEY (`portb`) REFERENCES `Port` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+ * ALTER TABLE
+ALTER TABLE LinkBackend ADD KEY `LinkBackend_FK_b` (`portb`);
+ALTER TABLE LinkBackend DROP INDEX porta;
+ALTER TABLE LinkBackend DROP INDEX portb;
 
  *	- copy jquery.jeditable.mini.js to js/ directory (http://www.appelsiini.net/download/jquery.jeditable.mini.js)
  *	- copy linkmgmt.php to plugins directory
