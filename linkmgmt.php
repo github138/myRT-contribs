@@ -35,8 +35,9 @@
  *
  *
  * Requirements:
- *	PHP 5
- *	GraphViz_Image 1.3.0 or newer
+ *	PHP 5 (http://php.net/)
+ *	GraphViz_Image 1.3.0 or newer (http://pear.php.net/package/Image_GraphViz)
+ *		GraphViz (http://www.graphviz.org/)
  *
  * INSTALL:
  *
