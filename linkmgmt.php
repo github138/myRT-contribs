@@ -65,9 +65,8 @@ CREATE TABLE `LinkBackend` (
   CONSTRAINT `LinkBackend_FK_b` FOREIGN KEY (`portb`) REFERENCES `Port` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 
- *	- copy linkmgmt.php to inc/ directory
  *	- copy jquery.jeditable.mini.js to js/ directory (http://www.appelsiini.net/download/jquery.jeditable.mini.js)
- * 	- add "include 'inc/linkmgmt.php';" to inc/local.php
+ *	- copy linkmgmt.php to plugins directory
  *
  * TESTED on FreeBSD 9.0, nginx/1.0.11, php 5.3.9
  *	GraphViz_Image 1.3.0
