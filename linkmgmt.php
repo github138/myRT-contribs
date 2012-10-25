@@ -976,12 +976,12 @@ class linkmgmt_gvmap {
 		$gv->addCluster($cluster_id, $clustertitle, $clusterattr, $embedin);
 
 		if($this->back != 'front' || $port_id === NULL || $this->allports)
-		$front = $this->_getObjectPortsAndLinks($object_id, 'front', $port_id);
+		$front = $this->_getObjectPortsAndLinks($object_id, 'front', $port_id, $this->allports);
 		else
 		$front = array();
 
 		if($this->back != 'back' || $port_id === NULL || $this->allports)
-		$backend = $this->_getObjectPortsAndLinks($object_id, 'back', $port_id);
+		$backend = $this->_getObjectPortsAndLinks($object_id, 'back', $port_id, $this->allports);
 		else
 		$backend = array();
 
@@ -1140,7 +1140,7 @@ class linkmgmt_gvmap {
 	}
 
 	/* should be compatible with getObjectPortsAndLinks from RT database.php */
-	function _getObjectPortsAndLinks($object_id, $linktype = 'front', $port_id = NULL) {
+	function _getObjectPortsAndLinks($object_id, $linktype = 'front', $port_id = NULL, $allports = false) {
 
 		if($linktype == 'front')
 			$linktable = 'Link';
@@ -1180,6 +1180,9 @@ class linkmgmt_gvmap {
 		{
 			$where = " WHERE Object.id = ?";
 			$qparams[] = $object_id;
+
+			if(!$allports)
+				$where .= " AND remotePort.id is not NULL";
 		}
 		else
 		{
