@@ -716,7 +716,7 @@ function linkmgmt_opmap() {
 		if($debug)
 		{
 			echo "<pre>";
-			echo var_dump($gvmap->dump());
+			echo $gvmap->export();
 			echo "</pre>";
 
 			echo "<pre>".$gvmap->parse()."</pre>";
@@ -1255,6 +1255,10 @@ class linkmgmt_gvmap {
 
 	function dump() {
 		var_dump($this->gv);
+	}
+
+	function export() {
+		var_export($this->gv);
 	}
 
 } /* class gvmap */
