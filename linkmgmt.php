@@ -828,7 +828,7 @@ class linkmgmt_gvmap {
 						)
 				);
 
-			$this->_add($this->gv, $object_id, $port_id);
+			$this->_add($this->gv, $object_id, ($this->allports ? NULL : $port_id));
 
 			$children = getEntityRelatives ('children', 'object', $object_id); //'entity_id'
 
@@ -938,7 +938,7 @@ class linkmgmt_gvmap {
 		unset($_GET['port_id']);
 		unset($_GET['remote_id']);
 		$_GET['object_id'] = $object_id;
-		$_GET['hl'] = 'o';
+		//$_GET['hl'] = 'o';
 
 		$clusterattr['URL'] = makeHrefProcess($_GET);
 
@@ -1049,7 +1049,9 @@ class linkmgmt_gvmap {
 
 			if(!empty($port['remote_id'])) {
 
-				$this->_add($gv, $port['remote_object_id'], ($port_id === NULL ? NULL : $port['remote_id']));
+				//$this->_add($gv, $port['remote_object_id'], ($port_id === NULL ? NULL : $port['remote_id']));
+
+				$this->_add($gv, $port['remote_object_id'], $port['remote_id']);
 
 				if(
 					!isset($gv->graph['edgesFrom'][$port['id']][$port['remote_id']]) &&
