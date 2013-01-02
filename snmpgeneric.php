@@ -876,7 +876,7 @@ function snmpgeneric_snmpconfig($object_id) {
 	unset($value);
 
 	foreach( getObjectIPv6Allocations($object_id) as $value) {
-		$ip = ip_format($value['addrinfo']['ip']);
+		$ip = ip_format(ip_parse($value['addrinfo']['ip']));
 
 		if(!in_array($ip, $endpoints))
 			$endpoints[$ip] = $ip;
