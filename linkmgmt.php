@@ -573,7 +573,11 @@ function linkmgmt_opmap() {
 	if(isset($_REQUEST['debug']))
 		$debug = $_REQUEST['debug'];
 
+	if($debug) echo "-- DEBUG --<br>";
+
 	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl, $remote_id);
+
+	if($debug) echo "-- after gvmap --<br>";
 
 	switch($type) {
 		case 'gif':
@@ -601,6 +605,8 @@ function linkmgmt_opmap() {
 
 	if($usemap)
 	{
+
+		if($debug) echo "-- usemap --<br>";
 
 		/* add context menu to Ports, Objects, Links, ...
 		 */
@@ -708,6 +714,8 @@ function linkmgmt_opmap() {
 			</div>";
 
 		echo $gvmap->fetch('cmapx', $command);
+
+		if($debug) echo "-- after map gvmap --<br>";
 
 		echo "<img src=\"data:$ctype;base64,".
 			base64_encode($gvmap->fetch($type, $command)).
