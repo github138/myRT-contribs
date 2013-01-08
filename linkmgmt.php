@@ -624,7 +624,10 @@ function linkmgmt_opmap() {
 						//	attr = document.createAttribute('onmouseover','ahh');
 						//	areas[j].setAttribute(attr);
 						//	areas[j].onmouseover = 'menu(this);';
-							areas[j].oncontextmenu = 'menu(this);';
+
+							areas[j].addEventListener('contextmenu',menu,false);
+						//	areas[j].oncontextmenu = 'menu(this, event);';
+						//	console.log(areas[j].oncontextmenu);
 						}
 					}
 
@@ -632,11 +635,16 @@ function linkmgmt_opmap() {
 
 			};
 
-			function menu(parent) {
+			function menu(event) {
 
 			//	console.log('Menu');
+
+				if(!event)
+					event = window.event;
+
+				var parent = event.target;
+
 			//	console.log('--' + parent);
-				var event = window.event;
 
 				var ids = parent.id.split('-');
 
@@ -689,10 +697,11 @@ function linkmgmt_opmap() {
 				return false;
 			};
 
-			function mousedown() {
-				console.log('mouse down');
+			function mousedown(event) {
+				//	console.log('mouse down');
 
-				var event = window.event;
+				if(!event)
+					event = window.event;
 
 				if(event.button != 2)
 					return true;
@@ -706,7 +715,7 @@ function linkmgmt_opmap() {
 
 			</script>";
 
-		echo "<body oncontextmenu=\"return false\" onmousedown=\"mousedown();\" onload=\"initcontextmenu();\">";
+		echo "<body oncontextmenu=\"return false\" onmousedown=\"mousedown(event);\" onload=\"initcontextmenu();\">";
 
 		echo "<div id=\"menu\" style=\"display:none; background-color:#ffff90\">
 				<div id=\"info\"></div>
