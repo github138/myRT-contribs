@@ -1351,6 +1351,8 @@ function snmpgeneric_list($object_id) {
 			$netid = NULL;
 			$linklocal = FALSE;
 
+			//echo "<br> - DEBUG: ipspace $ipaddr - $netaddr - $addrtype - $maskbits<br>";
+
 			/* check for ip space */
 			switch($addrtype) {
 				case 'ipv4':
@@ -1359,16 +1361,19 @@ function snmpgeneric_list($object_id) {
 					break;
 
 				case 'ipv6':
-					/* convert to IPv6Address->parse format */
+
+					/* format ipaddr for ip6_parse */
 					$ipaddr =  preg_replace('/((..):(..))/','\\2\\3',$ipaddr);
 					$ipaddr =  preg_replace('/%.*$/','',$ipaddr);
 
-					$ipv6 = new IPv6Address();
-					if($ipv6->parse($ipaddr)) {
-						$netid = getIPv6AddressNetworkId(ip_parse($ipv6));
-						$netaddr = $ipv6->get_first_subnet_address($maskbits)->format();
-						$linklocal = ($ipv6->get_first_subnet_address(10)->format() == 'fe80::');
-					}
+					$ip6_bin = ip6_parse($ipaddr);
+					$ip6_addr = ip_format($ip6_bin);
+					$netid = getIPv6AddressNetworkId($ip6_bin);
+					$netaddr = ip_format(sg_ip6_getsubnet($ip6_bin, $maskbits));
+					$linklocal = substr($ip6_addr,0,5) == "fe80:";
+
+					//echo "<br> - DEBUG: ipspace $ipaddr - $addrtype - $maskbits - $netaddr - >$linklocal<<br>";
+
 					break;
 
 				case 'ipv6z':
@@ -1524,7 +1529,6 @@ function snmpgeneric_list($object_id) {
 			$createport = FALSE;
 		}
 
-
 		/* Allocate IPs ipv4 and ipv6 */
 
 		$ipaddresses = $ifsnmp->ipaddress($if);
@@ -1543,6 +1547,8 @@ function snmpgeneric_list($object_id) {
 				$maskbits = $value['maskbits'];
 				$bcast = $value['bcast'];
 
+				//echo "<br> - DEBUG: ip $ipaddr - $addrtype - $maskbits - $bcast<br>";
+
 				switch($addrtype) {
 					case 'ipv4z':
 					case 'ipv4':
@@ -1554,30 +1560,26 @@ function snmpgeneric_list($object_id) {
 					case 'ipv6':
 						$inputname = 'ipv6';
 
-						/* convert to IPv6Address->parse format */
+						/* format ipaddr for ip6_parse */
 						$ipaddr =  preg_replace('/((..):(..))/','\\2\\3',$ipaddr);
 						$ipaddr =  preg_replace('/%.*$/','',$ipaddr);
 
-						$ipv6 = new IPv6Address();
-						if(!$ipv6->parse($ipaddr)) {
-							$disableipaddr = TRUE;
-							$comment .= ' ipv6 parse failed';
-						} else {
-							$ipaddr = $ipv6->format();
-							$linklocal = ($ipv6->get_first_subnet_address(10)->format() == 'fe80::');
-						}
+						/* ip_parse throws exception on parse errors */
+						$ipaddr = ip_format(ip_parse($ipaddr));
+						$linklocal = (ip_format(sg_ip6_getsubnet(ip_parse($ipaddr), $maskbits)) == 'fe80::');
 
 						$createipaddr = FALSE;
 						break;
 
-				}
+				} //switch
 
 				$address = getIPAddress(ip_parse($ipaddr));
 
 				/* only if ip not already allocated */
 				if(empty($address['allocs'])) {
-					if(!$ignoreport)
+					if(!$ignoreport) {
 						$createipaddr = TRUE;
+					}
 				} else {
 					$disableipaddr = TRUE;
 
@@ -1606,36 +1608,37 @@ function snmpgeneric_list($object_id) {
 					$disableipaddr = TRUE;
 				}
 
-
-			if(!$disableipaddr)
-				$ipaddrcheckbox = '<b style="background-color:'.($disableipaddr ? '#ff0000' : '#00ff00')
-					.'"><input class="'.$inputname.'addr" style="background-color:'
-					.($disableipaddr ? '#ff0000' : '#00ff00')
-					.'" type="checkbox" name="'.$inputname.'addrcreate['.$ipaddr.']" value="'.$if.'"'
-					.($disableipaddr ? ' disabled="disabled"' : '')
-					.($createipaddr ? ' checked="checked"' : '').'></b>';
-			else
-				$ipaddrcheckbox = '';
+				if(!$disableipaddr) {
+					$ipaddrcheckbox = '<b style="background-color:'.($disableipaddr ? '#ff0000' : '#00ff00')
+						.'"><input class="'.$inputname.'addr" style="background-color:'
+						.($disableipaddr ? '#ff0000' : '#00ff00')
+						.'" type="checkbox" name="'.$inputname.'addrcreate['.$ipaddr.']" value="'.$if.'"'
+						.($disableipaddr ? ' disabled="disabled"' : '')
+						.($createipaddr ? ' checked="checked"' : '').'></b>';
+				} else {
+					$ipaddrcheckbox = '';
+				}
 
 				$ipaddrcell .= "<tr><td>$ipaddrcheckbox</td>";
 
-				if(!empty($ipaddrhref))
+				if(!empty($ipaddrhref)) {
 					$ipaddrcell .= "<td><a href=$ipaddrhref>$ipaddr/$maskbits</a></td></tr>";
-				else
+				} else {
 					$ipaddrcell .= "<td>$ipaddr/$maskbits</td></tr>";
+				}
 
-			}
+			} // foreach
 			unset($ipaddr);
 			unset($value);
 
 			$ipaddrcell .= '</table>';
 
+		// XXXX
+		// if(!empty($ipaddresses))
 		 } else {
 			$ipaddrcreatecheckbox = '';
 			$ipaddrcell = '';
-
 		}
-
 
 		/* checkboxes for add port and add ip */
 		/* FireFox needs <b style=..>, IE and Opera work with <td style=..> */
@@ -1752,13 +1755,8 @@ function snmpgeneric_opcreate() {
 	if(isset($_POST['ipv6addrcreate'])) {
 		foreach($_POST['ipv6addrcreate'] as $ipaddr => $if) {
 
-			$ip = new IPv6Address();
-			if($ip->parse($ipaddr)) {
-
-				bindIPv6ToObject(ip_parse($ip), $object_id,$_POST['ifName'][$if], 1); /* connected */
-				showSuccess("$ipaddr allocated");
-			} else
-				showError("$ipaddr parse failed!");
+			bindIPv6ToObject(ip6_parse($ipaddr), $object_id,$_POST['ifName'][$if], 1); /* connected */
+			showSuccess("$ipaddr allocated");
 		}
 		unset($ipaddr);
 		unset($if);
@@ -1767,7 +1765,7 @@ function snmpgeneric_opcreate() {
 	if(isset($_POST['ipaddrcreate'])) {
 		foreach($_POST['ipaddrcreate'] as $ipaddr => $if) {
 
-			bindIpToObject(ip_parse($ipaddr), $object_id,$_POST['ifName'][$if], 1); /* connected */
+			bindIPToObject(ip_parse($ipaddr), $object_id,$_POST['ifName'][$if], 1); /* connected */
 			showSuccess("$ipaddr allocated");
 		}
 		unset($ipaddr);
@@ -2628,5 +2626,30 @@ function sg_var_dump_html(&$var, $text = '') {
 	echo "<pre>------------------Start Var Dump - $text -----------------------\n";
 	var_dump($var);
 	echo "\n---------------------END Var Dump - $text -----------------------</pre>";
+}
+
+/*
+ * return ipv6 subnet only as ip bin
+ *
+ */
+function sg_ip6_getsubnet($ip6_bin, $maskbits) {
+
+	/* convert bin ip to binary string */
+
+	$ip6_bit = "";
+	foreach(str_split($ip6_bin) as $value) {
+		$ip6_bit = $ip6_bit.substr("00000000".sprintf("%b",ord($value)),-8);
+	}
+
+	$ip6_net_bit = substr(substr($ip6_bit,0,$maskbits)."00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",0,128);
+
+	/* convert binary string to bin ip */
+
+	$ip6_net_bin = "";
+	foreach(str_split($ip6_net_bit,8) as $value) {
+		$ip6_net_bin = $ip6_net_bin.chr(bindec($value));
+	}
+
+	return $ip6_net_bin;
 }
 ?>
