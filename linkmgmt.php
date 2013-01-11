@@ -133,6 +133,9 @@ ALTER TABLE LinkBackend DROP INDEX portb;
  *
  */
 
+/* DEBUG */
+//error_reporting(E_ALL);
+
 $tab['object']['linkmgmt'] = 'Link Management';
 $tabhandler['object']['linkmgmt'] = 'linkmgmt_tabhandler';
 //$trigger['object']['linkmgmt'] = 'linkmgmt_tabtrigger';
@@ -480,7 +483,13 @@ class linkmgmt_RTport {
 
 function linkmgmt_opmap() {
 
+	/* display require errors  "white screen of death" */
+	$errorlevel = error_reporting();
+	error_reporting(E_ALL);
+
 	require_once 'Image/GraphViz.php';
+
+	error_reporting($errorlevel);
 
 	$object_id = NULL;
 	$port_id = NULL;
@@ -572,6 +581,8 @@ function linkmgmt_opmap() {
 
 	if(isset($_REQUEST['debug']))
 		$debug = $_REQUEST['debug'];
+	else
+		$debug = False;
 
 	if($debug) echo "-- DEBUG --<br>";
 
@@ -745,7 +756,8 @@ function linkmgmt_opmap() {
 	}
 
 	exit;
-}
+
+} /* linkmgmt_opmap */
 
 /* ------------------------------------- */
 class linkmgmt_gvmap {
