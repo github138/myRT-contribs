@@ -788,7 +788,8 @@ class linkmgmt_gvmap {
 		/* suppress strict standards warnings for Image_GraphViz and PHP 5.4.0
 		 * output would corrupt image data
 		 */
-	//	$this->errorlevel = error_reporting( E_ALL ^ E_NOTICE ^ E_STRICT);
+		$this->errorlevel = error_reporting();
+		error_reporting($this->errorlevel & !E_STRICT);
 
 		$graphattr = array(
 					'rankdir' => 'RL',
@@ -918,7 +919,7 @@ class linkmgmt_gvmap {
 	 } /* __construct */
 
 	function __destruct() {
-	//	error_reporting($this->errorlevel);
+		error_reporting($this->errorlevel);
 	}
 
 	// !!!recursiv !!!
