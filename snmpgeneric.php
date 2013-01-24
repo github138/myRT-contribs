@@ -41,9 +41,9 @@
  * needs PHP 5
  *
  * TESTED on FreeBSD 9.0, nginx/1.0.12, php 5.3.10, NET-SNMP 5.7.1
- *	and RackTables 0.20.0
+ *	and RackTables <= 0.20.3
  *
- * (c)2012 Maik Ehinger <m.ehinger@ltur.de>
+ * (c)2012,2013 Maik Ehinger <m.ehinger@ltur.de>
  */
 
 /****
@@ -71,84 +71,6 @@
  *  - correct iif_name display if != 1
  *
  *  - set more Object attributs / fields
- *
- */
-
-/*************************
-
- * Change Log
- *
- * 09.12.11	minor cleanups
- * 10.02.12	make host selectable
- * 16.02.12	use getConfigVar('DEFAULT_SNMP_COMMUNITY');
- *		make snmp port types ignorable (see sg_ifType2oif_id array)
- *		add create_noconnector_ports
- * 17.02.12	changed operator & to &&
- *		make attributes, add port, add ip and port type changeable before create
- *		add sg_oid2attr
- *		add trigger (prepared only)
- *		add sg_ifType_ignore
- * 19.02.12	add ifAlias to visible label
- *		allow ifName input if empty (preset with ifDescr)
- * 20.02.12	change attribute code
- *		add $sg_known_sysObjectIDs (add $known_switches from snmp.php) to set HW Type
- *		added attribute processor function code
- * 21.02.12	add vendor / device specific ports
- *		change processor function code
- *			allow to return attributes and ports
- *		add check / uncheck all (doesn't work with IE)
- *		hide snmpv3 settings if not needed
- *		add ifInOctets and ifOutOctets to interface list
- * 22.02.12	add hrefs to l2address and ipaddr
- *		add readonly textfields for ifDescr and ifAlias
- * 23.02.12	change sysObjectID merge code
- *		change attrib processing code
- *		add regex processor function
- * 25.02.12	prefix global vars with sg_
- *		add SW version for Enterasys devices
- * 29.02.12	add snmpgeneric_pf_entitymib
- * 03.03.12	fix SNMPv3 support (tested with Enterasys only)
- *		snmpconfig form changes
- * 07.03.12	add commitUpdatePortl2address handling
- *		change to allow multiple ip addresses per interface
- *		get snmp ipv6 addresses ( !!! column order changed !!! ) (experimental)
- * 08.03.12	snmpconfig focus submit button onload
- *		add snmpgeneric_pf_swtype (experimental)
- * 09.03.12	add snmptranslate (set $sg_cmd_snmptranslate) (experimental)
- *		exclude ipv6 link-local addresses (fe80:) (experimental)
- *		handle reserved ip addresses
- *		destroy remaining foreach variables
- * 10.03.12	add missing IPv4 / IPv6 spaces (experimental)
- * 11.03.12	add bcast to ip address
- *		foreach by reference workaround (&$attr)
- *		changed ipv6 link-local addresses handling (fe80:) now ignoring ipv6z address type (experimental)
- * 12.03.12	add regex replacement
- *		changes snmpgeneric_pf_swtype (add oid, regex, replacement)
- *		fix update mac
- * 13.03.12	changed ipv6 link-local addresses handling (fe80:) again (experimental)
- *		update mac fix
- *		don't set attributes if values are equal
- * 20.03.12	correct broadcast calculation for ipaddresstable ipv4
- *		removed disabled checkboxes
- *		snmpgeneric_pf_catalyst multiline sysDescr fix
- *		add device pf
- * 26.03.12	ip spaces create by default
- *		set create button focus
- *			add confirm message
- *		ip space create fix (invalid ipv6 prefix)
- * 29.03.12	fix cisco OEM S/N 1
- * 02.04.12	add snmpgeneric_pf_ciscoflash
- * 03.04.12	add ciscoMemoryPoolMIB
- * 18.04.12	ciscomemory/flash round up values (ceil)
- * 16.07.12	add "ask me" to snmp host selection
- * 19.07.12	change description
- * 26.07.12	change INSTALL section
- * 01.08.12	fix interfaceserror handling in ifSNMP
- *		suppress SNMP "No Such Object available on this agent at this OID" warning
- *		fix whitespaces
- * 03.08.12	don't display ips with 0.0.0.0 netmask
- *
- * continues on github
  *
  */
 
