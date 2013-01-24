@@ -41,19 +41,8 @@
  *
  * INSTALL:
  *
- *	- create LinkBackend Table in your RackTables database
-
-CREATE TABLE `LinkBackend` (
-  `porta` int(10) unsigned NOT NULL DEFAULT '0',
-  `portb` int(10) unsigned NOT NULL DEFAULT '0',
-  `cable` char(64) DEFAULT NULL,
-  PRIMARY KEY (`porta`,`portb`),
-  UNIQUE KEY `porta` (`porta`),
-  UNIQUE KEY `portb` (`portb`),
-  CONSTRAINT `LinkBackend-FK-a` FOREIGN KEY (`porta`) REFERENCES `Port` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `LinkBackend-FK-b` FOREIGN KEY (`portb`) REFERENCES `Port` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
+ *	1. create LinkBackend Table in your RackTables database
+ *
  * Multilink table
 
 CREATE TABLE `LinkBackend` (
@@ -66,50 +55,28 @@ CREATE TABLE `LinkBackend` (
   CONSTRAINT `LinkBackend_FK_b` FOREIGN KEY (`portb`) REFERENCES `Port` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-
+ *	2. copy jquery.jeditable.mini.js to js/ directory (http://www.appelsiini.net/download/jquery.jeditable.mini.js)
+ *	3. copy linkmgmt.php to plugins directory
+ *
+ *	 Ready to go!
+ *
+ *
+ * UPDATE TABLE:
+ *
+ * Update from non-multilink table
  * ALTER TABLE
+
 ALTER TABLE LinkBackend ADD KEY `LinkBackend_FK_b` (`portb`);
 ALTER TABLE LinkBackend DROP INDEX porta;
 ALTER TABLE LinkBackend DROP INDEX portb;
 
- *	- copy jquery.jeditable.mini.js to js/ directory (http://www.appelsiini.net/download/jquery.jeditable.mini.js)
- *	- copy linkmgmt.php to plugins directory
+ *
  *
  * TESTED on FreeBSD 9.0, nginx/1.0.11, php 5.3.9
  *	GraphViz_Image 1.3.0
- *	and RackTables 0.20.0
+ *	and RackTables <= 0.20.3
  *
- * (c)2012 Maik Ehinger <m.ehinger@ltur.de>
- */
-
-/*************************
- * Change Log
- *
- * 15.01.12	new loopdetection
- * 18.01.12	code cleanups
- * 23.01.12	add href to printport
- * 24.01.12	add opHelp
- * 25.01.12	max loop count handling changed
- *		add port label to port tooltip
- * 28.02.12 	changed printportlistrow() first from TRUE to FALSE
- *		add portlist::hasbackend()
- * 29.02.12	fix update cable id for backend links
- *			add linkmgmt_commitUpdatePortLink
- * 04.03.12	add set_reserve_comment and set_link permission handling
- * 18.07.12	add transform:rotate to Back Link image
- * 19.07.12	new Description with usage
- * 01.08.12	fix whitespaces
- *		make portlist::urlparams, urlparamsarray, hasbackend static
- * 03.08.12	fix display order for objects without links
- * 06.08.12	add port count to Link by Name
- *		change "Link by Name" dialog design
- * 10.08.12	add portlist::_getlinkportsymbol
- *		rename _LinkPort -> _printlinkportsymbol
- * 16.08.12	add multlink support (breaks column alignment!)
- *		add GraphViz Maps ( with port / object highlighting )
- *
- * continued on github
- *
+ * (c)2012,2013 Maik Ehinger <m.ehinger@ltur.de>
  */
 
 /*************************
@@ -128,8 +95,6 @@ ALTER TABLE LinkBackend DROP INDEX portb;
  * - multlink count for Graphviz maps empty or full dot
  *
  * - csv list
- *
- * - fix $opspec_list for unlink
  *
  */
 
