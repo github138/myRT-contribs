@@ -1291,7 +1291,10 @@ function snmpgeneric_list($object_id) {
 					$ip6_bin = ip6_parse($ipaddr);
 					$ip6_addr = ip_format($ip6_bin);
 					$netid = getIPv6AddressNetworkId($ip6_bin);
-					$netaddr = ip_format(sg_ip6_getsubnet($ip6_bin, $maskbits));
+
+					$node = constructIPRange($ip6_bin, $maskbits);
+
+					$netaddr = $node['ip'];
 					$linklocal = substr($ip6_addr,0,5) == "fe80:";
 
 					//echo "<br> - DEBUG: ipspace $ipaddr - $addrtype - $maskbits - $netaddr - >$linklocal<<br>";
@@ -1487,8 +1490,12 @@ function snmpgeneric_list($object_id) {
 						$ipaddr =  preg_replace('/%.*$/','',$ipaddr);
 
 						/* ip_parse throws exception on parse errors */
-						$ipaddr = ip_format(ip_parse($ipaddr));
-						$linklocal = (ip_format(sg_ip6_getsubnet(ip_parse($ipaddr), $maskbits)) == 'fe80::');
+						$ip6_bin = ip_parse($ipaddr);
+						$ipaddr = ip_format($ip6_bin);
+
+						$node = constructIPRange($ip6_bin, $maskbits);
+
+						$linklocal = ($node['ip'] == 'fe80::');
 
 						$createipaddr = FALSE;
 						break;
@@ -1555,7 +1562,6 @@ function snmpgeneric_list($object_id) {
 
 			$ipaddrcell .= '</table>';
 
-		// XXXX
 		// if(!empty($ipaddresses))
 		 } else {
 			$ipaddrcreatecheckbox = '';
@@ -2548,30 +2554,5 @@ function sg_var_dump_html(&$var, $text = '') {
 	echo "<pre>------------------Start Var Dump - $text -----------------------\n";
 	var_dump($var);
 	echo "\n---------------------END Var Dump - $text -----------------------</pre>";
-}
-
-/*
- * return ipv6 subnet only as ip bin
- *
- */
-function sg_ip6_getsubnet($ip6_bin, $maskbits) {
-
-	/* convert bin ip to binary string */
-
-	$ip6_bit = "";
-	foreach(str_split($ip6_bin) as $value) {
-		$ip6_bit = $ip6_bit.substr("00000000".sprintf("%b",ord($value)),-8);
-	}
-
-	$ip6_net_bit = substr(substr($ip6_bit,0,$maskbits)."00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",0,128);
-
-	/* convert binary string to bin ip */
-
-	$ip6_net_bin = "";
-	foreach(str_split($ip6_net_bit,8) as $value) {
-		$ip6_net_bin = $ip6_net_bin.chr(bindec($value));
-	}
-
-	return $ip6_net_bin;
 }
 ?>
