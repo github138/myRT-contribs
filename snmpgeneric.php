@@ -60,6 +60,13 @@
  *
  */
 
+/**
+ * The newest version of this plugin can be found at:
+ *
+ * https://github.com/github138/myRT-contribs/tree/develop-0.20.x
+ *
+ */
+
 /* TODOs
  *
  *  - code cleanup
