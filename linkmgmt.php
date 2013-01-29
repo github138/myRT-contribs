@@ -79,6 +79,13 @@ ALTER TABLE LinkBackend DROP INDEX portb;
  * (c)2012,2013 Maik Ehinger <m.ehinger@ltur.de>
  */
 
+/**
+ * The newest version of this plugin can be found at:
+ *
+ * https://github.com/github138/myRT-contribs/tree/develop-0.20.x
+ *
+ */
+
 /*************************
  * TODO
  *
