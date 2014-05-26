@@ -73,7 +73,8 @@
  *
  */
 
-$debug_mode=1;
+/* RackTables Debug Mode */
+//$debug_mode=1;
 
 require_once('inc/snmp.php');
 
