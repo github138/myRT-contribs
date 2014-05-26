@@ -2319,6 +2319,11 @@ class ifSNMP implements Iterator {
 				if(!preg_match('/.*\.(ipv[46]z?)\.\"(.*)"$/',$oid, $matches))
 					continue;
 
+				/* check for valid ip address */
+				if (inet_pton($matches[2]) === false){
+					 continue;
+				}
+
 				/* ipv4 or ipv6 address */
 				$ifindex =  array_search($value,$this->ifTable['ifIndex']);
 
