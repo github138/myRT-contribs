@@ -81,7 +81,7 @@ ALTER TABLE LinkBackend CONVERT to CHARACTER SET utf8 COLLATE utf8_unicode_ci;
  *	GraphViz_Image 1.3.0
  *	and RackTables 0.20.8
  *
- * (c)2012-2014 Maik Ehinger <m.ehinger@ltur.de>
+ * (c)2012-2015 Maik Ehinger <m.ehinger@ltur.de>
  */
 
 /**
