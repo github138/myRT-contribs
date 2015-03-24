@@ -1,0 +1,607 @@
+<?php
+
+/********************************************
+ *
+ * RackTables 0.20.x snmp live extension
+ *
+ *	displays SNMP port status
+ *
+ * needs PHP >= 5.4.0
+ *	saved SNMP settings ( see snmpgeneric.php extension )
+ *
+ * (c)2015 Maik Ehinger <m.ehinger@ltur.de>
+ */
+
+/****
+ * INSTALL
+ * 	just place file in plugins directory
+ *
+ */
+
+/**
+ * The newest version of this plugin can be found at:
+ *
+ * https://github.com/github138/myRT-contribs/tree/develop-0.20.x
+ *
+ */
+
+/* TODOs
+ *
+ *  - code cleanup
+ */
+
+/* RackTables Debug Mode */
+//$debug_mode=1;
+
+$tab['object']['snmplive'] = 'SNMP Live';
+$tabhandler['object']['snmplive'] = 'snmplive_tabhandler';
+
+$ophandler['object']['snmplive']['ajax'] = 'snmplive_opajax';
+
+function snmplive_tabhandler($object_id)
+{
+
+	addCSS(<<<ENDCSS
+        .ifoperstatus-default { background-color:#ddd; }
+        .ifoperstatus-1, .ifoperstatus-up { background-color:#00ff00; }
+        .ifoperstatus-2, .ifoperstatus-down { background-color:#ff0000; }
+        .ifoperstatus-3, .ifoperstatus-testing, { background-color:#ffff66; }
+        .ifoperstatus-4, .ifoperstatus-unknown { background-color:#ffffff; }
+        .ifoperstatus-5, .ifoperstatus-dormant { background-color:#90bcf5; }
+        .ifoperstatus-6, .ifoperstatus-notPresent { }
+        .ifoperstatus-7, .ifoperstatus-lowerLayerDown { }
+
+        .port-groups { border-spacing:1px;display:table; }
+        .port-group { display:table-cell;border:3px solid #000;background-color:#c0c0c0; }
+
+        .port-column { display:table-cell;position:relative; }
+
+        .port { position:reletive;width:42px;height:100px;border:2px solid #000;overflow:hidden; }
+        .port-pos-1 { margin-bottom:1px; }
+        .port-pos-2 { }
+        .port-pos-0 { margin-top:1px; }
+
+        .port-header { position:absolute }
+        .port-header-pos-1 { top:0px; }
+        .port-header-pos-0 { bottom:0px; }
+
+        .port-status { position:absolute;min-width:42px;text-align:center;font-size:10pt; }
+
+        .port-status-pos-1 { top:35px; }
+        .port-status-pos-0 { bottom:35px; }
+
+        .port-info { position:absolute;width:90%;background-color:#ddd;overflow:hidden; }
+        .port-info-pos-1 { top: 80px; }
+        .port-info-pos-0 { bottom: 80px;}
+
+        .port-name {  font-size:10pt;margin:0px auto;width:40px;text-align:center; }
+        .port-number { font-size:8pt;color:#eee; }
+
+        .port-detail { position:fixed;z-index:1000;top:0px;right:0px;border:3px solid #000;background-color:#fff }
+        .port-detail-links { background-color:#ccc }
+        .hidden { visibility:hidden; }
+        .info-footer { }
+
+ENDCSS
+, TRUE);
+
+	echo "<div id=\"info\"></div>";
+
+	if(isset($_GET['debug']))
+		$debug = $_GET['debug'];
+	else
+		$debug = 0;
+
+	$object = spotEntity('object', $object_id);
+	amplifyCell($object);
+
+	pl_layout_default($object, 0);
+
+	addJS(<<<ENDJS
+       function togglevisibility(elem, hide)
+        {
+                if(hide)
+                        elem.css('visibility', 'hidden');
+                else
+                        elem.css('visibility', 'visible');
+                //a.show();
+                //a.hide();
+        }
+
+       function setdetail(elem, hide)
+        {
+                var a = $( "#port" + elem.id + "-detail");
+
+                togglevisibility(a, hide);
+        }
+
+         function setports( data, textStatus, jqHXR ) {
+                if(data.debug)
+                        $( "#info" ).html($( "#info" ).html() + "DEBUG: " + data.name + ": " + data.debug);
+
+                for(var index in data.ports)
+                {
+                        setport(data, data.ports[index]);
+                }
+         }
+
+        function setportstatus( obj, port , id , detail)
+        {
+
+                tagidsuffix = "";
+
+                if(detail)
+                        tagidsuffix = tagidsuffix + "-detail";
+
+                if(!detail)
+                {
+                        $( "#port" + id + "-status" + tagidsuffix ).html("<table class=\"ifoperstatus-" + port.snmpinfos.
+operstatus + "\"><tr><td>"
+                                        +  port.snmpinfos.operstatus + "<br>" + port.snmpinfos.speed
+                                        + "</td></tr></table>");
+                        return;
+                }
+
+                $( "#port" + id + "-status" + tagidsuffix ).html(port.snmpinfos.alias
+                                        + "<table class=\"ifoperstatus-" + port.snmpinfos.operstatus + "\"><tr><td>"
+                                        + (port.snmpinfos.ipv4 ? port.snmpinfos.ipv4 : "") + "<br>" + port.snmpinfos.operstatus
+                                        + "</td></tr></table>");
+        }
+
+        function setport( obj, port ) {
+
+                if(port.debug)
+                        $( "#info" ).html($( "#info" ).html() + port.name + " " + port.debug);
+
+                if(port.snmpinfos)
+                {
+                        setportstatus(obj, port, port.id, false);
+                        setportstatus(obj, port, port.id, true);
+                }
+
+        }
+
+        function ajaxerror(jqHXR, textStatus, qXHR, errorThrown)
+        {
+                $( "#info" ).html($( "#info" ).html() + "<br>" + textStatus + " " + qXHR + " " + errorThrown);
+        }
+
+	$.ajax({
+		dataType: "json",
+		url: "index.php",
+		data: {
+			page: "object",
+			tab: "snmplive",
+			module: "redirect",
+			op: "ajax",
+			json: "get",
+			object_id: "$object_id",
+			debug: $debug
+		},
+		error: ajaxerror,
+		success: setports
+	});
+
+ENDJS
+, TRUE);
+
+} /* snmplive_tabhandler */
+
+/* -------------------------------------------------- */
+
+function snmplive_opajax()
+{
+
+                ob_start();
+		$object_id = $_REQUEST['object_id'];
+		$object = spotEntity('object', $object_id);
+
+		amplifyCell($object);
+
+	if(isset($_GET['debug']))
+		$debug = $_GET['debug'];
+	else
+		$debug = 0;
+
+		foreach($object['ports'] as $key => &$port)
+		{
+			// snmpinfos
+			$port['snmpinfos'] = sl_getsnmpport($object, $port, $debug);
+		}
+
+                /* set debug output */
+                if(ob_get_length())
+                        $object['debug'] = ob_get_contents();
+
+                ob_end_clean();
+
+                echo json_encode($object);
+                exit;
+
+} /* snmpgeneric_opcreate */
+
+/* -------------------------------------------------- */
+
+function pl_layout_default(&$object, $groupports = 8, $bottomstart = false, $modules = false, $portrows = 2)
+{
+	$i = 0;
+	$portcolumn = "";
+	$linkcount = 0;
+
+	$lastmodule = null;
+	$nomodul = array();
+
+	echo "<div class=\"port-groups\">";
+	foreach($object['ports'] as $key => $port)
+	{
+
+		$object['portnames'][$port['name']] = $port;
+
+		$port_id = $port['id'];
+		$port_name = $port['name'];
+
+		$pname = $port_name;
+		$module = "";
+		$pport = "";
+		// split name in name, module, port
+		if(preg_match('/^([a-zA-Z]+)?(?:[\W]?([\d]+)?[\W])?([\d]+)?$/', $port_name, $match))
+			if(count($match) == 4)
+				list($tmp,$pname,$module,$pport) = $match;
+
+		if($port['linked'])
+			$linkcount++;
+
+		if($module == "")
+		{
+			$nomodul[] = pl_layout_port($port, count($nomodul) + 1, 1);
+			continue;
+		}
+
+		if($modules)
+		{
+			// port modules
+			if($module != $lastmodule)
+			{
+				if(($i % $portrows) != 0)
+					echo "$portcolumn</div>"; // port-column
+
+				if($groupports)
+					if(($i % $groupports) != 0)
+						echo "</div>"; // port-group
+
+				echo "</div>"; // port-groups
+
+				$i = 0;
+				$portcolumn = "";
+				echo "Modul: $module";
+				echo "<br><div class=\"port-groups\">";
+			}
+
+			$lastmodule = $module;
+		}
+
+		$i++;
+
+		if($groupports)
+			if(($i % $groupports) == 1)
+				echo "<div class=\"port-group\">";
+
+		if($portrows == 2)
+		{
+			// print each row different
+			if(($i % $portrows) == 1)
+				$pos = ($bottomstart ? 0 : 1); // 0 = bottom; 1 = top
+			else
+				$pos = ($bottomstart ? 1 : 0); // 0 = bottom; 1 = top
+		}
+		else
+			$pos = ($bottomstart ? 0 : 1); // 0 = bottom; 1 = top
+
+		$portdiv = pl_layout_port($port, $i, $pos);
+
+		if(!$bottomstart)
+			$portcolumn = "$portcolumn$portdiv";
+		else
+			$portcolumn = "$portdiv$portcolumn";
+
+		if(($i % $portrows) == 0)
+		{
+			echo "<div class=\"port-column\">";
+			echo "$portcolumn</div>";
+			$portcolumn = "";
+		}
+
+		if($groupports)
+			if(($i % $groupports) == 0)
+				echo "</div>";
+	}
+
+	if(($i % $portrows) != 0)
+	{
+		echo "<div class=\"port-column\">";
+		echo "$portcolumn</div>"; // port-column
+	}
+
+	if($groupports)
+		if(($i % $groupports) != 0)
+			echo "</div>"; // port-group
+
+	echo "</div>"; // port-groups
+
+	/* Port without modul */
+	if($nomodul)
+	{
+		echo "Other Ports:<br><div id=\"nomodule\" class=\"port-groups\">";
+		foreach($nomodul as $portdiv)
+			echo "<div class=\"port-column\">$portdiv</div>";
+		echo "</div>";
+	}
+
+	return $linkcount;
+
+} // layout_default
+
+function pl_layout_port($port, $number, $pos)
+{
+
+		$port_id = $port['id'];
+		$port_name = $port['name'];
+
+		$title = "Name: $port_name - No: $number - ID: $port_id";
+
+		$portdiv = "<div id=\"$port_id\" class=\"port port-pos-$pos\" onmouseover=\"setdetail(this,false);\" onmouseout=\"setdetail(this,true);\">";
+		$portheader = "<div class=\"port-header port-header-pos-$pos\">";
+		$portlabel = "<div class=\"port-number\">$number</div>";
+		$portname = "<div class=\"port-name\">$port_name</div>";
+
+		if($port['linked'])
+		{
+			$link = "<div class=\"ifoperstatus-default\">load</div>";
+		}
+		else
+			$link = "-";
+
+
+		$details = "<table><tr><td>No.: $number (ID: ".$port['id'].")<br>".$port['object_name']."<br>".$port['name']."<br>"
+			.$port['label']."<br>".$port['reservation_comment']
+			."<div id=\"port${port_id}-status-detail\">No Status</div></td>";
+
+		if($port['linked'])
+			$details .= "<td>Remote:<br>".$port['cableid']."<br>".$port['remote_object_name']."<br>".$port['remote_name']."<div id=\"port${port_id}-status-detail-remote\">No Remote Status</div></td>";
+
+		$details .= "</tr></table>";
+
+
+		$portdetail = "<div id=\"port${port_id}-detail\" class=\"port-detail hidden\" onclick=\"togglevisibility(this,true);\">$details</div>";
+
+		$portsnmp = "<div id=\"port${port_id}-snmp\" class=\"port-snmp\">SNMP operstate speed</div>";
+		$portsnmpremote = "<div id=\"port${port_id}-snmp-remote class=\"port-snmp\">SNMP REMOTE operstate speed</div>";
+
+		$portstatus = "<div id=\"port${port_id}-status\" class=\"port-status port-status-pos-$pos\" title=\"$title\">load</div>";
+
+		if($pos) {
+			$portheader .= "$portlabel$portname</div>";
+			$portdiv .= "$portheader$portstatus<div class=\"port-info port-info-pos-$pos\"></div></div>$portdetail";
+			//$portdiv .= "$portheader$portstatus</div>";
+		}
+		else
+		{
+			$portheader .= "$portname$portlabel</div>";
+			$portdiv .= "<div class=\"port-info port-info-pos-$pos\"></div>$portstatus$portheader</div>$portdetail";
+			//$portdiv .= "$portstatus$portheader</div>";
+		}
+
+		return $portdiv;
+}
+/* ------------------------------------------------------- */
+function sl_getsnmpport(&$object, $port, $debug = false)
+{
+
+		$port_name = $port['name'];
+
+		/* get object saved SNMP settings */
+		$snmpconfig = explode(':', strtok($object['comment'],"\n\r"));
+
+		$object_id = $object['id'];
+		$object_name = $object['name'];
+
+		if($snmpconfig[0] != "SNMP")
+		{
+
+			if($debug)
+				echo "INFO: No saved SNMP Settings for \"$object_name\" ID: $object_id<br>";
+
+			$object['SNMP'] = 0;
+
+			return null;
+		}
+
+		/* set objects SNMP ip address */
+		$ipv4 = $snmpconfig[1];
+
+		if(!$ipv4)
+		{
+			echo "ERROR: no ip for \"$object_name!!\"<br>";
+
+			$object['SNMP'] = 0;
+
+			return null;
+		}
+
+		if(isset($object['iftable']))
+			$iftable = $object['iftable'];
+		else
+		{
+			if(count($snmpconfig) < 4 )
+			{
+				echo "SNMP Error: Missing Setting for $object_name ($ipv4)";
+
+				$object['SNMP'] = 0;
+
+				return null;
+			}
+
+			$s = new sl_ifxsnmp($snmpconfig[2], $ipv4, $snmpconfig[3], $snmpconfig);
+
+			if(!$s->error)
+			{
+
+				/* get snmp data */
+				$iftable = $s->getiftable();
+
+				if($iftable)
+					$object['iftable'] = $iftable; // save for other ports
+				else
+				{
+
+					echo "SNMP Error: ".$s->getError()." for $object_name ($ipv4)<br>";
+					$object['SNMP'] = 0;
+					return null;
+				}
+
+			}
+			else
+			{
+				echo "SNMP Config Error: ".$s->error." for \"$object_name\"<br>";
+				$object['SNMP'] = 0;
+				return null;
+			}
+		}
+
+		// SNMP up / down
+		if(!isset($iftable[$port_name]))
+			return null;
+
+		$ifoperstatus = $iftable[$port_name]['status'];
+
+		$ifspeed = $iftable[$port_name]['speed'];
+
+		$ifalias = $iftable[$port_name]['alias'];
+
+		return array(
+			'ipv4' => $ipv4,
+			'operstatus' => $ifoperstatus,
+			'alias' => $ifalias,
+			'speed' => $ifspeed,
+		);
+
+} // sl_getsnmpport
+/* --------------------------------------------------------- */
+
+class sl_ifxsnmp extends SNMP
+{
+
+	public $error = false;
+
+	function __construct($version, $hostname, $community, $security = null)
+	{
+
+		switch($version)
+		{
+			case "1":
+			case "v1":
+					$version = SNMP::VERSION_1;
+					break;
+			case "2":
+			case "2c":
+			case "v2c":
+					$version = SNMP::VERSION_2c;
+					break;
+			case "3":
+			case "v3":
+					$version = SNMP::VERSION_3;
+					break;
+		}
+
+		parent::__construct($version, $hostname, $community);
+
+		if($version == SNMP::VERSION_3)
+		{
+			if($security !== null && count($security) == 9)
+			{
+				$auth_passphrase = base64_decode($security[6]);
+				$priv_passphrase = base64_decode($security[8]);
+
+				if(!$this->setsecurity($security[4], $security[5], $auth_passphrase, $security[7], $priv_passphrase))
+				{
+
+					$this->error = "Security Error for v3 ($hostname)";
+					return;
+				}
+
+			}
+			else
+			{
+				$this->error = "Missing security settings for v3 ($hostname)";
+				return;
+			}
+		}
+
+		$this->quick_print = 1;
+		$this->oid_output_format = SNMP_OID_OUTPUT_NUMERIC;
+	}
+
+	function getiftable()
+	{
+		$oid_ifindex = '.1.3.6.1.2.1.2.2.1.1'; // iftable
+		$oid_ifoperstatus = '.1.3.6.1.2.1.2.2.1.8'; //iftable
+		$oid_ifspeed = '.1.3.6.1.2.1.2.2.1.5'; //iftable
+		$oid_ifhighspeed = '.1.3.6.1.2.1.31.1.1.1.15'; //ifXtable
+		$oid_ifname = '.1.3.6.1.2.1.31.1.1.1.1'; //ifXtable
+		$oid_ifalias = '.1.3.6.1.2.1.31.1.1.1.18'; //ifXtable
+
+		$ifindex = $this->walk($oid_ifindex); // iftable
+
+		if($ifindex === FALSE)
+		{
+			return FALSE;
+			exit;
+		}
+
+		$ifname = $this->walk($oid_ifname); //ifXtable
+		$ifalias = $this->walk($oid_ifalias); //ifXtable
+
+		$ifspeed = $this->walk($oid_ifspeed); //iftable
+		$ifhighspeed = $this->walk($oid_ifhighspeed); //ifXtable
+
+		$this->enum_print = false;
+		$ifoperstatus = $this->walk($oid_ifoperstatus); //iftable
+
+		$retval = array();
+		foreach($ifindex as $index)
+		{
+			$retval[$ifname[$oid_ifname.'.'.$index]]['status'] = $ifoperstatus[$oid_ifoperstatus.'.'.$index];
+
+			$retval[$ifname[$oid_ifname.'.'.$index]]['alias'] = $ifalias[$oid_ifalias.'.'.$index];
+
+			$highspeed = $ifhighspeed[$oid_ifhighspeed.'.'.$index];
+			if($highspeed)
+				$speed = $highspeed;
+			else
+				$speed = $ifspeed[$oid_ifspeed.'.'.$index];
+
+			if($speed >= 1000000) // 1Mbit
+				$speed /= 1000000;
+
+			$speed = ($speed >= 1000 ? ($speed / 1000)."Gb" : $speed."Mb" );
+
+			$retval[$ifname[$oid_ifname.'.'.$index]]['speed'] = "$speed";
+
+		}
+
+		if(0)
+			var_dump_html($ifalias);
+
+		return $retval;
+	}
+} // sl_ifxsnmp
+
+/* ------------------------------------------------------- */
+/* for debugging */
+function sl_var_dump_html(&$var, $text = '') {
+
+	echo "<pre>------------------Start Var Dump - $text -----------------------\n";
+	var_dump($var);
+	echo "\n---------------------END Var Dump - $text -----------------------</pre>";
+}
+?>
