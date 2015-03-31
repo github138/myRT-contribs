@@ -45,7 +45,7 @@ function snmplive_tabhandler($object_id)
         .ifoperstatus-default { background-color:#ddd; }
         .ifoperstatus-1, .ifoperstatus-up { background-color:#00ff00; }
         .ifoperstatus-2, .ifoperstatus-down { background-color:#ff0000; }
-        .ifoperstatus-3, .ifoperstatus-testing, { background-color:#ffff66; }
+        .ifoperstatus-3, .ifoperstatus-testing { background-color:#ffff66; }
         .ifoperstatus-4, .ifoperstatus-unknown { background-color:#ffffff; }
         .ifoperstatus-5, .ifoperstatus-dormant { background-color:#90bcf5; }
         .ifoperstatus-6, .ifoperstatus-notPresent { }
@@ -56,7 +56,7 @@ function snmplive_tabhandler($object_id)
 
         .port-column { display:table-cell;position:relative; }
 
-        .port { position:reletive;width:42px;height:100px;border:2px solid #000;overflow:hidden; }
+        .port { position:relative;width:42px;height:100px;border:2px solid #000;overflow:hidden; }
         .port-pos-1 { margin-bottom:1px; }
         .port-pos-2 { }
         .port-pos-0 { margin-top:1px; }
