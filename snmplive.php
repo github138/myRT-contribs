@@ -192,31 +192,34 @@ ENDJS
 function snmplive_opajax()
 {
 
-                ob_start();
-		$object_id = $_REQUEST['object_id'];
-		$object = spotEntity('object', $object_id);
+	ob_start();
+	$object_id = $_REQUEST['object_id'];
+	$object = spotEntity('object', $object_id);
 
-		amplifyCell($object);
+	amplifyCell($object);
 
 	if(isset($_GET['debug']))
 		$debug = $_GET['debug'];
 	else
 		$debug = 0;
 
+	$object['iftable'] = sl_getsnmp($object, $debug);
+
+	if($object['iftable'])
 		foreach($object['ports'] as $key => &$port)
 		{
 			// snmpinfos
-			$port['snmpinfos'] = sl_getsnmpport($object, $port, $debug);
+			$port['snmpinfos'] = sl_getportsnmp($object, $port, $debug);
 		}
 
-                /* set debug output */
-                if(ob_get_length())
-                        $object['debug'] = ob_get_contents();
+	/* set debug output */
+	if(ob_get_length())
+		$object['debug'] = ob_get_contents();
 
-                ob_end_clean();
+	ob_end_clean();
 
-                echo json_encode($object);
-                exit;
+	echo json_encode($object);
+	exit;
 
 } /* snmpgeneric_opcreate */
 
@@ -344,150 +347,170 @@ function pl_layout_default(&$object, $groupports = 8, $bottomstart = false, $mod
 function pl_layout_port($port, $number, $pos)
 {
 
-		$port_id = $port['id'];
-		$port_name = $port['name'];
+	$port_id = $port['id'];
+	$port_name = $port['name'];
 
-		$title = "Name: $port_name - No: $number - ID: $port_id";
+	$title = "Name: $port_name - No: $number - ID: $port_id";
 
-		$portdiv = "<div id=\"$port_id\" class=\"port port-pos-$pos\" onmouseover=\"setdetail(this,false);\" onmouseout=\"setdetail(this,true);\">";
-		$portheader = "<div class=\"port-header port-header-pos-$pos\">";
-		$portlabel = "<div class=\"port-number\">$number</div>";
-		$portname = "<div class=\"port-name\">$port_name</div>";
+	$portdiv = "<div id=\"$port_id\" class=\"port port-pos-$pos\" onmouseover=\"setdetail(this,false);\" onmouseout=\"setdetail(this,true);\">";
+	$portheader = "<div class=\"port-header port-header-pos-$pos\">";
+	$portlabel = "<div class=\"port-number\">$number</div>";
+	$portname = "<div class=\"port-name\">$port_name</div>";
 
-		if($port['linked'])
-		{
-			$link = "<div class=\"ifoperstatus-default\">load</div>";
-		}
-		else
-			$link = "-";
-
-
-		$details = "<table><tr><td>No.: $number (ID: ".$port['id'].")<br>".$port['object_name']."<br>".$port['name']."<br>"
-			.$port['label']."<br>".$port['reservation_comment']
-			."<div id=\"port${port_id}-status-detail\">No Status</div></td>";
-
-		if($port['linked'])
-			$details .= "<td>Remote:<br>".$port['cableid']."<br>".$port['remote_object_name']."<br>".$port['remote_name']."<div id=\"port${port_id}-status-detail-remote\">No Remote Status</div></td>";
-
-		$details .= "</tr></table>";
+	if($port['linked'])
+	{
+		$link = "<div class=\"ifoperstatus-default\">load</div>";
+	}
+	else
+		$link = "-";
 
 
-		$portdetail = "<div id=\"port${port_id}-detail\" class=\"port-detail hidden\" onclick=\"togglevisibility(this,true);\">$details</div>";
+	$details = "<table><tr><td>No.: $number (ID: ".$port['id'].")<br>".$port['object_name']."<br>".$port['name']."<br>"
+		.$port['label']."<br>".$port['reservation_comment']
+		."<div id=\"port${port_id}-status-detail\">No Status</div></td>";
 
-		$portsnmp = "<div id=\"port${port_id}-snmp\" class=\"port-snmp\">SNMP operstate speed</div>";
-		$portsnmpremote = "<div id=\"port${port_id}-snmp-remote class=\"port-snmp\">SNMP REMOTE operstate speed</div>";
+	if($port['linked'])
+		$details .= "<td>Remote:<br>".$port['cableid']."<br>".$port['remote_object_name']."<br>".$port['remote_name']."<div id=\"port${port_id}-status-detail-remote\">No Remote Status</div></td>";
 
-		$portstatus = "<div id=\"port${port_id}-status\" class=\"port-status port-status-pos-$pos\" title=\"$title\">load</div>";
+	$details .= "</tr></table>";
 
-		if($pos) {
-			$portheader .= "$portlabel$portname</div>";
-			$portdiv .= "$portheader$portstatus<div class=\"port-info port-info-pos-$pos\"></div></div>$portdetail";
-			//$portdiv .= "$portheader$portstatus</div>";
-		}
-		else
-		{
-			$portheader .= "$portname$portlabel</div>";
-			$portdiv .= "<div class=\"port-info port-info-pos-$pos\"></div>$portstatus$portheader</div>$portdetail";
-			//$portdiv .= "$portstatus$portheader</div>";
-		}
 
-		return $portdiv;
+	$portdetail = "<div id=\"port${port_id}-detail\" class=\"port-detail hidden\" onclick=\"togglevisibility(this,true);\">$details</div>";
+
+	$portstatus = "<div id=\"port${port_id}-status\" class=\"port-status port-status-pos-$pos\" title=\"$title\">load</div>";
+
+	if($pos) {
+		$portheader .= "$portlabel$portname</div>";
+		$portdiv .= "$portheader$portstatus<div class=\"port-info port-info-pos-$pos\"></div></div>$portdetail";
+	}
+	else
+	{
+		$portheader .= "$portname$portlabel</div>";
+		$portdiv .= "<div class=\"port-info port-info-pos-$pos\"></div>$portstatus$portheader</div>$portdetail";
+	}
+
+	return $portdiv;
 }
 /* ------------------------------------------------------- */
-function sl_getsnmpport(&$object, $port, $debug = false)
+
+function sl_getportsnmp(&$object, $port, $debug = false)
 {
+	$ipv4 = $object['SNMP']['IP'];
 
-		$port_name = $port['name'];
+	$port_name = $port['name'];
 
-		/* get object saved SNMP settings */
-		$snmpconfig = explode(':', strtok($object['comment'],"\n\r"));
-
-		$object_id = $object['id'];
-		$object_name = $object['name'];
-
-		if($snmpconfig[0] != "SNMP")
-		{
-
-			if($debug)
-				echo "INFO: No saved SNMP Settings for \"$object_name\" ID: $object_id<br>";
-
-			$object['SNMP'] = 0;
-
-			return null;
-		}
-
-		/* set objects SNMP ip address */
-		$ipv4 = $snmpconfig[1];
-
-		if(!$ipv4)
-		{
-			echo "ERROR: no ip for \"$object_name!!\"<br>";
-
-			$object['SNMP'] = 0;
-
-			return null;
-		}
-
-		if(isset($object['iftable']))
-			$iftable = $object['iftable'];
-		else
-		{
-			if(count($snmpconfig) < 4 )
-			{
-				echo "SNMP Error: Missing Setting for $object_name ($ipv4)";
-
-				$object['SNMP'] = 0;
-
-				return null;
-			}
-
-			$s = new sl_ifxsnmp($snmpconfig[2], $ipv4, $snmpconfig[3], $snmpconfig);
-
-			if(!$s->error)
-			{
-
-				/* get snmp data */
-				$iftable = $s->getiftable();
-
-				if($iftable)
-					$object['iftable'] = $iftable; // save for other ports
-				else
-				{
-
-					echo "SNMP Error: ".$s->getError()." for $object_name ($ipv4)<br>";
-					$object['SNMP'] = 0;
-					return null;
-				}
-
-			}
-			else
-			{
-				echo "SNMP Config Error: ".$s->error." for \"$object_name\"<br>";
-				$object['SNMP'] = 0;
-				return null;
-			}
-		}
-
-		// SNMP up / down
-		if(!isset($iftable[$port_name]))
-			return null;
-
-		$ifoperstatus = $iftable[$port_name]['status'];
-
-		$ifspeed = $iftable[$port_name]['speed'];
-
-		$ifalias = $iftable[$port_name]['alias'];
-
+	// SNMP up / down
+	if(!isset($object['iftable'][$port_name]))
 		return array(
+			'name' => $port_name,
 			'ipv4' => $ipv4,
-			'operstatus' => $ifoperstatus,
-			'alias' => $ifalias,
-			'speed' => $ifspeed,
+			'operstatus' => "",
+			'alias' => "",
+			'speed' => "",
 		);
 
-} // sl_getsnmpport
-/* --------------------------------------------------------- */
+	$ifoperstatus = $object['iftable'][$port_name]['status'];
 
+	$ifspeed = $object['iftable'][$port_name]['speed'];
+
+	$ifalias = $object['iftable'][$port_name]['alias'];
+
+	return array(
+		'ipv4' => $ipv4,
+		'operstatus' => $ifoperstatus,
+		'alias' => $ifalias,
+		'speed' => $ifspeed,
+		'name' => $port_name,
+	);
+
+	return $retval;
+
+} // sl_getportsnmp
+
+function sl_getsnmp(&$object, $debug = false)
+{
+	$object_id = $object['id'];
+	$object_name = $object['name'];
+
+	if(isset($object['SNMP']))
+	{
+		if($debug)
+			echo "INFO: No SNMP Object \"$object_name\" ID: $object_id<br>";
+		return null;
+	}
+
+	if(!considerConfiguredConstraint($object, 'IPV4OBJ_LISTSRC'))
+	{
+		if($debug)
+			echo "INFO: No IPv4 Object \"$object_name\" ID: $object_id<br>";
+
+		return False;
+	}
+
+	/* get object saved SNMP settings */
+	$snmpconfig = explode(':', strtok($object['comment'],"\n\r"));
+
+	if($snmpconfig[0] != "SNMP")
+	{
+
+		if($debug)
+			echo "INFO: No saved SNMP Settings for \"$object_name\" ID: $object_id<br>";
+
+		return False;
+	}
+
+	/* set objects SNMP ip address */
+	$ipv4 = $snmpconfig[1];
+
+	if(0)
+		var_dump_html($snmpconfig);
+
+	if(!$ipv4)
+	{
+		echo "ERROR: no ip for \"$object_name!!\"<br>";
+
+		return False;
+	}
+
+	$object['SNMP']['IP'] = $ipv4;
+
+	if(count($snmpconfig) < 4 )
+	{
+		echo "SNMP Error: Missing Setting for $object_name ($ipv4)";
+
+		return False;
+	}
+
+	/* SNMP prerequisites successfull */
+
+	$s = new sl_ifxsnmp($snmpconfig[2], $ipv4, $snmpconfig[3], $snmpconfig);
+
+	if(!$s->error)
+	{
+
+		/* get snmp data */
+		$iftable = $s->getiftable();
+
+		if($iftable)
+			return $iftable;
+		else
+		{
+
+			echo "SNMP Error: ".$s->getError()." for $object_name ($ipv4)<br>";
+			return False;
+		}
+
+	}
+	else
+	{
+		echo "SNMP Config Error: ".$s->error." for \"$object_name\"<br>";
+		return False;
+	}
+
+	return null;
+
+} // sl_getsnmp
+/* ------------------ */
 class sl_ifxsnmp extends SNMP
 {
 
