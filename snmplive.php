@@ -6,8 +6,10 @@
  *
  *	displays SNMP port status
  *
+ *
  * needs PHP >= 5.4.0
  *	saved SNMP settings ( see snmpgeneric.php extension )
+ *	also RT port names and SNMP port names must be the same ( should work fine with snmpgeneric.php created ports )
  *
  * (c)2015 Maik Ehinger <m.ehinger@ltur.de>
  */
