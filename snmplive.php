@@ -196,8 +196,7 @@ function snmplive_opajax()
 	$object_id = $_REQUEST['object_id'];
 	$object = spotEntity('object', $object_id);
 
-	amplifyCell($object);
-	unset($object['ipv4']); // some ip_bin cause JSON errors
+	$object['ports'] = getObjectPortsAndLinks ($object_id);
 
 	if(isset($_GET['debug']))
 		$debug = $_GET['debug'];
@@ -211,7 +210,13 @@ function snmplive_opajax()
 		{
 			// snmpinfos
 			$port['snmpinfos'] = sl_getportsnmp($object, $port, $debug);
+
+			if(!$port['snmpinfos'])
+				unset($object['ports'][$key]);
 		}
+
+	/* not needed anymore */
+	unset($object['iftable']);
 
 	/* set debug output */
 	if(ob_get_length())
@@ -358,14 +363,6 @@ function pl_layout_port($port, $number, $pos)
 	$portlabel = "<div class=\"port-number\">$number</div>";
 	$portname = "<div class=\"port-name\">$port_name</div>";
 
-	if($port['linked'])
-	{
-		$link = "<div class=\"ifoperstatus-default\">load</div>";
-	}
-	else
-		$link = "-";
-
-
 	$details = "<table><tr><td>No.: $number (ID: ".$port['id'].")<br>".$port['object_name']."<br>".$port['name']."<br>"
 		.$port['label']."<br>".$port['reservation_comment']
 		."<div id=\"port${port_id}-status-detail\">No Status</div></td>";
@@ -378,7 +375,7 @@ function pl_layout_port($port, $number, $pos)
 
 	$portdetail = "<div id=\"port${port_id}-detail\" class=\"port-detail hidden\" onclick=\"togglevisibility(this,true);\">$details</div>";
 
-	$portstatus = "<div id=\"port${port_id}-status\" class=\"port-status port-status-pos-$pos\" title=\"$title\">load</div>";
+	$portstatus = "<div id=\"port${port_id}-status\" class=\"port-status port-status-pos-$pos\" title=\"$title\">-</div>";
 
 	if($pos) {
 		$portheader .= "$portlabel$portname</div>";
@@ -402,13 +399,7 @@ function sl_getportsnmp(&$object, $port, $debug = false)
 
 	// SNMP up / down
 	if(!isset($object['iftable'][$port_name]))
-		return array(
-			'name' => $port_name,
-			'ipv4' => $ipv4,
-			'operstatus' => "",
-			'alias' => "",
-			'speed' => "",
-		);
+		return false;
 
 	$ifoperstatus = $object['iftable'][$port_name]['status'];
 
@@ -423,8 +414,6 @@ function sl_getportsnmp(&$object, $port, $debug = false)
 		'speed' => $ifspeed,
 		'name' => $port_name,
 	);
-
-	return $retval;
 
 } // sl_getportsnmp
 
