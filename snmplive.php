@@ -197,6 +197,7 @@ function snmplive_opajax()
 	$object = spotEntity('object', $object_id);
 
 	amplifyCell($object);
+	unset($object['ipv4']); // some ip_bin cause JSON errors
 
 	if(isset($_GET['debug']))
 		$debug = $_GET['debug'];
