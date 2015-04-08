@@ -515,16 +515,16 @@ class sl_ifxsnmp extends SNMP
 		{
 			case "1":
 			case "v1":
-					$version = SNMP::VERSION_1;
+					$version = parent::VERSION_1;
 					break;
 			case "2":
 			case "2c":
 			case "v2c":
-					$version = SNMP::VERSION_2c;
+					$version = parent::VERSION_2c;
 					break;
 			case "3":
 			case "v3":
-					$version = SNMP::VERSION_3;
+					$version = parent::VERSION_3;
 					break;
 		}
 
