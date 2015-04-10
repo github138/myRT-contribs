@@ -37,8 +37,14 @@
 
 $tab['object']['snmplive'] = 'SNMP Live';
 $tabhandler['object']['snmplive'] = 'snmplive_tabhandler';
+$trigger['object']['snmplive'] = 'snmplive_tabtrigger';
 
 $ophandler['object']['snmplive']['ajax'] = 'snmplive_opajax';
+
+function snmplive_tabtrigger() {
+	// display tab only on IPv4 Objects
+	return considerConfiguredConstraint (spotEntity ('object', getBypassValue()), 'IPV4OBJ_LISTSRC') ? 'std' : '';
+} /* snmplive_tabtrigger */
 
 function snmplive_tabhandler($object_id)
 {
