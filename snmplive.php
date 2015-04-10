@@ -103,7 +103,19 @@ ENDCSS
 	$object = spotEntity('object', $object_id);
 	amplifyCell($object);
 
-	pl_layout_default($object, 0);
+	if(isset($_GET['modules']))
+		$modules = $_GET['modules'];
+	else
+		$modules = false;
+
+	if($modules)
+		unset($_GET['modules']);
+	else
+		$_GET['modules'] = 1;
+
+	echo "<a href=".makeHref($_GET).">".($modules ? "Hide" : "Show" )." Modules</a>";
+
+	pl_layout_default($object, 0, false, $modules);
 
 	addJS(<<<ENDJS
        function togglevisibility(elem, hide)
