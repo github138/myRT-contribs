@@ -1249,7 +1249,8 @@ function snmpgeneric_list($object_id) {
 	$sysObjectID['raw_value'] = $snmpdev->sysObjectID;
 	//$sysObjectID['raw_value'] = 'NET-SNMP-MIB::netSnmpAgentOIDs.10';
 
-	$sysObjectID['value'] = preg_replace('/^.*enterprises\.([\.[:digit:]]+)$/','\\1', $sysObjectID['raw_value']);
+	$sysObjectID['value'] = preg_replace('/^\.1\.3\.6\.1\.4\.1\.([\.[:digit:]]+)$/','\\1', $sysObjectID['raw_value']);
+	$sysObjectID['value'] = preg_replace('/^.*enterprises\.([\.[:digit:]]+)$/','\\1', $sysObjectID['value']);
 
 	/* try snmptranslate to numeric */
 	if(preg_match('/[^\.0-9]+/',$sysObjectID['value'])) {
@@ -2430,6 +2431,16 @@ class mySNMP extends SNMPgeneric implements Iterator {
 	//private $sysInfo;
 	private $system;
 
+	private $oids = array(
+				'system' =>		'.1.3.6.1.2.1.1',
+				'sysDescr' =>		'.1.3.6.1.2.1.1.1',
+				'sysObjectID' =>	'.1.3.6.1.2.1.1.2',
+				'sysUpTime' =>		'.1.3.6.1.2.1.1.3',
+				'sysContact' =>		'.1.3.6.1.2.1.1.4',
+				'sysName' =>		'.1.3.6.1.2.1.1.5',
+				'sysLocation' =>	'.1.3.6.1.2.1.1.6',
+			);
+
 	/* is system table available ? */
 	private $systemerror = TRUE;
 
@@ -2463,6 +2474,9 @@ class mySNMP extends SNMPgeneric implements Iterator {
 		/* needs php >= 5.2.0 */
 	//	snmp_set_oid_output_format(SNMP_OID_OUTPUT_FULL);
 
+	//	snmp_set_oid_numeric_print(SNMP_OID_OUTPUT_NUMERIC);
+		$this->oid_output_format = SNMP_OID_OUTPUT_NUMERIC;
+
 	//	snmp_set_quick_print(1);
 
 	} /* __construct */
@@ -2477,7 +2491,22 @@ class mySNMP extends SNMPgeneric implements Iterator {
 	/* get value from system cache */
 	private function _getvalue($object_id) {
 
-		/* TODO better matching  */
+		if(isset($this->oids[$object_id]))
+		{
+			$oid = $this->oids[$object_id];
+			if( isset($this->system[$oid]))
+			{
+
+				$this->lastgetoid = $oid;
+				return $this->system[$oid];
+			}
+			else
+			if( isset($this->system["$oid.0"]))
+			{
+				$this->lastgetoid = "$oid.0";
+				return $this->system["$oid.0"];
+			}
+		}
 
 		if( isset($this->system["SNMPv2-MIB::$object_id"])) {
 			$this->lastgetoid = "SNMPv2-MIB::$object_id";
@@ -2616,7 +2645,27 @@ class ifSNMP implements Iterator {
 	private $indexcount = 0;
 	private $ifTable;
 
+	private $index = null;
 	private $interfaceserror = TRUE;
+
+	private $oids = array(
+				'ifTable' =>		'.1.3.6.1.2.1.2.2',
+				'ifEntry' =>		'.1.3.6.1.2.1.2.2.1',
+				'ifIndex' =>		'.1.3.6.1.2.1.2.2.1.1',
+				'ifDescr' =>		'.1.3.6.1.2.1.2.2.1.2',
+				'ifType' =>		'.1.3.6.1.2.1.2.2.1.3',
+				'ifSpeed' =>		'.1.3.6.1.2.1.2.2.1.5',
+				'ifPhysAddress' =>	'.1.3.6.1.2.1.2.2.1.6',
+				'ifOperStatus' =>	'.1.3.6.1.2.1.2.2.1.8',
+				'ifInOctets' =>		'.1.3.6.1.2.1.2.2.1.10',
+				'ifOutOctets' =>	'.1.3.6.1.2.1.2.2.1.16',
+				'ifAlias' =>		'.1.3.6.1.2.1.2.2.1.18',
+
+				'ifXTable' =>		'.1.3.6.1.2.1.31.1.1',
+				'ifXEntry' =>		'.1.3.6.1.2.1.31.1.1.1',
+				'ifName' =>		'.1.3.6.1.2.1.31.1.1.1.1',
+				'ifConnectorPresent' =>	'.1.3.6.1.2.1.31.1.1.1.17',
+			);
 
 	function __construct(&$snmpdevice) {
 		$this->snmpdevice = $snmpdevice;
@@ -2631,27 +2680,29 @@ class ifSNMP implements Iterator {
 	}
 
 	function getifTable() {
-		$this->ifTable['ifIndex'] = $this->snmpdevice->walk('ifIndex',TRUE);
+		$this->ifTable['ifIndex'] = $this->snmpdevice->walk('ifIndex');
+
+		$this->index = array_values($this->ifTable['ifIndex']);
 
 		$this->indexcount = count($this->ifTable['ifIndex']);
 
-		$this->ifTable['ifDescr'] = $this->snmpdevice->walk('ifDescr',TRUE);
-		$this->ifTable['ifAlias'] = $this->snmpdevice->walk('ifAlias',TRUE);
-		$this->ifTable['ifName'] =  $this->snmpdevice->walk('ifName',TRUE);
+		$this->ifTable['ifDescr'] = $this->snmpdevice->walk('ifDescr');
+		$this->ifTable['ifAlias'] = $this->snmpdevice->walk('ifAlias');
+		$this->ifTable['ifName'] =  $this->snmpdevice->walk('ifName');
 
-		$this->ifTable['ifType'] =  $this->snmpdevice->walk('ifType',TRUE);
+		$this->ifTable['ifType'] =  $this->snmpdevice->walk('ifType');
 
-		$this->ifTable['ifSpeed'] =  $this->snmpdevice->walk('ifSpeed',TRUE);
+		$this->ifTable['ifSpeed'] =  $this->snmpdevice->walk('ifSpeed');
 
 		/* notation changes when SNMP_VALUE_PLAIN is set string -> hex!! */
-		$this->ifTable['ifPhysAddress'] =  $this->snmpdevice->walk('ifPhysAddress',TRUE);
+		$this->ifTable['ifPhysAddress'] =  $this->snmpdevice->walk('ifPhysAddress');
 
-		$this->ifTable['ifOperStatus'] =  $this->snmpdevice->walk('ifOperStatus',TRUE);
+		$this->ifTable['ifOperStatus'] =  $this->snmpdevice->walk('ifOperStatus');
 
-		$this->ifTable['ifInOctets'] =  $this->snmpdevice->walk('ifInOctets',TRUE);
-		$this->ifTable['ifOutOctets'] =  $this->snmpdevice->walk('ifOutOctets',TRUE);
+		$this->ifTable['ifInOctets'] =  $this->snmpdevice->walk('ifInOctets');
+		$this->ifTable['ifOutOctets'] =  $this->snmpdevice->walk('ifOutOctets');
 
-		$this->ifTable['ifConnectorPresent'] =  $this->snmpdevice->walk('ifConnectorPresent',TRUE);
+		$this->ifTable['ifConnectorPresent'] =  $this->snmpdevice->walk('ifConnectorPresent');
 
 		$this->ifTable['ipaddress'] = array();
 
@@ -2868,16 +2919,16 @@ class ifSNMP implements Iterator {
 
 	function ifPhysAddress($index) {
 
-		if(isset($this->ifTable['ifPhysAddress'][$index-1])) {
-			return strtoupper($this->formatMACAddr($this->ifTable['ifPhysAddress'][$index-1]));
-		}
+		$value = $this->_getvalue('ifPhysAddress', $index - 1);
+
+		if($value)
+			return strtoupper($this->formatMACAddr($value));
+		else
+			return '';
 	}
 
 	function ipaddress($index) {
-		if(isset($this->ifTable['ipaddress'][$index-1])) {
-			return $this->ifTable['ipaddress'][$index-1];
-		}
-
+		return $this->_getvalue('ipaddress',$index - 1);
 	}
 
 	function &__get($name) {
@@ -2903,18 +2954,44 @@ class ifSNMP implements Iterator {
 		return NULL;
 	}
 
+	function _getvalue($table, $index) {
+
+		if($this->interfaceserror)
+			return;
+
+		if($table == 'ipaddress')
+			$oidname = 'ifIndex';
+		else
+			$oidname = $table;
+
+		if(!isset($this->ifTable[$table]))
+			return NULL;
+
+		if(!isset($this->oids[$oidname]))
+				return NULL;
+
+		$oid = $this->oids[$oidname].".".$this->index[$index];
+
+		if(isset($this->ifTable[$table][$oid]))
+			return $this->ifTable[$table][$oid];
+
+		if(isset($this->ifTable[$table][$index]))
+			return $this->ifTable[$table][$index];
+
+		return '';
+
+	} /* _getvalue */
+
 	/* $obj->ifDescr(3) = $ifTable[$name][$arg]*/
 	function __call($name,$args) {
 
 		if($this->interfaceserror)
 			return;
 
-		if(isset($this->ifTable[$name])) {
-			if(isset($this->ifTable[$name][$args[0]-1])) {
-				return $this->ifTable[$name][$args[0]-1];
-			}
-		} else {
+		$value = $this->_getvalue($name, $args[0]-1);
 
+		if($value === NULL)
+		{
 			/* for debug */
 			$trace = debug_backtrace();
 
@@ -2925,7 +3002,7 @@ class ifSNMP implements Iterator {
 				E_USER_NOTICE);
 		}
 
-	return NULL;
+		return $value;
 
 	} /* __call */
 
