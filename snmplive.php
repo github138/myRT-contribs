@@ -158,13 +158,16 @@ ENDCSS
                         $( "#port" + id + "-status" + tagidsuffix ).html("<table class=\"ifoperstatus-" + port.snmpinfos.
 operstatus + "\"><tr><td>"
                                         +  port.snmpinfos.operstatus + "<br>" + port.snmpinfos.speed
+					+  "<br>" + port.snmpinfos.vlan
                                         + "</td></tr></table>");
                         return;
                 }
 
                 $( "#port" + id + "-status" + tagidsuffix ).html(port.snmpinfos.alias
                                         + "<table class=\"ifoperstatus-" + port.snmpinfos.operstatus + "\"><tr><td>"
-                                        + (port.snmpinfos.ipv4 ? port.snmpinfos.ipv4 : "") + "<br>" + port.snmpinfos.operstatus
+                                        + (port.snmpinfos.ipv4 ? port.snmpinfos.ipv4 : "")
+					+ "<br>" + port.snmpinfos.operstatus
+					+ "<br>" + port.snmpinfos.vlan_name + " (" + port.snmpinfos.vlan + ")"
                                         + "</td></tr></table>");
         }
 
@@ -427,12 +430,17 @@ function sl_getportsnmp(&$object, $port, $debug = false)
 
 	$ifalias = $object['iftable'][$port_name]['alias'];
 
+	$vlan = $object['iftable'][$port_name]['vlan'];
+	$vlan_name = $object['iftable'][$port_name]['vlan_name'];
+
 	return array(
 		'ipv4' => $ipv4,
 		'operstatus' => $ifoperstatus,
 		'alias' => $ifalias,
 		'speed' => $ifspeed,
 		'name' => $port_name,
+		'vlan' => $vlan,
+		'vlan_name' => $vlan_name,
 	);
 
 } // sl_getportsnmp
@@ -603,6 +611,8 @@ class sl_ifxsnmp extends SNMP
 		$retval = array();
 		foreach($ifindex as $index)
 		{
+			$retval[$ifname[$index]]['ifindex'] = $index;
+
 			$retval[$ifname[$index]]['status'] = $ifoperstatus[$index];
 
 			$retval[$ifname[$index]]['alias'] = $ifalias[$index];
@@ -622,10 +632,41 @@ class sl_ifxsnmp extends SNMP
 
 		}
 
+		$this->get8021qvlan($retval);
+
 		if(0)
-			var_dump_html($ifalias);
+			sl_var_dump_html($retval);
 
 		return $retval;
+	}
+
+	/* append vlan to each port in retval */
+	function get8021qvlan(&$retval)
+	{
+		//$oid_dot1dBasePort =		'.1.3.6.1.2.1.17.1.4.1.1';
+		$oid_dot1dBasePortIfIndex =	'.1.3.6.1.2.1.17.1.4.1.2'; // dot1 index -> if index
+		$oid_dot1qPvid =		'.1.3.6.1.2.1.17.7.1.4.5.1.1';
+		$oid_dot1qVlanStaticName =	'.1.3.6.1.2.1.17.7.1.4.3.1.1';
+
+		$dot1dbaseportifindex = $this->walk($oid_dot1dBasePortIfIndex, TRUE);
+
+		$dot1qpvid = $this->walk($oid_dot1qPvid, TRUE);
+		$dot1qvlanstaticname = $this->walk($oid_dot1qVlanStaticName, TRUE);
+
+		$ifindexdot1dbaseport = array_flip($dot1dbaseportifindex);
+
+		$ret = array();
+		foreach($retval as $ifname => &$port)
+		{
+			if(!isset($ifindexdot1dbaseport[$port['ifindex']]))
+				continue;
+
+			$dot1index = $ifindexdot1dbaseport[$port['ifindex']];
+			$vlan = $dot1qpvid[$dot1index];
+			$retval[$ifname]['vlan'] = $vlan;
+			$retval[$ifname]['vlan_name'] = $dot1qvlanstaticname[$vlan];
+		}
+
 	}
 } // sl_ifxsnmp
 
