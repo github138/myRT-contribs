@@ -591,34 +591,34 @@ class sl_ifxsnmp extends SNMP
 			exit;
 		}
 
-		$ifname = $this->walk($oid_ifname); //ifXtable
-		$ifalias = $this->walk($oid_ifalias); //ifXtable
+		$ifname = $this->walk($oid_ifname, TRUE); //ifXtable
+		$ifalias = $this->walk($oid_ifalias, TRUE); //ifXtable
 
-		$ifspeed = $this->walk($oid_ifspeed); //iftable
-		$ifhighspeed = $this->walk($oid_ifhighspeed); //ifXtable
+		$ifspeed = $this->walk($oid_ifspeed, TRUE); //iftable
+		$ifhighspeed = $this->walk($oid_ifhighspeed, TRUE); //ifXtable
 
 		$this->enum_print = false;
-		$ifoperstatus = $this->walk($oid_ifoperstatus); //iftable
+		$ifoperstatus = $this->walk($oid_ifoperstatus, TRUE); //iftable
 
 		$retval = array();
 		foreach($ifindex as $index)
 		{
-			$retval[$ifname[$oid_ifname.'.'.$index]]['status'] = $ifoperstatus[$oid_ifoperstatus.'.'.$index];
+			$retval[$ifname[$index]]['status'] = $ifoperstatus[$index];
 
-			$retval[$ifname[$oid_ifname.'.'.$index]]['alias'] = $ifalias[$oid_ifalias.'.'.$index];
+			$retval[$ifname[$index]]['alias'] = $ifalias[$index];
 
-			$highspeed = $ifhighspeed[$oid_ifhighspeed.'.'.$index];
+			$highspeed = $ifhighspeed[$index];
 			if($highspeed)
 				$speed = $highspeed;
 			else
-				$speed = $ifspeed[$oid_ifspeed.'.'.$index];
+				$speed = $ifspeed[$index];
 
 			if($speed >= 1000000) // 1Mbit
 				$speed /= 1000000;
 
 			$speed = ($speed >= 1000 ? ($speed / 1000)."Gb" : $speed."Mb" );
 
-			$retval[$ifname[$oid_ifname.'.'.$index]]['speed'] = "$speed";
+			$retval[$ifname[$index]]['speed'] = "$speed";
 
 		}
 
