@@ -2488,7 +2488,9 @@ class portlist {
 	//	$this->var_dump_html($retval);
 
 		/* return reference */
-		return ($this->list[$port_id] = &$retval);
+		$this->list[$port_id] = &$retval;
+
+		return $retval;
 
 	} /* _getportdata */
 
