@@ -350,6 +350,17 @@ function pl_layout_default(&$object, $groupports = 8, $bottomstart = false, $mod
 
 	if(($i % $portrows) != 0)
 	{
+		$fillcount = $portrows - ($i % $portrows);
+
+		$fill = "";
+		for($f=0;$f<$fillcount;$f++)
+			$fill .= "<div class=\"port\"></div>";
+
+		if(!$bottomstart)
+			$portcolumn .= $fill;
+		else
+			$portcolumn = "$fill$portcolumn";
+
 		echo "<div class=\"port-column\">";
 		echo "$portcolumn</div>"; // port-column
 	}
