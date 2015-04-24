@@ -158,7 +158,7 @@ ENDCSS
                         $( "#port" + id + "-status" + tagidsuffix ).html("<table class=\"ifoperstatus-" + port.snmpinfos.
 operstatus + "\"><tr><td>"
                                         +  port.snmpinfos.operstatus + "<br>" + port.snmpinfos.speed
-					+  "<br>" + port.snmpinfos.vlan
+					+  ( port.snmpinfos.vlan ? "<br>" + port.snmpinfos.vlan : "" )
                                         + "</td></tr></table>");
                         return;
                 }
@@ -167,7 +167,7 @@ operstatus + "\"><tr><td>"
                                         + "<table class=\"ifoperstatus-" + port.snmpinfos.operstatus + "\"><tr><td>"
                                         + (port.snmpinfos.ipv4 ? port.snmpinfos.ipv4 : "")
 					+ "<br>" + port.snmpinfos.operstatus
-					+ "<br>" + port.snmpinfos.vlan_name + " (" + port.snmpinfos.vlan + ")"
+					+ ( port.snmpinfos.vlan ? "<br>" + port.snmpinfos.vlan_name + " (" + port.snmpinfos.vlan + ")" : "" )
                                         + "</td></tr></table>");
         }
 
@@ -430,8 +430,14 @@ function sl_getportsnmp(&$object, $port, $debug = false)
 
 	$ifalias = $object['iftable'][$port_name]['alias'];
 
-	$vlan = $object['iftable'][$port_name]['vlan'];
-	$vlan_name = $object['iftable'][$port_name]['vlan_name'];
+	$vlan="";
+	$vlan_name="";
+
+	if(isset($object['iftable'][$port_name]['vlan']))
+	{
+		$vlan = $object['iftable'][$port_name]['vlan'];
+		$vlan_name = $object['iftable'][$port_name]['vlan_name'];
+	}
 
 	return array(
 		'ipv4' => $ipv4,
@@ -508,6 +514,9 @@ function sl_getsnmp(&$object, $debug = false)
 
 		/* get snmp data */
 		$iftable = $s->getiftable();
+
+		if($debug && $s->error)
+			echo $s->getError();
 
 		if($iftable)
 			return $iftable;
@@ -648,7 +657,14 @@ class sl_ifxsnmp extends SNMP
 		$oid_dot1qPvid =		'.1.3.6.1.2.1.17.7.1.4.5.1.1';
 		$oid_dot1qVlanStaticName =	'.1.3.6.1.2.1.17.7.1.4.3.1.1';
 
-		$dot1dbaseportifindex = $this->walk($oid_dot1dBasePortIfIndex, TRUE);
+		// @ supprress warning
+		$dot1dbaseportifindex = @$this->walk($oid_dot1dBasePortIfIndex, TRUE);
+
+		if($dot1dbaseportifindex === false)
+		{
+			$this->error = true;
+			return;
+		}
 
 		$dot1qpvid = $this->walk($oid_dot1qPvid, TRUE);
 		$dot1qvlanstaticname = $this->walk($oid_dot1qVlanStaticName, TRUE);
