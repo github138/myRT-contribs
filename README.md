@@ -13,6 +13,7 @@ snmpgeneric.php - Generic SNMP sync
 ![snmpgeneric screenshot](https://raw.github.com/github138/myRT-contribs/develop-0.20.x/snmpgeneric.jpg)
 
 snmplive.php -	SNMP port status
+![snmplive screenshot](https://raw.github.com/github138/myRT-contribs/develop-0.20.x/snmplive.jpg)
 
 
 panel.php - Panelview script
