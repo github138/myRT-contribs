@@ -481,7 +481,7 @@ echo <<<ENDSCRIPT
 		{
 		$.ajax({
 			dataType: "json",
-			url: "/RackTables/panel.php",
+			url: "{$_SERVER['PHP_SELF']}",
 			data: {
 				json: "get",
 				object_id: "$object_id",
