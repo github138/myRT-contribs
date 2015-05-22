@@ -286,8 +286,7 @@ try {
 		var_dump_html($pv_cache);
 	}
 
-
-	echo '<script src="jquery.js"></script>';
+	echo '<script src="js/jquery-1.4.4.min.js"></script>';
 
 	if(0)
 	{
