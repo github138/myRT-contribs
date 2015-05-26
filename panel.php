@@ -1407,8 +1407,6 @@ class pv_linkchain {
 
 		$chain = "<table>";
 
-		$portstatus = "<div name=\"port${remote_id}-status\" class=\"port-status\"></div>";
-
 		for(;$remote_id;)
 		{
 			$back = !$back;
