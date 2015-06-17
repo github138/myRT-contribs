@@ -1088,6 +1088,16 @@ class linkmgmt_gvmap {
 				//$_GET['hl'] = 'o';
 
 				$clusterattr['URL'] = $this->_makeHrefProcess($_GET);
+				if(isset($_GET['tag']))
+				{
+					$tag = $_GET['tag'];
+
+					if(tagNameOnChain($tag, $object['etags']))
+					{
+						$clusterattr['style'] = 'filled';
+						$this->_getcolor('cluster', 'nottag', $this->alpha, $clusterattr, 'fillcolor');
+					}
+				}
 
 				//has_problems
 				if($object['has_problems'] != 'no')
@@ -1273,7 +1283,7 @@ class linkmgmt_gvmap {
 	}
 
 	/* should be compatible with getObjectPortsAndLinks from RT database.php */
-	function _getObjectPortsAndLinks($object_id, $linktype = 'front', $port_id = NULL, $allports = false) {
+	function _getObjectPortsAndLinks($object_id, $linktype = 'front', $port_id = NULL, $allports = false, $tag = NULL) {
 
 		if($linktype == 'front')
 			$linktable = 'Link';
@@ -1317,6 +1327,17 @@ class linkmgmt_gvmap {
 
 			if(!$allports) {
 				$where .= " AND remotePort.id is not NULL";
+
+				if($tag)
+				{
+					$join .= "
+						LEFT JOIN TagStorage on Object.id = TagStorage.entity_id and TagStorage.entity_realm = 'object'
+						LEFT JOIN TagTree on TagStorage.tag_id = TagTree.id
+						LEFT JOIN TagStorage as remoteTagStorage on remoteObject.id = remoteTagStorage.entity_AND remoteTagStorage.entity_realm = 'object'
+						LEFT JOIN TagTree as remoteTagTree on remoteTagStorage.tag_id = remoteTagTree.id
+						";
+					$where .= " AND TagTree.tag = 'TEST' AND remoteTagTree.tag = 'TEST'";
+				}
 
 				if($linktype != 'front') {
 					$join .= "
