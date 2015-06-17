@@ -679,6 +679,16 @@ class lm_Image_GraphViz extends Image_GraphViz {
 		unset($_GET['hl']);
 	}
 
+	if(isset($_REQUEST['tag']))
+		$tag = $_REQUEST['tag'];
+	else
+		$tag = NULL;
+
+	if(isset($_REQUEST['tagonly']))
+		$tagonly = $_REQUEST['tagonly'];
+	else
+		$tagonly = false;
+
 	if(isset($_REQUEST['cmd']))
 		$command = $_REQUEST['cmd'];
 
@@ -689,7 +699,7 @@ class lm_Image_GraphViz extends Image_GraphViz {
 
 	if($debug) echo "-- DEBUG --<br>";
 
-	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl, $remote_id);
+	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl, $remote_id, $tag, $tagonly);
 
 	if($debug) echo "-- after gvmap --<br>";
 
@@ -893,12 +903,17 @@ class linkmgmt_gvmap {
 
 	private $errorlevel = NULL;
 
-	function __construct($object_id = NULL, $port_id = NULL, $allports = false, $hl = NULL, $remote_id = NULL) {
+	private $tag = NULL;
+	private $tagonly = false;
+
+	function __construct($object_id = NULL, $port_id = NULL, $allports = false, $hl = NULL, $remote_id = NULL, $tag = NULL, $tagonly = false) {
 		$this->allports = $allports;
 
 		$this->object_id = $object_id;
 		$this->port_id = $port_id;
 		$this->remote_id = $remote_id;
+		$this->tag = $tag;
+		$this->tagonly = $tagonly;
 
 		$hllabel = "";
 
@@ -925,6 +940,17 @@ class linkmgmt_gvmap {
 
 		//$this->gv = new Image_GraphViz(true, $graphattr, "map".$object_id);
 		$this->gv = new lm_Image_GraphViz(true, $graphattr, "map".$object_id);
+
+		if($tag && $tagonly)
+		{
+
+			$objects = scanRealmByText('object', '{'.$tag.'}');
+
+			if($objects)
+				$object_id = array_values($objects)[0]['id'];
+
+			$this->object_id = $object_id;
+		}
 
 		if($object_id === NULL)
 		{
@@ -1088,14 +1114,13 @@ class linkmgmt_gvmap {
 				//$_GET['hl'] = 'o';
 
 				$clusterattr['URL'] = $this->_makeHrefProcess($_GET);
-				if(isset($_GET['tag']))
-				{
-					$tag = $_GET['tag'];
 
-					if(tagNameOnChain($tag, $object['etags']))
+				if($this->tag)
+				{
+					if(tagNameOnChain($this->tag, $object['etags']))
 					{
 						$clusterattr['style'] = 'filled';
-						$this->_getcolor('cluster', 'nottag', $this->alpha, $clusterattr, 'fillcolor');
+						$this->_getcolor('cluster', 'tagged', $this->alpha, $clusterattr, 'fillcolor');
 					}
 				}
 
@@ -1283,7 +1308,7 @@ class linkmgmt_gvmap {
 	}
 
 	/* should be compatible with getObjectPortsAndLinks from RT database.php */
-	function _getObjectPortsAndLinks($object_id, $linktype = 'front', $port_id = NULL, $allports = false, $tag = NULL) {
+	function _getObjectPortsAndLinks($object_id, $linktype = 'front', $port_id = NULL, $allports = false) {
 
 		if($linktype == 'front')
 			$linktable = 'Link';
@@ -1328,16 +1353,6 @@ class linkmgmt_gvmap {
 			if(!$allports) {
 				$where .= " AND remotePort.id is not NULL";
 
-				if($tag)
-				{
-					$join .= "
-						LEFT JOIN TagStorage on Object.id = TagStorage.entity_id and TagStorage.entity_realm = 'object'
-						LEFT JOIN TagTree on TagStorage.tag_id = TagTree.id
-						LEFT JOIN TagStorage as remoteTagStorage on remoteObject.id = remoteTagStorage.entity_AND remoteTagStorage.entity_realm = 'object'
-						LEFT JOIN TagTree as remoteTagTree on remoteTagStorage.tag_id = remoteTagTree.id
-						";
-					$where .= " AND TagTree.tag = 'TEST' AND remoteTagTree.tag = 'TEST'";
-				}
 
 				if($linktype != 'front') {
 					$join .= "
@@ -1348,6 +1363,19 @@ class linkmgmt_gvmap {
 						";
 					$where .= " AND ( (FrontLink_a.porta is not NULL or FrontLink_b.portb is not NULL )
 						 OR  (FrontRemoteLink_a.porta is not NULL or FrontRemoteLink_b.portb is not NULL) )";
+				}
+
+				if($this->tag && $this->tagonly)
+				{
+					$join .= "
+						LEFT JOIN TagStorage on Object.id = TagStorage.entity_id and TagStorage.entity_realm = 'object'
+						LEFT JOIN TagTree on TagStorage.tag_id = TagTree.id
+						LEFT JOIN TagStorage as remoteTagStorage on remoteObject.id = remoteTagStorage.entity_id AND remoteTagStorage.entity_realm = 'object'
+						LEFT JOIN TagTree as remoteTagTree on remoteTagStorage.tag_id = remoteTagTree.id
+						";
+					$where .= " AND TagTree.tag = ? AND remoteTagTree.tag = ?";
+					$qparams[] = $this->tag;
+					$qparams[] = $this->tag;
 				}
 			}
 		}
@@ -1387,6 +1415,7 @@ class linkmgmt_gvmap {
 		$cluster = array(
 				'current' => '#ff0000',
 				'problem' => '#ff3030',
+				'tagged' => '#f7be81',
 				);
 
 		$edge = array (
