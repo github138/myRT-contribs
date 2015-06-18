@@ -122,6 +122,7 @@ $ophandler['object']['linkmgmt']['PortLinkDialog'] = 'linkmgmt_opPortLinkDialog'
 $ophandler['object']['linkmgmt']['Help'] = 'linkmgmt_opHelp';
 
 $ophandler['object']['linkmgmt']['map'] = 'linkmgmt_opmap';
+$ophandler['object']['linkmgmt']['tagmap'] = 'linkmgmt_optagmap';
 $ajaxhandler['lm_mapinfo'] = 'linkmgmt_ajax_mapinfo';
 
 /* ------------------------------------------------- */
@@ -466,6 +467,66 @@ class linkmgmt_RTport {
 
 /* -------------------------------------------------- */
 
+function linkmgmt_optagmap() {
+	require_once 'inc/interface.php';
+
+	global $tagtree;
+
+	$object_id = $_GET['object_id'];
+
+	echo "Select tags";
+	$tags = getTagList();
+//	renderTagTree();
+
+	$target = makeHrefProcess(array('op' => 'map','tagonly' => 'and', 'tag' => 1) + $_GET);
+	echo '<form action="'.$target.'" method=POST>';
+	echo '<center><table class=tagtree>';
+	foreach ($tagtree as $taginfo)
+		lm_renderTagRowForViewer ($taginfo);
+	echo '</table></center>';
+
+	echo '<input type=submit></from>';
+
+	exit;
+}
+function lm_renderTagRowForViewer ($taginfo, $level = 0)
+{
+	$self = __FUNCTION__;
+	$statsdecoder = array
+	(
+		'total' => ' total records linked',
+		'object' => ' object(s)',
+		'rack' => ' rack(s)',
+		'file' => ' file(s)',
+		'user' => ' user account(s)',
+		'ipv6net' => ' IPv6 network(s)',
+		'ipv4net' => ' IPv4 network(s)',
+		'ipv4vs' => ' IPv4 virtual service(s)',
+		'ipv4rspool' => ' IPv4 real server pool(s)',
+		'vst' => ' VLAN switch template(s)',
+	);
+	$trclass = '';
+	if ($level == 0)
+		$trclass .= ' separator';
+	$trclass .= $taginfo['is_assignable'] == 'yes' ? '' : ($taginfo['kidc'] ? ' trnull' : ' trwarning');
+	if (!count ($taginfo['kids']))
+		$level++; // Shift instead of placing a spacer. This won't impact any nested nodes.
+	$refc = $taginfo['refcnt']['total'];
+	echo "<tr class='${trclass}'><td align=left style='padding-left: " . ($level * 16) . "px;'>";
+	if(0)
+	if (count ($taginfo['kids']))
+		printImageHREF ('node-expanded-static');
+	$stats = array ("tag ID = ${taginfo['id']}");
+	if ($taginfo['refcnt']['total'])
+		foreach ($taginfo['refcnt'] as $article => $count)
+			if (array_key_exists ($article, $statsdecoder))
+				$stats[] = $count . $statsdecoder[$article];
+	echo '<input type="checkbox" name=taglist['.$taginfo['id'].'] value='.$taginfo['tag'].'> <span title="' . implode (', ', $stats) . '" class="' . getTagClassName ($taginfo['id']) . '">' . $taginfo['tag'];
+	echo ($refc ? " <i>(${refc})</i>" : '') . '</span></td></tr>';
+	foreach ($taginfo['kids'] as $kid)
+		$self ($kid, $level + 1);
+}
+
 function linkmgmt_opmap() {
 
 	/* display require errors  "white screen of death" */
@@ -683,6 +744,9 @@ class lm_Image_GraphViz extends Image_GraphViz {
 		$tag = $_REQUEST['tag'];
 	else
 		$tag = NULL;
+
+	if(isset($_POST['taglist']))
+		$tag = $_POST['taglist'];
 
 	if(isset($_REQUEST['tagonly']))
 		$tagonly = $_REQUEST['tagonly'];
@@ -944,7 +1008,21 @@ class linkmgmt_gvmap {
 		if($tag && $tagonly)
 		{
 
-			$objects = scanRealmByText('object', '{'.$tag.'}');
+			if(is_array($tag))
+				$tags = '{'.implode('} and {',$tag).'}';
+			else
+				$tags = '{'.$tag.'}';
+
+			$objects = scanRealmByText('object', $tags);
+
+			if(0)
+			{
+			echo "<pre>";
+			echo $tags;
+			var_dump($objects);
+			echo "</pre>";
+			exit;
+			}
 
 			if($objects)
 				$object_id = array_values($objects)[0]['id'];
@@ -1344,6 +1422,9 @@ class linkmgmt_gvmap {
 				LEFT JOIN PortOuterInterface as remotePOI on remotePOI.id = remotePort.type
 			";
 
+		$group = '';
+		$having = '';
+
 		// WHERE
 		if($port_id === NULL)
 		{
@@ -1373,9 +1454,44 @@ class linkmgmt_gvmap {
 						LEFT JOIN TagStorage as remoteTagStorage on remoteObject.id = remoteTagStorage.entity_id AND remoteTagStorage.entity_realm = 'object'
 						LEFT JOIN TagTree as remoteTagTree on remoteTagStorage.tag_id = remoteTagTree.id
 						";
-					$where .= " AND TagTree.tag = ? AND remoteTagTree.tag = ?";
-					$qparams[] = $this->tag;
-					$qparams[] = $this->tag;
+					if(!is_array($this->tag))
+					{
+						$where .= " AND TagTree.tag = ? AND remoteTagTree.tag = ?";
+						$qparams[] = $this->tag;
+						$qparams[] = $this->tag;
+					}
+					else
+					{
+
+						$q = '';
+						$p = array();
+						foreach($this->tag as $tag)
+						{
+							$q .= ',?';
+							$p[] = $tag;
+						}
+
+						$q = trim($q, ',');
+
+						$where .= " AND TagTree.tag in ($q) AND remoteTagTree.tag in ($q)";
+
+						$qparams = array_merge($qparams,$p,$p);
+
+						// return only rows with all tags set
+						// both objects must have all tags
+						$tagcount = count($p) * count($p);
+						$group = " GROUP BY Port.id, Port.object_id";
+						$having = " HAVING count(TagTree.tag) = $tagcount AND count(remoteTagTree.tag) = $tagcount";
+
+					}
+
+					if(0)
+					{
+					echo $where;
+					var_dump($p);
+					var_dump($qparams);
+					exit;
+					}
 				}
 			}
 		}
@@ -1389,7 +1505,7 @@ class linkmgmt_gvmap {
 		// ORDER
 		$order = " ORDER by oif_name, Port.Name";
 
-		$query .= $join.$where.$order;
+		$query .= $join.$where.$group.$having.$order;
 
 		//echo "$port_id: $query<br><br>";
 
@@ -1399,6 +1515,15 @@ class linkmgmt_gvmap {
 
 		$result->closeCursor();
 
+		if(0)
+		{
+		echo "<pre>";
+		echo $query;
+		var_dump($qparams);
+		var_dump($row);
+		echo "</pre>";
+		exit;
+		}
 		return $row;
 	}
 
@@ -2285,6 +2410,10 @@ function linkmgmt_renderObjectLinks($object_id) {
 	/* Graphviz map */
 	echo '<td width=100><span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
                                 array('op' => 'map','usemap' => 1))).'","name","height=800,width=800,scrollbars=yes");><a>Object Map</a></span></td>';
+
+	/* Graphviz tagged map */
+	echo '<td width=100><span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
+                                array('op' => 'tagmap'))).'","name","height=800,width=800,scrollbars=yes");><a>Object Tagged Map</a></span></td>';
 
 	/* Help */
 	echo '<td width=200><span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
