@@ -979,6 +979,12 @@ class linkmgmt_gvmap {
 		$this->tag = $tag;
 		$this->tagonly = $tagonly;
 
+		if($tag && $tagonly)
+		{
+			$object_id = NULL;
+			$this->object_id = $object_id;
+		}
+
 		$hllabel = "";
 
 		/* suppress strict standards warnings for Image_GraphViz and PHP 5.4.0
@@ -1005,31 +1011,6 @@ class linkmgmt_gvmap {
 		//$this->gv = new Image_GraphViz(true, $graphattr, "map".$object_id);
 		$this->gv = new lm_Image_GraphViz(true, $graphattr, "map".$object_id);
 
-		if($tag && $tagonly)
-		{
-
-			if(is_array($tag))
-				$tags = '{'.implode('} and {',$tag).'}';
-			else
-				$tags = '{'.$tag.'}';
-
-			$objects = scanRealmByText('object', $tags);
-
-			if(0)
-			{
-			echo "<pre>";
-			echo $tags;
-			var_dump($objects);
-			echo "</pre>";
-			exit;
-			}
-
-			if($objects)
-				$object_id = array_values($objects)[0]['id'];
-
-			$this->object_id = $object_id;
-		}
-
 		if($object_id === NULL)
 		{
 			/* all objects ! */
@@ -1042,7 +1023,15 @@ class linkmgmt_gvmap {
 						)
 				);
 
-			$objects = listCells('object');
+			if(is_array($tag))
+				$tags = '{'.implode('} and {',$tag).'}';
+			else
+				$tags = '{'.$tag.'}';
+
+			if($tag && $tagonly)
+				$objects = scanRealmByText('object', $tags);
+			else
+				$objects = listCells('object');
 
 			foreach($objects as $obj)
 				$this->_add($this->gv, $obj['id'], NULL);
@@ -1135,6 +1124,14 @@ class linkmgmt_gvmap {
 		$backend = array();
 
 		$ports = array_merge($front,$backend);
+
+		if(0)
+		{
+		echo "<pre>";
+		var_dump($ports);
+		echo "</pre>";
+		exit;
+		}
 
 		/* used only for Graphviz ...
 		 * !! numeric ids cause Image_Graphviz problems on nested clusters !!
@@ -1408,7 +1405,8 @@ class linkmgmt_gvmap {
 				remotePort.type AS remote_oif_id,
 				remotePortInnerInterface.iif_name as remote_iif_name,
 				remotePOI.oif_name as remote_oif_name
-			FROM Port";
+			FROM Port
+			";
 
 		// JOIN
 		$join = "	LEFT JOIN PortInnerInterface on PortInnerInterface.id = Port.iif_id
@@ -1434,7 +1432,6 @@ class linkmgmt_gvmap {
 			if(!$allports) {
 				$where .= " AND remotePort.id is not NULL";
 
-
 				if($linktype != 'front') {
 					$join .= "
 						  LEFT JOIN Link as FrontLink_a on Port.id = FrontLink_a.porta
@@ -1446,8 +1443,28 @@ class linkmgmt_gvmap {
 						 OR  (FrontRemoteLink_a.porta is not NULL or FrontRemoteLink_b.portb is not NULL) )";
 				}
 
+			}
+		}
+		else
+		{
+		//	$where = " WHERE Port.id = ? and remotePort.id is not NULL";
+			$where = " WHERE Port.id = ?";
+			$qparams[] = $port_id;
+		}
+
 				if($this->tag && $this->tagonly)
 				{
+					if(0)
+				if($linktype = 'front') {
+					$join .= "
+						  LEFT JOIN LinkBackend as BackLink_a on Port.id = BackLink_a.porta
+						  LEFT JOIN LinkBackend as BackLink_b on Port.id = BackLink_b.portb
+						  LEFT JOIN LinkBackend as BackRemoteLink_a on remotePort.id = BackRemoteLink_a.porta
+						  LEFT JOIN LinkBackend as BackRemoteLink_b on remotePort.id = BackRemoteLink_b.portb
+						";
+					$where .= " AND ( (BackLink_a.porta is not NULL or BackLink_b.portb is not NULL )
+						 OR  (BackRemoteLink_a.porta is not NULL or BackRemoteLink_b.portb is not NULL) )";
+				}
 					$join .= "
 						LEFT JOIN TagStorage on Object.id = TagStorage.entity_id and TagStorage.entity_realm = 'object'
 						LEFT JOIN TagTree on TagStorage.tag_id = TagTree.id
@@ -1492,15 +1509,7 @@ class linkmgmt_gvmap {
 					var_dump($qparams);
 					exit;
 					}
-				}
-			}
-		}
-		else
-		{
-		//	$where = " WHERE Port.id = ? and remotePort.id is not NULL";
-			$where = " WHERE Port.id = ?";
-			$qparams[] = $port_id;
-		}
+				} // tag
 
 		// ORDER
 		$order = " ORDER by oif_name, Port.Name";
@@ -1521,6 +1530,7 @@ class linkmgmt_gvmap {
 		echo $query;
 		var_dump($qparams);
 		var_dump($row);
+		var_dump($this);
 		echo "</pre>";
 		exit;
 		}
