@@ -1480,8 +1480,8 @@ class linkmgmt_gvmap {
 						// return only rows with all tags set
 						// both objects must have all tags
 						$tagcount = count($p) * count($p);
-						$group = " GROUP BY Port.id, Port.object_id";
-						$having = " HAVING count(TagTree.tag) = $tagcount AND count(remoteTagTree.tag) = $tagcount";
+						$group = " GROUP BY Port.id";
+						$having = " HAVING count(Port.id) = $tagcount";
 
 					}
 
