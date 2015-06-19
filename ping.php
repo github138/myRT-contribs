@@ -46,13 +46,15 @@ function importPingData() {
 $pingtype = 'local';
 $pingtimeout = "50";
 
+$fping_cmd = '/usr/local/sbin/fping';
+
 /*
  * used to ping one ip address
  * callied by curl requests
  */
 function ping_executePing()
 {
-	global $pingtimeout;
+	global $pingtimeout, $fping_cmd;
 	if(!isset($_GET['ip']))
 	{
 		echo "Missing ip!";
@@ -65,7 +67,7 @@ function ping_executePing()
 
 	$pingreply = false;
 
-	system("/usr/local/sbin/fping -q -c 1 -t $pingtimeout $straddr",$pingreply);
+	system("$fping_cmd -q -c 1 -t $pingtimeout $straddr",$pingreply);
 
 	$stoptime = microtime(true);
 
@@ -80,11 +82,11 @@ function ping_executePing()
  */
 function ping_localfping($net)
 {
-	global $pingtimeout;
+	global $pingtimeout, $fping_cmd;
 
 	$output = array();
 	$retval = false;
-	$cmd = "/usr/local/sbin/fping -q -C 1 -i 10 -t $pingtimeout -g $net 2>&1";
+	$cmd = "$fping_cmd -q -C 1 -i 10 -t $pingtimeout -g $net 2>&1";
 
 	$starttime = microtime(true);
 	exec($cmd,$output, $retval);
