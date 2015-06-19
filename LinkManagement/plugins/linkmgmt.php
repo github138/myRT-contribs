@@ -478,8 +478,9 @@ function linkmgmt_optagmap() {
 	$tags = getTagList();
 //	renderTagTree();
 
-	$target = makeHrefProcess(array('op' => 'map','tagonly' => 'and', 'tag' => 1) + $_GET);
+	$target = makeHrefProcess(array('op' => 'map') + $_GET);
 	echo '<form action="'.$target.'" method=POST>';
+	echo '<input type="hidden" name="tagonly" value="and">';
 	echo '<center><table class=tagtree>';
 	foreach ($tagtree as $taginfo)
 		lm_renderTagRowForViewer ($taginfo);
@@ -748,8 +749,8 @@ class lm_Image_GraphViz extends Image_GraphViz {
 	if(isset($_POST['taglist']))
 		$tag = $_POST['taglist'];
 
-	if(isset($_REQUEST['tagonly']))
-		$tagonly = $_REQUEST['tagonly'];
+	if(isset($_POST['tagonly']))
+		$tagonly = $_POST['tagonly'];
 	else
 		$tagonly = false;
 
@@ -1202,7 +1203,27 @@ class linkmgmt_gvmap {
 
 				if($this->tag)
 				{
-					if(tagNameOnChain($this->tag, $object['etags']))
+
+					$tagged = false;
+					if(is_array($this->tag))
+					{
+						foreach($this->tag as $tag)
+						{
+							$tagged = true;
+							if(!tagNameOnChain($tag, $object['etags']))
+							{
+								$tagged = false;
+								break;
+							}
+						}
+					}
+					else
+					{
+						if(tagNameOnChain($this->tag, $object['etags']))
+							$tagged = true;
+					}
+
+					if($tagged)
 					{
 						$clusterattr['style'] = 'filled';
 						$this->_getcolor('cluster', 'tagged', $this->alpha, $clusterattr, 'fillcolor');
@@ -1470,6 +1491,7 @@ class linkmgmt_gvmap {
 
 				if($this->tag && $this->tagonly)
 				{
+					// TODO remove ports with backendlinks only between tagged objects
 
 					$join .= "
 						LEFT JOIN TagStorage on Object.id = TagStorage.entity_id and TagStorage.entity_realm = 'object'
