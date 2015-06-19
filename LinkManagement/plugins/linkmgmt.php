@@ -1441,6 +1441,7 @@ class linkmgmt_gvmap {
 						";
 					$where .= " AND ( (FrontLink_a.porta is not NULL or FrontLink_b.portb is not NULL )
 						 OR  (FrontRemoteLink_a.porta is not NULL or FrontRemoteLink_b.portb is not NULL) )";
+
 				}
 
 			}
@@ -1454,17 +1455,7 @@ class linkmgmt_gvmap {
 
 				if($this->tag && $this->tagonly)
 				{
-					if(0)
-				if($linktype = 'front') {
-					$join .= "
-						  LEFT JOIN LinkBackend as BackLink_a on Port.id = BackLink_a.porta
-						  LEFT JOIN LinkBackend as BackLink_b on Port.id = BackLink_b.portb
-						  LEFT JOIN LinkBackend as BackRemoteLink_a on remotePort.id = BackRemoteLink_a.porta
-						  LEFT JOIN LinkBackend as BackRemoteLink_b on remotePort.id = BackRemoteLink_b.portb
-						";
-					$where .= " AND ( (BackLink_a.porta is not NULL or BackLink_b.portb is not NULL )
-						 OR  (BackRemoteLink_a.porta is not NULL or BackRemoteLink_b.portb is not NULL) )";
-				}
+
 					$join .= "
 						LEFT JOIN TagStorage on Object.id = TagStorage.entity_id and TagStorage.entity_realm = 'object'
 						LEFT JOIN TagTree on TagStorage.tag_id = TagTree.id
@@ -1525,6 +1516,7 @@ class linkmgmt_gvmap {
 		$result->closeCursor();
 
 		if(0)
+		if($linktype != 'front')
 		{
 		echo "<pre>";
 		echo $query;
