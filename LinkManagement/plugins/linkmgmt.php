@@ -971,6 +971,8 @@ class linkmgmt_gvmap {
 	private $tag = NULL;
 	private $tagonly = false;
 
+	private $linkcount = array();
+
 	function __construct($object_id = NULL, $port_id = NULL, $allports = false, $hl = NULL, $remote_id = NULL, $tag = NULL, $tagonly = false) {
 		$this->allports = $allports;
 
@@ -1036,6 +1038,20 @@ class linkmgmt_gvmap {
 
 			foreach($objects as $obj)
 				$this->_add($this->gv, $obj['id'], NULL);
+
+			if($this->tagonly && !$this->allports)
+			{
+				// remove ports with only a backend link
+				foreach($this->linkcount as $port_id => $port)
+				{
+					$remote_port = $this->linkcount[$port['remote_id']];
+					if($port['count'] > 0 || $remote_port['count'] > 0)
+						continue;
+
+					$this->gv->removeEdge($port['edge']);
+					$this->gv->removeNode($port_id, "c".$port['object_id']);
+				}
+			}
 
 			return;
 		}
@@ -1385,6 +1401,26 @@ class linkmgmt_gvmap {
 					$edgeattr['URL'] = $this->_makeHrefProcess($_GET);
 
 					$edgeattr['id'] = $port['object_id']."-".$port['id']."-".$port['remote_id']."-".$linktype; /* for js context menu  */
+
+					if(!isset($this->linkcount[$port['id']]))
+					{
+						$this->linkcount[$port['id']]['count'] = 0;
+						$this->linkcount[$port['id']]['remote_id'] = $port['remote_id'];
+						$this->linkcount[$port['id']]['object_id'] = $port['object_id'];
+						$this->linkcount[$port['id']]['edge'] = array($port['id'] => $port['remote_id']);
+					}
+					if($linktype == 'front')
+						$this->linkcount[$port['id']]['count']++;
+
+					if(!isset($this->linkcount[$port['remote_id']]['count']))
+					{
+						$this->linkcount[$port['remote_id']]['count'] = 0;
+						$this->linkcount[$port['remote_id']]['remote_id'] = $port['id'];
+						$this->linkcount[$port['remote_id']]['object_id'] = $port['remote_object_id'];
+						$this->linkcount[$port['remote_id']]['edge'] = array($port['id'] => $port['remote_id']);
+					}
+					if($linktype == 'front')
+						 $this->linkcount[$port['remote_id']]['count']++;
 
 					$gv->addEdge(array($port['id'] => $port['remote_id']),
 								$edgeattr,
