@@ -15,6 +15,7 @@
  *		- GraphViz Maps (Objects, Ports and Links) (needs GraphViz_Image 1.3.0)
  *			- object,port or link  highligthing (just click on it)
  *			- context menu to link and unlink ports
+			- graph by tags
  *
  *	Usage:
  *		1. select "Link Management" tab
