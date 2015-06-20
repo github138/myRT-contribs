@@ -475,19 +475,20 @@ function linkmgmt_optagmap() {
 
 	$object_id = $_GET['object_id'];
 
-	echo "Select tags";
+	echo "<center><h2>Select tags</h2>";
 	$tags = getTagList();
 //	renderTagTree();
 
 	$target = makeHrefProcess(array('op' => 'map') + $_GET);
 	echo '<form action="'.$target.'" method=POST>';
 	echo '<input type="hidden" name="tagonly" value="and">';
-	echo '<center><table class=tagtree>';
+	echo '<table class=tagtree>';
 	foreach ($tagtree as $taginfo)
 		lm_renderTagRowForViewer ($taginfo);
-	echo '</table></center>';
+	echo '</table>';
 
-	echo '<input type=submit></from>';
+	echo '<br><input type=submit value="Graph" align="center"></from>';
+	echo '</center>';
 
 	exit;
 }
