@@ -1020,21 +1020,26 @@ class linkmgmt_gvmap {
 			unset($_GET['all']);
 			$_GET['hl'] = 'o';
 
+			$labeltags = "";
+			if($tag && $tagonly)
+			{
+				if(is_array($tag))
+					$tags = '{'.implode('} and {',$tag).'}';
+				else
+					$tags = '{'.$tag.'}';
+
+				$objects = scanRealmByText('object', $tags);
+
+				$labeltags = " with tags: $tags";
+			}
+			else
+				$objects = listCells('object');
+
 			$this->gv->addAttributes(array(
-						'label' => 'Showing all objects'.$hllabel,
+						'label' => 'Showing all objects'.$labeltags.$hllabel,
 						'labelloc' => 't',
 						)
 				);
-
-			if(is_array($tag))
-				$tags = '{'.implode('} and {',$tag).'}';
-			else
-				$tags = '{'.$tag.'}';
-
-			if($tag && $tagonly)
-				$objects = scanRealmByText('object', $tags);
-			else
-				$objects = listCells('object');
 
 			foreach($objects as $obj)
 				$this->_add($this->gv, $obj['id'], NULL);
