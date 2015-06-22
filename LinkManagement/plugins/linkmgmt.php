@@ -481,7 +481,8 @@ function linkmgmt_optagmap() {
 
 	$target = makeHrefProcess(array('op' => 'map') + $_GET);
 	echo '<form action="'.$target.'" method=POST>';
-	echo '<input type="hidden" name="tagonly" value="and">';
+	echo '<input type="radio" name="tagonly" value="and" checked>and ';
+	echo '<input type="radio" name="tagonly" value="or">or';
 	echo '<table class=tagtree>';
 	foreach ($tagtree as $taginfo)
 		lm_renderTagRowForViewer ($taginfo);
@@ -1026,7 +1027,7 @@ class linkmgmt_gvmap {
 			if($tag && $tagonly)
 			{
 				if(is_array($tag))
-					$tags = '{'.implode('} and {',$tag).'}';
+					$tags = '{'.implode("} $tagonly {",$tag).'}';
 				else
 					$tags = '{'.$tag.'}';
 
@@ -1232,11 +1233,23 @@ class linkmgmt_gvmap {
 					{
 						foreach($this->tag as $tag)
 						{
-							$tagged = true;
-							if(!tagNameOnChain($tag, $object['etags']))
+							if($this->tagonly == 'and')
 							{
-								$tagged = false;
-								break;
+								$tagged = true;
+
+								if(!tagNameOnChain($tag, $object['etags']))
+								{
+									$tagged = false;
+									break;
+								}
+							}
+							else
+							{
+								if(tagNameOnChain($tag, $object['etags']))
+								{
+									$tagged = true;
+									break;
+								}
 							}
 						}
 					}
@@ -1565,11 +1578,15 @@ class linkmgmt_gvmap {
 
 						$qparams = array_merge($qparams,$p,$p);
 
-						// return only rows with all tags set
-						// both objects must have all tags
-						$tagcount = count($p) * count($p);
 						$group = " GROUP BY Port.id";
-						$having = " HAVING count(Port.id) = $tagcount";
+
+						if($this->tagonly == 'and')
+						{
+							// return only rows with all tags set
+							// both objects must have all tags
+							$tagcount = count($p) * count($p);
+							$having = " HAVING count(Port.id) = $tagcount";
+						}
 
 					}
 
