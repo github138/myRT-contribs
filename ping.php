@@ -26,6 +26,126 @@
 // 3)  Adjust the $pingtimeout value below to match your network.
 
 
+// TODO make scriptable to run via cron
+
+/* ipaddress page */
+$tab['ipaddress']['ping'] = 'Ping Log';
+$tabhandler['ipaddress']['ping'] = 'ping_ipaddressPingLogTab';
+
+function ping_ipaddressPingLogTab($ip_bin)
+{
+
+	ping_preparedatabase();
+	$ip = ip4_bin2int ($ip_bin);
+	$straddr = ip4_format ($ip_bin);
+
+	$result = usePreparedSelectBlade("select * from IPv4PingLog where ip = ? order by date desc", array($ip));
+
+	$rows = $result->fetchAll(PDO::FETCH_ASSOC);
+
+	// ping_removeold()?
+
+	startPortlet("Ping Log");
+
+	echo '<table class="widetable" cellspacing="0" cellpadding="5" align="center" width="50%">';
+	echo "<th></th><th>Date</th><th>Result</th>";
+
+	$odd = FALSE;
+	foreach($rows as $row)
+	{
+		$tr_class = $odd ? 'row_odd' : 'row_even';
+                echo "<tr class='$tr_class'>";
+		$date = $row['date'];
+
+		echo "<td>".ip4_format(ip4_int2bin($row['ip']))."</td><td bgcolor=".ping_logcolor($date).">$date</td><td>".$row['result']."</td></tr>";
+		$odd = !$odd;
+	}
+
+	echo "</table>";
+	finishPortlet();
+	return;
+
+	if(0)
+	{
+	echo "<pre>";
+	var_dump($rows);
+	echo "</pre>";
+	}
+}
+
+function ping_logcolor($date)
+{
+	$max_age = 3600 * 24;
+
+	$age = date('U', time() - strtotime($date));
+
+	$step = 255 / $max_age;
+
+	$r = intval(($step * 2) * $age);
+	$g = (255 * 2) - $r;
+
+	if($r > 255) $r = 255;
+	if($r < 0) $r = 0;
+	if($g > 255) $g = 255;
+	if($g < 0) $g = 0;
+
+	return sprintf("#%02x%02x%02x",$r,$g,0);
+}
+
+function ping_preparedatabase()
+{
+	$result = usePreparedSelectBlade('SHOW TABLES LIKE "IPv4PingLog"');
+
+	$row = $result->fetch();
+
+	if($row)
+		return;
+
+	$query = "CREATE TABLE `IPv4PingLog` (
+			`id` int(10) NOT NULL AUTO_INCREMENT,
+			`ip` int(10) unsigned NOT NULL DEFAULT '0',
+			`date` datetime NOT NULL DEFAULT NOW(),
+			`result` char(255) COLLATE utf8_unicode_ci NOT NULL DEFAULT '',
+			PRIMARY KEY (`id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci";
+
+	$result = usePreparedSelectBlade($query);
+
+	if($result)
+		showSuccess("Created table IPv4PingLog");
+}
+
+function ping_Log($ip, $text)
+{
+
+	//return lastlogentry ?
+	$lastrow = ping_getlastlog($ip);
+
+	$columns = array('ip' => $ip, 'result' => $text );
+
+	$result = usePreparedInsertBlade("IPv4PingLog", $columns);
+
+	return $lastrow;
+}
+
+function ping_getlastlog($ip)
+{
+	$result = usePreparedSelectBlade("select * from IPv4PingLog where ip = ? order by date desc limit 1", array($ip));
+	$row = $result->fetch(PDO::FETCH_ASSOC);
+
+	if($row)
+		return $row;
+	else
+		return array('result' => false, 'date' => NULL);
+}
+
+function ping_removeold()
+{
+	// only keep n Log entries
+
+
+}
+
 // Depot Tab for objects.
 $tab['ipv4net']['ping'] = 'Ping overview';
 $tabhandler['ipv4net']['ping'] = 'PingTab';
@@ -65,12 +185,13 @@ function ping_executePing()
 
 	$starttime = microtime(true);
 
-	$pingreply = false;
+	$cmdretval = false;
 
-	system("$fping_cmd -q -c 1 -t $pingtimeout $straddr",$pingreply);
+	system("$fping_cmd -q -c 1 -t $pingtimeout $straddr",$cmdretval);
 
 	$stoptime = microtime(true);
 
+	$pingreply = ($cmdretval == 0 ? true : false); // fping success returns 0 (false) !!
 	echo json_encode(array( 'ip' => $straddr, 'pingreply' => $pingreply, 'time' => ($stoptime - $starttime), 'start' => $starttime));
 
 	exit;
@@ -108,7 +229,7 @@ function ping_localfping($net)
 			$time = false;
 
 		$idx++;
-		$results[$ipaddr] = array('pingreply' => !$time , 'time' => ($time ? $time : $runtime), 'start' => $starttime);
+		$results[$ipaddr] = array('pingreply' => $time , 'time' => ($time ? $time : $runtime), 'start' => $starttime);
 	}
 
 	$results['idx'] = $idx;
@@ -232,6 +353,9 @@ function PingTab($id) {
 
 	global $pingtimeout, $pingtype;
 
+	if(!isset($_POST['pingnow']))
+		$pingtype = 'log';
+
 	$debug = false; // output timing informations
 
 	if (isset($_REQUEST['pg']))
@@ -247,6 +371,9 @@ function PingTab($id) {
 
 	echo "<table class=objview border=0 width='100%'><tr><td class=pcleft>";
 	startPortlet ('icmp ping comparrison:');
+	$target = makeHref($_GET);
+	echo '<form method="POST" action="'.$target.'"><input type="submit" value="Ping Now" name="pingnow"></form></p>';
+
 	$startip = ip4_bin2int ($range['ip_bin']);
 	$endip = ip4_bin2int (ip_last ($range));
 	$realstartip = $startip;
@@ -269,7 +396,8 @@ function PingTab($id) {
 	echo "</center>";
 
 	echo "<table class='widetable' border=0 cellspacing=0 cellpadding=5 align='center'>\n";
-	echo "<tr><th>address</th><th>name</th><th>response</th></tr>\n";
+	echo "<tr><th>address</th><th>name</th><th>response</th>";
+	echo "<th>last log date</th><th>last log response</th></tr>";
 	$box_counter = 1;
 	$cnt_ok = $cnt_noreply = $cnt_mismatch = 0;
 	$start_totaltime = microtime(true);
@@ -279,15 +407,15 @@ function PingTab($id) {
 	switch($pingtype)
 	{
 		case 'local':
-			echo "using local ping";
+			echo "using local ping ".date("d.m.Y H:i:s");
 			$results = ping_localfping($range['ip']."/".$range['mask']);
 			break;
 		case 'curl':
-			echo "using curl ping";
+			echo "using curl ping ".date("d.m.Y H:i:s");
 			$results = ping_curlfping($startip, $endip);
 			break;
-		default:
-			echo "using single ping";
+		case 'single':
+			echo "using single ping ".date("d.m.Y H:i:s");
 			$start_runtime = microtime(true);
 			$idx = 0;
 			// singel
@@ -296,11 +424,28 @@ function PingTab($id) {
 				$idx++;
 				$ip_bin = ip4_int2bin($ip);
 				$straddr = ip4_format ($ip_bin);
-				$pingreplay = false;
 				$starttime = microtime(true);
-				system("/usr/local/sbin/fping -q -c 1 -t $pingtimeout $straddr",$pingreply);
+				$cmdretval = Null;
+				system("/usr/local/sbin/fping -q -c 1 -t $pingtimeout $straddr",$cmdretval);
 				$stoptime = microtime(true);
+				$pingreply = ($cmdretval == 0 ? true : false); // fping success returns 0 (false) !!
 				$results[$straddr] = array( 'pingreply' => $pingreply, 'time' => $stoptime - $starttime, 'start' => $starttime);
+			}
+			$stop_runtime = microtime(true);
+			$results['idx'] = $idx;
+			$results['runtime'] = $stop_runtime - $start_runtime;
+		default:
+			// get last ping log
+			echo "displaying last log results";
+			$start_runtime = microtime(true);
+			$idx = 0;
+			for ($ip = $startip; $ip <= $endip; $ip++)
+			{
+				$idx++;
+				$ip_bin = ip4_int2bin($ip);
+				$straddr = ip4_format ($ip_bin);
+				$results[$straddr] = ping_getlastlog($ip);
+				$results[$straddr]['pingreply'] = ($results[$straddr]['result'] == 'no response' ? false : true);
 			}
 			$stop_runtime = microtime(true);
 			$results['idx'] = $idx;
@@ -318,20 +463,21 @@ function PingTab($id) {
 		$addr = isset ($range['addrlist'][$ip_bin]) ? $range['addrlist'][$ip_bin] : array ('name' => '', 'reserved' => 'no');
 
 		if(!isset($results[$straddr]))
-			$results[$straddr] = array('pingreply' => true, 'time' => "-", 'start' => '-'); // pingreply true = no reply/timeout
+			$results[$straddr] = array('pingreply' => false, 'time' => "-", 'start' => '-');
+
+		$result = $results[$straddr];
 
 		if($pingtype == 'curl')
-			if($results[$straddr]['info']['http_code'] != 200)
+			if($result['info']['http_code'] != 200)
 			{
-				echo "$addr: HTTP Response: ".$results[$straddr]['info']['http_code']."<br>";
+				echo "$addr: HTTP Response: ".$result['info']['http_code']."<br>";
 				continue;
 			}
 
-		$pingreply = $results[$straddr]['pingreply'];
-
+		$pingreply = $result['pingreply'];
 
 		// FIXME: This is a huge and ugly IF/ELSE block. Prettify anyone?
-		if (!$pingreply) {
+		if ($pingreply) {
 			if ( (!empty($addr['name']) and ($addr['reserved'] == 'no')) or (!empty($addr['allocs']))) {
 				echo '<tr class=trok';
 				$cnt_ok++;
@@ -355,17 +501,35 @@ function PingTab($id) {
 			echo ' ' . $range['addrlist'][$ip_bin]['class'];
 		echo "'><a href='".makeHref(array('page'=>'ipaddress', 'ip'=>$straddr))."'>${straddr}</a></td>";
 		echo "<td class=tdleft>${addr['name']}</td><td class=tderror>";
-		if (!$pingreply)
-			echo "Yes";
+		if($pingtype == 'log')
+			echo "-";
 		else
-			echo "No";
+		{
+			if ($pingreply)
+				echo "Yes";
+			else
+				echo "No";
+		}
+
 		if($debug)
 		{
-			echo "</td><td>".$results[$straddr]['time']."</td>";
-			echo "<td>".$results[$straddr]['start'];
+			echo "</td><td>".$result['time']."</td>";
+			echo "<td>".$result['start'];
 			if($pingtype == 'curl')
-				echo "</td><td>".$results[$straddr]['info']['total_time'];
+				echo "</td><td>".$result['info']['total_time'];
 		}
+
+		// update PingLog
+		if($pingtype != 'log')
+		{
+			$lastlog = ping_Log($ip, ($pingreply ? "OK (".$result['time'].")" : "no response"));
+
+			if($lastlog)
+				echo '<td bgcolor="'.ping_logcolor($lastlog['date']).'">'.$lastlog['date']."</td><td>".$lastlog['result'];
+		}
+		else
+			echo '<td bgcolor="'.ping_logcolor($result['date']).'">'.$result['date']."</td><td>".$result['result'];
+
 		echo "</td></tr>\n";
 	}
 
@@ -395,4 +559,5 @@ function PingTab($id) {
 	}
 
 }
+
 ?>
