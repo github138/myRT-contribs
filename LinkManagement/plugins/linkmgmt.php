@@ -141,8 +141,9 @@ $lm_multilink_port_types = array(
 /* -------------------------------------------------- */
 
 $lm_cache = array(
-		'allowcomment' => TRUE, /* RackCode ${op_set_reserve_comment} */
-		'allowlink' => TRUE, /* RackCode ${op_set_link} */
+		'allowcomment' => TRUE, /* RackCode {$op_set_reserve_comment} */
+		'allowlink' => TRUE, /* RackCode {$op_set_link} */
+		'allowbacklink' => TRUE, /* RackCode {$op_set_backlink} */
 		'rackinfo' => array(),
 		);
 
@@ -2436,6 +2437,7 @@ function linkmgmt_tabhandler($object_id) {
 
 	$lm_cache['allowcomment'] = permitted(NULL, NULL, 'set_reserve_comment'); /* RackCode {$op_set_reserve_comment} */
 	$lm_cache['allowlink'] = permitted(NULL, NULL, 'set_link'); /* RackCode {$op_set_link} */
+	$lm_cache['allowbacklink'] = permitted(NULL, NULL, 'set_backlink'); /* RackCode {$op_set_backlink} */
 
 	//portlist::var_dump_html($lm_cache);
 
@@ -3155,7 +3157,10 @@ class portlist {
        function _printlinkportsymbol($port_id, $linktype = 'front') {
 		global $lm_cache;
 
-		if(!$lm_cache['allowlink'])
+		if($linktype == 'front' && !$lm_cache['allowlink'])
+			return;
+
+		if($linktype != 'front' && !$lm_cache['allowbacklink'])
 			return;
 
                 echo "<td align=center>";
@@ -3174,8 +3179,11 @@ class portlist {
 	function _printUnLinkPort($src_port_id, &$dst_link, $linktype) {
 		global $lm_cache;
 
-		if(!$lm_cache['allowlink'])
-			return '';
+		if($linktype == 'front' && !$lm_cache['allowlink'])
+			return;
+
+		if($linktype != 'front' && !$lm_cache['allowbacklink'])
+			return;
 
 		$src_port = $this->list[$src_port_id];
 
