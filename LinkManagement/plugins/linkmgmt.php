@@ -952,7 +952,7 @@ class lm_Image_GraphViz extends Image_GraphViz {
 		echo $gvmap->export();
 		echo "</pre>";
 
-		echo "<pre>".$gvmap->parse()."</pre>";
+		echo "<pre>".htmlspecialchars($gvmap->parse())."</pre>";
 	}
 
 	exit;
