@@ -930,23 +930,29 @@ class lm_Image_GraphViz extends Image_GraphViz {
 		echo $data2;
 
 		if($debug) echo "-- after map gvmap --<br>";
+	}
+
+	/* output image */
+	if($debug || $usemap)
+	{
+		if(!$usemap)
+			$data = $gvmap->fetch($type, $command);
 
 		echo "<img src=\"data:$ctype;base64,".
 			base64_encode($data).
 			"\" usemap=#map$object_id />";
 
-		if($debug)
-		{
-			echo "<pre>";
-			echo $gvmap->export();
-			echo "</pre>";
-
-			echo "<pre>".$gvmap->parse()."</pre>";
-		}
 	}
 	else
-	{
 		$gvmap->image($type);
+
+	if($debug)
+	{
+		echo "<pre>";
+		echo $gvmap->export();
+		echo "</pre>";
+
+		echo "<pre>".$gvmap->parse()."</pre>";
 	}
 
 	exit;
