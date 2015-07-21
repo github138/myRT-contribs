@@ -14,6 +14,7 @@
  *		- ifxTable
  *		- ipAddrTable (ipv4 only)
  *		- ipAddressTable (ipv4 + ipv6)
+ *		- ipv6AddrAddress (ipv6)
  *
  *	Features:
  *		- update object attributes
@@ -2815,22 +2816,21 @@ class ifSNMP implements Iterator {
 		{
 			echo"Found $ipv6interfaces ipv6 interfaces<br>";
 
-			$ipv6ifdescr =  $this->snmpdevice->walk('ipv6IfDescr', TRUE);
 			$ipv6addraddress =  $this->snmpdevice->walk('ipv6AddrAddress');
 
 			if(!empty($ipv6addraddress)) {
 				$ipv6addrpfxlength =  $this->snmpdevice->walk('ipv6AddrPfxLength');
-				$ipv6addrtype =  $this->snmpdevice->walk('ipv6AddrType'); /* 1 stateless, 2 stateful, 3 unknown */
+			//	$ipv6addrtype =  $this->snmpdevice->walk('ipv6AddrType'); /* 1 stateless, 2 stateful, 3 unknown */
 
 				reset($ipv6addrpfxlength);
-				reset($ipv6addrtype);
+				//reset($ipv6addrtype);
 
 				foreach($ipv6addraddress as $oid => $addr_bin) {
 
 					$addr = ip_format($addr_bin);
 
-					$type = current($ipv6addrtype);
-					next($ipv6addrtype);
+					//$type = current($ipv6addrtype);
+					//next($ipv6addrtype);
 
 					if(!preg_match('/.*(ipv6).*\.([0-9]+)\..*$/',$oid, $matches))
 						continue;
@@ -2850,13 +2850,13 @@ class ifSNMP implements Iterator {
 										'maskbits' => $maskbits,
 										'net' => $net,
 										'bcast' => $bcast,
-										'type' => ($type == 1 ? "stateless" : $type == 2 ? "statefull" : "unknown" )
+									//	'type' => ($type == 1 ? "stateless" : $type == 2 ? "statefull" : "unknown" )
 										);
 				}
 				unset($oid);
 				unset($value);
 
-			} /* ipv6ifindex */
+			} /* ipv6addraddress */
 		} /* ipv6interfaces */
 	}
 
