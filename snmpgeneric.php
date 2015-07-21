@@ -2858,6 +2858,13 @@ class ifSNMP implements Iterator {
 				$fieldvalue = $this->{$key}($ifIndex);
 
 				if(!empty($fieldvalue)) {
+					if($key == 'ifName')
+					{
+						/* use lower case if Name values */
+						$fieldvalue = strtolower($fieldvalue);
+						$this->ifTable['ifName'][$ifIndex] = $fieldvalue;
+					}
+
 					if($key == 'ifDescr' || $key == 'ifAlias') {
 						$formfield = '<input readonly="readonly" type="text" size="15" name="'.$key.'['.$ifIndex.']" value="'
 								.$this->$key($ifIndex).'">';
