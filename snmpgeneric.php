@@ -2862,7 +2862,7 @@ class ifSNMP implements Iterator {
 					{
 						/* use lower case if Name values */
 						$fieldvalue = strtolower($fieldvalue);
-						$this->ifTable['ifName'][$ifIndex] = $fieldvalue;
+						$this->ifTable['ifName'][$ifIndex-1] = $fieldvalue;
 					}
 
 					if($key == 'ifDescr' || $key == 'ifAlias') {
