@@ -1429,9 +1429,9 @@ function snmpgeneric_list($object_id) {
 	/* get ports */
 	amplifyCell($object);
 
-	/* set array key to port name */
+	/* set array key to lowercase port name */
 	foreach($object['ports'] as $key => $values) {
-		$object['ports'][$values['name']] = $values;
+		$object['ports'][strtolower($values['name'])] = $values;
 		unset($object['ports'][$key]);
 	}
 
@@ -1446,7 +1446,7 @@ function snmpgeneric_list($object_id) {
 
 		foreach($sysObjectID['port'] as $name => $port) {
 
-			if(array_key_exists($name,$object['ports']))
+			if(array_key_exists(strtolower($name),$object['ports']))
 				$disableport = TRUE;
 			else
 				$disableport = FALSE;
@@ -2858,13 +2858,6 @@ class ifSNMP implements Iterator {
 				$fieldvalue = $this->{$key}($ifIndex);
 
 				if(!empty($fieldvalue)) {
-					if($key == 'ifName')
-					{
-						/* use lower case if Name values */
-						$fieldvalue = strtolower($fieldvalue);
-						$this->ifTable['ifName'][$ifIndex-1] = $fieldvalue;
-					}
-
 					if($key == 'ifDescr' || $key == 'ifAlias') {
 						$formfield = '<input readonly="readonly" type="text" size="15" name="'.$key.'['.$ifIndex.']" value="'
 								.$this->$key($ifIndex).'">';
@@ -2877,7 +2870,7 @@ class ifSNMP implements Iterator {
 					if($key == 'ifName') {
 						/* create textfield set to ifDescr */
 						$formfield = '<input type="text" size="8" name="'.$key.'['.$ifIndex.']" value="'
-								.$this->ifDescr($ifIndex).'">';
+								.strtolower($this->ifDescr($ifIndex)).'">';
 						$textfield = TRUE;
 					}
 
@@ -2936,6 +2929,12 @@ class ifSNMP implements Iterator {
 
 	}
 
+	function ifName($index) {
+		if(isset($this->ifTable['ifName'][$index-1])) {
+			return strtolower($this->ifTable['ifName'][$index-1]);
+		}
+
+	}
 	function &__get($name) {
 
 		switch($name) {
