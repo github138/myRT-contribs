@@ -1431,7 +1431,7 @@ function snmpgeneric_list($object_id) {
 
 	/* set array key to lowercase port name */
 	foreach($object['ports'] as $key => $values) {
-		$object['ports'][strtolower($values['name'])] = $values;
+		$object['ports'][shortenIfName($values['name'])] = $values;
 		unset($object['ports'][$key]);
 	}
 
@@ -2931,7 +2931,7 @@ class ifSNMP implements Iterator {
 
 	function ifName($index) {
 		if(isset($this->ifTable['ifName'][$index-1])) {
-			return strtolower($this->ifTable['ifName'][$index-1]);
+			return shortenIfName($this->ifTable['ifName'][$index-1]);
 		}
 
 	}
