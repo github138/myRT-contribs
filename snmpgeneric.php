@@ -1617,11 +1617,11 @@ function snmpgeneric_list($object_id) {
 	$ifsnmp->printifInfoTableHeader("<th>add ip</th><th>add port</th><th>upd label</th><th title=\"update mac\">upd mac</th><td>upd port type</th><th>porttypeid</th><th>comment</th></tr>");
 
 	echo '<tr><td colspan="11"></td>
-		<td><input type="checkbox" id="ipaddr" onclick="setchecked(this.id)checked="checked">IPv4<br>
-		<input type="checkbox" id="ipv6addr" onclick="setchecked(this.id)" checked="checked">IPv6</td>
+		<td><input type="checkbox" id="ipaddr" onclick="setchecked(this.id);" checked="checked">IPv4<br>
+		<input type="checkbox" id="ipv6addr" onclick="setchecked(this.id);" checked="checked">IPv6</td>
 		<td><input type="checkbox" id="ports" onclick="setchecked(this.id)"></td>
-		<td><input type="checkbox" id="label" onclick="setchecked(this.id)" checked="checked"></td>
-		<td><input type="checkbox" id="mac" onclick="setchecked(this.id)" checked="checked"></td></tr>';
+		<td><input type="checkbox" id="label" onclick="setchecked(this.id);" checked="checked"></td>
+		<td><input type="checkbox" id="mac" onclick="setchecked(this.id);" checked="checked"></td></tr>';
 
 	foreach($ifsnmp as $if) {
 
