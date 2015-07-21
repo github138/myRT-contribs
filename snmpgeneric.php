@@ -1431,7 +1431,7 @@ function snmpgeneric_list($object_id) {
 
 	/* set array key to lowercase port name */
 	foreach($object['ports'] as $key => $values) {
-		$object['ports'][shortenIfName($values['name'])] = $values;
+		$object['ports'][shortenPortName($values['name'], $object['id'])] = $values;
 		unset($object['ports'][$key]);
 	}
 
@@ -1506,6 +1506,9 @@ function snmpgeneric_list($object_id) {
 	/* snmp ports */
 
 	$ifsnmp = new ifSNMP($snmpdev);
+
+	// needed for shortenPortName()
+	$ifsnmp->object_id = $object['id'];
 
 	/* ip spaces */
 
@@ -2667,6 +2670,8 @@ class ifSNMP implements Iterator {
 
 	private $interfaceserror = TRUE;
 
+	public $object_id = NULL;
+
 	function __construct(&$snmpdevice) {
 		$this->snmpdevice = $snmpdevice;
 
@@ -2870,7 +2875,7 @@ class ifSNMP implements Iterator {
 					if($key == 'ifName') {
 						/* create textfield set to ifDescr */
 						$formfield = '<input type="text" size="8" name="'.$key.'['.$ifIndex.']" value="'
-								.strtolower($this->ifDescr($ifIndex)).'">';
+								.shortenPortName($this->ifDescr($ifIndex), $this->object_id).'">';
 						$textfield = TRUE;
 					}
 
@@ -2931,7 +2936,7 @@ class ifSNMP implements Iterator {
 
 	function ifName($index) {
 		if(isset($this->ifTable['ifName'][$index-1])) {
-			return shortenIfName($this->ifTable['ifName'][$index-1]);
+			return shortenPortName($this->ifTable['ifName'][$index-1], $this->object_id);
 		}
 
 	}
