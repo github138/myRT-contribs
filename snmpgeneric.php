@@ -1399,6 +1399,12 @@ function snmpgeneric_list($object_id) {
 			if($attr['value'] == $object['attr'][$attr_id]['value'])
 				$attr['uncheck'] = 'Current = new value';
 
+			if(isset($attr['key']) && isset($object['attr'][$attr_id]['key']))
+			{
+				if($attr['key'] == $object['attr'][$attr_id]['key'])
+					$attr['uncheck'] = 'Current = new key';
+			}
+
 			$value = $attr['value'];
 
 			$val_key = (isset($object['attr'][$attr_id]['key']) ? ' ('.$object['attr'][$attr_id]['key'].')' : '' );
