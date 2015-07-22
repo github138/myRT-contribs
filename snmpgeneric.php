@@ -1431,7 +1431,7 @@ function snmpgeneric_list($object_id) {
 
 	/* set array key to lowercase port name */
 	foreach($object['ports'] as $key => $values) {
-		$object['ports'][shortenPortName($values['name'], $object['id'])] = $values;
+		$object['ports'][strtolower(shortenPortName($values['name'], $object['id']))] = $values;
 		unset($object['ports'][$key]);
 	}
 
@@ -2875,7 +2875,7 @@ class ifSNMP implements Iterator {
 					if($key == 'ifName') {
 						/* create textfield set to ifDescr */
 						$formfield = '<input type="text" size="8" name="'.$key.'['.$ifIndex.']" value="'
-								.shortenPortName($this->ifDescr($ifIndex), $this->object_id).'">';
+								.strtolower(shortenPortName($this->ifDescr($ifIndex), $this->object_id)).'">';
 						$textfield = TRUE;
 					}
 
@@ -2936,7 +2936,11 @@ class ifSNMP implements Iterator {
 
 	function ifName($index) {
 		if(isset($this->ifTable['ifName'][$index-1])) {
-			return shortenPortName($this->ifTable['ifName'][$index-1], $this->object_id);
+			/* use strtolower and shortenPortName because shortenPortName needs object attributes (hw / sw type, etc. )
+			   which may not be set the first time snmpgeneric is running. So the breed could not be detected!
+			   Solution ?!
+			*/
+			return strtolower(shortenPortName($this->ifTable['ifName'][$index-1], $this->object_id));
 		}
 
 	}
