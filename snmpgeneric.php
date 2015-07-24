@@ -2887,6 +2887,9 @@ class ifSNMP implements Iterator {
 
 					$ifindex =  array_search($matches[2],$this->ifTable['ifIndex']);
 
+					if($ifindex === false)
+						continue;
+
 					$maskbits = current($ipv6addrpfxlength);
 					next($ipv6addrpfxlength);
 
