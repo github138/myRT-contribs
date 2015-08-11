@@ -26,7 +26,7 @@ function ipv4spacelog_tabhandler()
 		$ip_bin = ip4_int2bin ($row['ip']);
 		$straddr = ip4_format ($ip_bin);
 
-		echo "<tr class=\"".($odd ? "row_odd" : "row_even")."\"><td>".$row['date']."</td><td>$straddr</td><td>".$row['user']."</td><td align=\"left\">".$row['message']."</td></tr>";
+		echo "<tr class=\"".($odd ? "row_odd" : "row_even")."\"><td>".$row['date']."</td><td><a href=\"".makeHref (array ('page' => 'ipaddress', 'ip' => $straddr))."\">$straddr</td><td>".$row['user']."</td><td align=\"left\">".$row['message']."</td></tr>";
 		$odd = !$odd;
 	}
 	echo "</table></center>";
