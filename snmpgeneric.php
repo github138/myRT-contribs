@@ -2390,6 +2390,7 @@ class SNMPgeneric {
 				snmp_set_quick_print($value);
 				break;
 			case 'oid_output_format':
+				/* needs php >= 5.2.0 */
 				snmp_set_oid_output_format($value);
 				break;
 			case 'enum_print':
@@ -2551,20 +2552,14 @@ class mySNMP extends SNMPgeneric implements Iterator {
 
 		parent::__construct($version, $host, $community);
 
-		//snmp_set_valueretrieval(SNMP_VALUE_LIBRARY);
-
 		/* Return values without SNMP type hint */
-		//snmp_set_valueretrieval(SNMP_VALUE_PLAIN);
 		$this->valueretrieval = SNMP_VALUE_PLAIN;
-
-		/* needs php >= 5.2.0 */
-	//	snmp_set_oid_output_format(SNMP_OID_OUTPUT_FULL);
-
-	//	snmp_set_quick_print(1);
 
 	} /* __construct */
 
 	function init() {
+
+		$this->oid_output_format = SNMP_OID_OUTPUT_FULL;
 		/* .iso.org.dod.internet.mgmt.mib-2.system */
 		$this->system = $this->walk(".1.3.6.1.2.1.1");
 
