@@ -2175,11 +2175,12 @@ function linkmgmt_tabhandler($object_id) {
 	//$parents = getEntityRelatives ('parents', 'object', $object_id);
 	$children = getEntityRelatives ('children', 'object', $object_id); //'entity_id'
 
-	//portlist::var_dump_html($children);
-
 	foreach($children as $child) {
-		echo '<h1>Links for Child: '.$child['name'].'</h1>';
+		$childobj = spotEntity($child['entity_type'], $child['entity_id']);
+
+		echo '<h1>Links for Child: '.$childobj['name'].'</h1>';
 		linkmgmt_renderObjectLinks($child['entity_id']);
+		unset($childobj);
 	}
 
 	return;
