@@ -345,12 +345,14 @@ try {
 
 	// to js
 	$portidlist = json_encode($pv_cache['portidlist']);
+	$portidlistcount = count($pv_cache['portidlist']);
 	/*
 		JS
 		setport is call for every connected port
 	 */
 
 echo <<<ENDSCRIPT
+	<div id="counter">$portidlistcount</div>
 	<script>
 
 	/*
@@ -403,6 +405,8 @@ echo <<<ENDSCRIPT
 	 function setports( data, textStatus, jqHXR ) {
 		if(data.debug)
 			$( "#info" ).html($( "#info" ).html() + "DEBUG: " + data.name + ": " + data.debug);
+
+		$( "#counter" ).html(parseInt($( "#counter" ).html()) - 1);
 
 		for(var index in data.ports)
 		{
