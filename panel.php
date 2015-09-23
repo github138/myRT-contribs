@@ -352,7 +352,7 @@ try {
 	 */
 
 echo <<<ENDSCRIPT
-	<div id="counter">$portidlistcount</div>
+	<div id="requests"><div id="counter">$portidlistcount</div></div>
 	<script>
 
 	/*
@@ -407,6 +407,7 @@ echo <<<ENDSCRIPT
 			$( "#info" ).html($( "#info" ).html() + "DEBUG: " + data.name + ": " + data.debug);
 
 		$( "#counter" ).html(parseInt($( "#counter" ).html()) - 1);
+		$( "#" + data.id ).html(data.id + " Done (" + data.name + ")");
 
 		for(var index in data.ports)
 		{
@@ -481,6 +482,9 @@ echo <<<ENDSCRIPT
 
 	for (var r_obj_id in r_obj_ids)
 	{
+
+		$( "#requests" ).append( "<div id=\"" + r_obj_id.trim() + "\">" + r_obj_id + " waiting ...</div>" );
+
 		var r_obj = r_obj_ids[r_obj_id];
 		{
 		$.ajax({
