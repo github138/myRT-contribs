@@ -341,18 +341,21 @@ try {
 	if(0)
 		var_dump_html($object);
 
+	if(0)
+		var_dump_html($pv_cache['portidlist']);
 	// --- JS ---
 
 	// to js
+
+	$pv_cache['portidlist']['count'] = count($pv_cache['portidlist']['objects']);
 	$portidlist = json_encode($pv_cache['portidlist']);
-	$portidlistcount = count($pv_cache['portidlist']);
 	/*
 		JS
 		setport is call for every connected port
 	 */
 
 echo <<<ENDSCRIPT
-	<div id="requests"><div id="counter">$portidlistcount</div></div>
+	<div id="requests"><div id="reqcounter">-</div></div>
 	<script>
 
 	/*
@@ -403,11 +406,17 @@ echo <<<ENDSCRIPT
 	}
 
 	 function setports( data, textStatus, jqHXR ) {
-		if(data.debug)
-			$( "#info" ).html($( "#info" ).html() + "DEBUG: " + data.name + ": " + data.debug);
+		var msg = "Done.";
 
-		$( "#counter" ).html(parseInt($( "#counter" ).html()) - 1);
-		$( "#" + data.id ).html(data.id + " Done (" + data.name + ")");
+		if(data.debug)
+		{
+			$( "#info" ).html($( "#info" ).html() + "DEBUG: " + data.name + ": " + data.debug);
+			msg = data.debug;
+		}
+
+		$( "#reqcounter" ).html(parseInt($( "#reqcounter" ).html()) - 1);
+
+		$( "#req" + data.id ).html(data.name + " " + msg);
 
 		for(var index in data.ports)
 		{
@@ -480,12 +489,13 @@ echo <<<ENDSCRIPT
 
 	var r_obj_ids = jQuery.parseJSON('$portidlist');
 
-	for (var r_obj_id in r_obj_ids)
+	$( "#reqcounter" ).html(r_obj_ids.count);
+
+	for (var r_obj_id in r_obj_ids.objects)
 	{
 
-		$( "#requests" ).append( "<div id=\"" + r_obj_id.trim() + "\">" + r_obj_id + " waiting ...</div>" );
-
-		var r_obj = r_obj_ids[r_obj_id];
+		var r_obj = r_obj_ids.objects[r_obj_id];
+		$( "#requests" ).append( "<div id=\"req" + r_obj_id.trim() + "\">" + r_obj.name + " waiting ...</div>" );
 		{
 		$.ajax({
 			dataType: "json",
@@ -931,12 +941,15 @@ function pv_prepareobject($object_id, $debug)
 
 	$objcache[$object_id] = $object;
 
-	$portidlist = array();
+	$portidlist['count'] = -1;
+	$portidlist['objects'] = array();
 
 	if($object['IPV4OBJ'])
 	{
 		/* Add current object to snmp objects (all ports) */
-		$portidlist[" $object_id"] = 'all';
+		$portidlist['objects'][" $object_id"]['name'] = $object['name'];
+		$portidlist['objects'][" $object_id"]['value'] = 'all';
+		$portidlist['objects'][" $object_id"]['ports'] = array();
 	}
 
 	$i = 0;
@@ -965,7 +978,8 @@ function pv_prepareobject($object_id, $debug)
 
 			if($remote_object['IPV4OBJ'])
 			{
-				$portidlist[" ".$port['remote_object_id']][$remote_port_id] = "remote";
+				$portidlist['objects'][" ".$port['remote_object_id']]['name'] = $remote_object['name'];
+				$portidlist['objects'][" ".$port['remote_object_id']]['ports'][$remote_port_id] = "remote";
 				$pv_cache['port_ids'][$remote_port_id] = pv_getPortInfo($remote_port_id);
 			}
 		}
@@ -990,7 +1004,8 @@ function pv_prepareobject($object_id, $debug)
 
 			if($remote_object['IPV4OBJ'])
 			{
-				$portidlist[" ".$start_port['Link']['object_id']][$start_port['Link']['id']] = "start";
+				$portidlist['objects'][" ".$start_port['Link']['object_id']]['name'] = $remote_object['name'];
+				$portidlist['objects'][" ".$start_port['Link']['object_id']]['ports'][$start_port['Link']['id']] = "start";
 				$pv_cache['port_ids'][$lc->start] = $start_port['Link'];
 			}
 		}
@@ -1010,7 +1025,8 @@ function pv_prepareobject($object_id, $debug)
 
 			if($remote_object['IPV4OBJ'])
 			{
-				$portidlist[" ".$end_port['Link']['object_id']][$end_port['Link']['id']] = "end";
+				$portidlist['objects'][" ".$end_port['Link']['object_id']]['name'] = $remote_object['name'];
+				$portidlist['objects'][" ".$end_port['Link']['object_id']]['ports'][$end_port['Link']['id']] = "end";
 				$pv_cache['port_ids'][$lc->end] = $end_port['Link'];
 			}
 		}
@@ -1068,7 +1084,7 @@ function pv_processajaxobject(&$object, $debug = false)
 
 	if($object_id != $remote_object_id)
 	{
-		foreach($pv_cache['portidlist'][$remote_object_id] as $port_id => $type)
+		foreach($pv_cache['portidlist']['objects'][$remote_object_id]['ports'] as $port_id => $type)
 		{
 			$port = $pv_cache['port_ids'][$port_id];
 			$port['snmpinfos'] = pv_getportsnmp($object, $port, $debug);
