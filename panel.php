@@ -496,6 +496,7 @@ echo <<<ENDSCRIPT
 
 		var r_obj = r_obj_ids.objects[r_obj_id];
 		$( "#requests" ).append( "<div id=\"req" + r_obj_id.trim() + "\">" + r_obj.name + " waiting ...</div>" );
+		$('body').scrollTop(0);
 		{
 		$.ajax({
 			dataType: "json",
