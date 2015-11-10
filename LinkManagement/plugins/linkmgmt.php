@@ -876,6 +876,46 @@ class lm_Image_GraphViz extends Image_GraphViz {
 
 } /* linkmgmt_opmap */
 
+class data
+{
+	public $elements = array();
+
+	function __construct()
+	{
+		$this->elements['nodes'] = array();
+		$this->elements['edges'] = array();
+	}
+
+	function addnode($id, $values = NULL)
+	{
+		$data = array( 'id' => $id );
+
+		if($values != NULL)
+			$data = $data + $values;
+
+		$node['data'] = $data;
+
+		$this->elements['nodes'][] = $node;
+
+	}
+
+	function addedge($id, $source, $target, $values = NULL)
+	{
+		$data = array(
+				'id' => $id,
+				'source' => $source,
+				'target' => $target
+			 );
+
+		if($values != NULL)
+			$data = $data + $values;
+
+		$edge['data'] = $data;
+
+		$this->elements['edges'][] = $edge;
+	}
+}
+
 /* ------------------------------------- */
 class linkmgmt_gvmap {
 
@@ -894,12 +934,18 @@ class linkmgmt_gvmap {
 
 	private $errorlevel = NULL;
 
+	public $data = NULL;
+
+
 	function __construct($object_id = NULL, $port_id = NULL, $allports = false, $hl = NULL, $remote_id = NULL) {
 		$this->allports = $allports;
 
 		$this->object_id = $object_id;
 		$this->port_id = $port_id;
 		$this->remote_id = $remote_id;
+
+
+		$this->data = new data();
 
 		$hllabel = "";
 
@@ -992,6 +1038,9 @@ class linkmgmt_gvmap {
 				));
 
 	//	portlist::var_dump_html($this->gv);
+//		portlist::var_dump_html($this->data);
+
+		echo json_encode($this->data);
 
 	//	$this->gv->saveParsedGraph('/tmp/graph.txt');
 	//	error_reporting( E_ALL ^ E_NOTICE);
@@ -1123,6 +1172,8 @@ class linkmgmt_gvmap {
 
 				$gv->addCluster($cluster_id, $clustertitle, $clusterattr, $embedin);
 
+				$this->data->addnode($object_id, array('label' => $object['name']));
+
 			} /* isset cluster_id */
 		} /* object_id !== NULL */
 
@@ -1171,6 +1222,8 @@ class linkmgmt_gvmap {
 				$gv->addNode($port['id'],
 						$nodeattr,
 						"c${port['object_id']}"); /* see cluster_id */
+
+				$this->data->addnode($port['id'],array('parent' => $port['object_id'], 'label' => $port['name']));
 
 				$this->ports[$port['id']] = true;
 
@@ -1248,6 +1301,8 @@ class linkmgmt_gvmap {
 									$port['remote_id'] => $linktype,
 								)
 							);
+
+					$this->data->addedge($port['id'].$port['remote_id'], $port['id'],$port['remote_id']);
 				}
 			}
 
