@@ -715,6 +715,9 @@ class lm_Image_GraphViz extends Image_GraphViz {
 		case 'cmapx':
 			$ctype = 'text/plain';
 			break;
+		case 'json':
+			echo json_encode($gvmap->data->objects);
+			exit;
 
 	}
 
@@ -879,6 +882,7 @@ class lm_Image_GraphViz extends Image_GraphViz {
 class data
 {
 	public $elements = array();
+	public $objects = array();
 
 	function __construct()
 	{
@@ -897,6 +901,9 @@ class data
 
 		$this->elements['nodes'][] = $node;
 
+	//	$node['position'] = array('x' => 0, 'y' => 0 );
+		$this->objects[] = array('group' => 'nodes')  + $node;
+
 	}
 
 	function addedge($id, $source, $target, $values = NULL)
@@ -913,6 +920,8 @@ class data
 		$edge['data'] = $data;
 
 		$this->elements['edges'][] = $edge;
+
+		$this->objects[] = array('group' => 'edges') + $edge;
 	}
 }
 
@@ -1040,7 +1049,7 @@ class linkmgmt_gvmap {
 	//	portlist::var_dump_html($this->gv);
 //		portlist::var_dump_html($this->data);
 
-		echo json_encode($this->data);
+//		echo json_encode($this->data);
 
 	//	$this->gv->saveParsedGraph('/tmp/graph.txt');
 	//	error_reporting( E_ALL ^ E_NOTICE);
@@ -1302,7 +1311,7 @@ class linkmgmt_gvmap {
 								)
 							);
 
-					$this->data->addedge($port['id'].$port['remote_id'], $port['id'],$port['remote_id']);
+					$this->data->addedge($port['id'].$port['remote_id'], $port['id'],$port['remote_id'],array('label' => $port['cableid'], 'type' => $linktype));
 				}
 			}
 
