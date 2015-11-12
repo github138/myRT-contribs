@@ -1461,6 +1461,7 @@ class linkmgmt_gvmap {
 				return;
 		}
 
+		$object = NULL;
 		if($object_id !== NULL) {
 			if(
 				!isset($gv->graph['clusters'][$cluster_id]) &&
@@ -1468,6 +1469,15 @@ class linkmgmt_gvmap {
 			) {
 
 				$object = spotEntity ('object', $object_id);
+
+				// ip addresses
+				amplifyCell($object);
+				$object['portip'] = array();
+				foreach($object['ipv4'] as $ipv4)
+				{
+					$object['portip'][$ipv4['osif']] = $ipv4['addrinfo']['ip'];
+				}
+
 			//	$object['attr'] = getAttrValues($object_id);
 
 				$clusterattr = array();
@@ -1552,6 +1562,11 @@ class linkmgmt_gvmap {
 					$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['iif_name']}</FONT>";
 
 				$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['oif_name']}</FONT>";
+
+				// add ip address
+				if($object)
+					if(isset($object['portip'][$port['name']]))
+						$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">".$object['portip'][$port['name']]."</FONT>";
 
 				$nodeattr = array(
 							'label' => $nodelabel,
