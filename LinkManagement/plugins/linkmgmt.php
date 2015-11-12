@@ -124,6 +124,8 @@ $ophandler['object']['linkmgmt']['Help'] = 'linkmgmt_opHelp';
 $ophandler['object']['linkmgmt']['map'] = 'linkmgmt_opmap';
 $ajaxhandler['lm_mapinfo'] = 'linkmgmt_ajax_mapinfo';
 
+$ophandler['object']['linkmgmt']['cytoscapemap'] = 'linkmgmt_cytoscapemap';
+
 /* ------------------------------------------------- */
 
 define('LM_MULTILINK',TRUE);
@@ -716,7 +718,8 @@ class lm_Image_GraphViz extends Image_GraphViz {
 			$ctype = 'text/plain';
 			break;
 		case 'json':
-			echo json_encode($gvmap->data->objects);
+			//echo json_encode($gvmap->data->objects);
+			echo json_encode($gvmap->data->sort());
 			exit;
 
 	}
@@ -879,10 +882,15 @@ class lm_Image_GraphViz extends Image_GraphViz {
 
 } /* linkmgmt_opmap */
 
-class data
+class cytoscapedata
 {
 	public $elements = array();
 	public $objects = array();
+
+	private $nodes = array();
+	private $edges = array();
+
+	private $sort = array();
 
 	function __construct()
 	{
@@ -904,6 +912,15 @@ class data
 	//	$node['position'] = array('x' => 0, 'y' => 0 );
 		$this->objects[] = array('group' => 'nodes')  + $node;
 
+
+		/* sort within parent */
+		$this->nodes[$id] = $node;
+
+		if(isset($values['parent']))
+		{
+			$this->sort[$values['parent']][$values['label']] = $id;
+		}
+
 	}
 
 	function addedge($id, $source, $target, $values = NULL)
@@ -922,7 +939,336 @@ class data
 		$this->elements['edges'][] = $edge;
 
 		$this->objects[] = array('group' => 'edges') + $edge;
+
+
+		$this->edges[] = array('group' => 'edges') + $edge;
 	}
+
+	function sort()
+	{
+		$out = array();
+
+		ksort($this->nodes);
+
+		foreach($this->sort as $id => $node)
+			$out[] = array('group' => 'nodes') + $this->nodes[$id];
+
+		foreach($this->sort as $parent => $childs)
+		{
+			ksort($childs); // port names as key TODO corret port number sorting
+			foreach($childs as $child)
+				$out[] = array('group' => 'nodes') + $this->nodes[$child];
+		}
+
+		return array_merge($out,$this->edges);
+
+	}
+}
+
+function linkmgmt_cytoscapemap() {
+
+	$object_id = $_GET['object_id'];
+
+	echo (<<<HTMLEND
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+  font: 14px helvetica neue, helvetica, arial, sans-serif;
+}
+
+#cy {
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+</style>
+<meta charset=utf-8 />
+<meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
+<title>Compound nodes</title>
+<script src="js/jquery-1.4.4.min.js"></script>
+<script src="js/jquery.qtip.min.js"></script>
+<link rel="stylesheet" type="text/css" href="css/jquery.qtip.min.css">
+<script src="js/cytoscape.min.js"></script>
+<script src="js/cola.v3.min.js"></script>
+<script src="js/cytoscape-cola.js"></script>
+<script src="js/cytoscape-qtip.js"></script>
+<script>
+$(function(){ // on dom ready
+
+var cy = cytoscape({
+  container: document.getElementById('cy'),
+
+  boxSelectionEnabled: false,
+  autounselectify: true,
+
+  style: [
+    {
+      selector: 'node',
+      css: {
+        'content': 'data(id)',
+	'text-wrap': 'wrap'
+      },
+      style: {
+        'background-color': '#666',
+        'label': 'data(label)',
+        'text-valign': 'center',
+        'text-halign': 'center',
+	'text-wrap': 'wrap'
+/*	'shape': function(ele) {
+			return 'rectangle';
+		},
+*/
+      }
+    },
+    {
+      selector: '\$node > node',
+      css: {
+        'padding-top': '10px',
+        'padding-left': '10px',
+        'padding-bottom': '10px',
+        'padding-right': '10px',
+        'text-valign': 'top',
+        'text-halign': 'center',
+        'background-color': '#bbb'
+      }
+    },
+    {
+      selector: 'edge',
+      css: {
+        'target-arrow-shape': 'triangle',
+	'line-color': function(ele){
+				if(ele.data('type') == 'front')
+					return 'black';
+				else
+					return 'grey';
+			 },
+	'line-style': function(ele){
+				if(ele.data('type') == 'front')
+					return 'solid';
+				else
+					return 'dashed';
+			 },
+	'font-size': '6',
+        'label': 'data(label)'
+      }
+    },
+    {
+      selector: ':selected',
+      css: {
+        'background-color': 'black',
+        'line-color': 'black',
+        'target-arrow-color': 'black',
+        'source-arrow-color': 'black'
+      }
+    },
+    {
+	selector: '.highlighted',
+	css: {
+        'line-color': '#ff0000',
+        'background-color': '#ff0000'
+      }
+	},
+    {
+	selector: '.clhighlighted',
+	css: {
+        'line-color': '#00ff00',
+        'background-color': '#00ff00'
+	}
+   }
+  ],
+
+wheelSensitivity: 0.1,
+ /* elements: {
+    nodes: [
+      { data: { id: 'a', parent: 'b' }, position: { x: 215, y: 85 } },
+      { data: { id: 'b' } },
+      { data: { id: 'c', parent: 'b' }, position: { x: 300, y: 85 } },
+      { data: { id: 'd' }, position: { x: 215, y: 175 } },
+      { data: { id: 'e' } },
+      { data: { id: 'f', parent: 'e' }, position: { x: 300, y: 175 } }
+    ],
+    edges: [
+      { data: { id: 'ad', source: 'a', target: 'd' } },
+      { data: { id: 'eb', source: 'e', target: 'b' } }
+
+    ]
+  },
+*/
+
+/*  layout: {
+    name: 'cola'
+    //padding: 5
+  },
+*/
+/*
+ready: function(){
+    window.cy = this;
+
+	this.nodes().qtip({
+		content: 'ID: Hello!',
+		position: {
+			my: 'top center',
+			at: 'bottom center'
+		},
+		style: {
+			classes: 'qtip-bootstrap',
+			tip: {
+				width: 16,
+				height: 8
+			}
+		}
+	});
+
+    var dijkstra = cy.elements().dijkstra('#441');
+
+    var bfs = dijkstra.pathTo( cy.$('#6707') );
+    var x=0;
+    var highlightNextEle = function(){
+      if(x<bfs.length){
+     var el=bfs[x];
+     el.addClass('highlighted');
+        x++;
+       // setTimeout(highlightNextEle, 500);
+	highlightNextEle();
+      }
+       };
+    highlightNextEle();
+  } // ready function
+*/
+});
+
+function highlight(evt) {
+
+	var hlclass = evt.data.hlclass;
+	var ele = evt.cyTarget;
+
+	if(!ele.data)
+		return;
+
+	if(ele.data('source'))
+		ele = cy.$( '#' + ele.data('source'));
+
+	var id = ele.data('id');
+
+	if(ele.isParent())
+	{
+	//	var childs = cy.$('#' + id).children()
+	//	childs.layout({name:'grid', cols: 2, condense: true});
+		return;
+	}
+
+
+	console.log('Event ' + hlclass + ' ' + id );
+
+	cy.$('.' + hlclass).removeClass(hlclass);
+	var starteles = ele.neighborhood();
+	var alleles = ele.closedNeighborhood();
+	var eles = starteles;
+
+	for(i=0;i<10;i++)
+	{
+		alleles = alleles.closedNeighborhood();
+
+		// TODO loop direct neigbours only
+		// eles grows with each run
+		eles.addClass(hlclass);
+
+	//	console.log('nL: ' + eles.size() );
+	//	if(eles.length<2) { break; }
+
+		eles = eles.neighborhood();
+		if(starteles.anySame(eles))
+		{
+	//		console.log('Loop Same' + i );
+		if(0)
+		if(i>10)
+		{
+			console.log('Loop break' + i );
+			break;
+		}
+		}
+	}
+	console.log('End Loop ' + i );
+
+	//alleles.layout({name: 'circle'});
+
+}
+
+cy.on('mouseover', { hlclass: 'highlighted' }, highlight );
+cy.on('click', { hlclass: 'clhighlighted' }, highlight );
+
+$.ajax({
+	type: "GET",
+	url: "https://10.49.130.104/RackTables/index.php",
+	data: { module: 'redirect',
+		page: 'object',
+		tab: 'linkmgmt',
+		object_id: $object_id,
+		op: 'map',
+		type: 'json'
+		},
+	dataTye: 'json',
+	error: function(){ alert("Error loading"); },
+	success: function(data) {
+			var j = JSON.parse(data);
+			if(j.length == 0)
+			{
+				alert("No Links to display. Closing Window");
+				window.close();
+				return;
+			}
+			cy.add(j);
+			cy.layout({
+				name: 'cola',
+				/*
+				alignment: function(node) {
+						if(node.isParent())
+							return { x: 100, y: 200 };
+					},
+				nodeSpacing: function(node) {
+						if(node.isParent())
+							return 10;
+						else
+							return 10 * node.degree();
+					 },
+				edgeLength: function(edge) {
+						if(edge.data('type') != 'front')
+							return 1;
+						else
+							return 1000;
+					},
+				edgeSymDiffLength: function(edge) {
+						if(edge.data('type') != 'front')
+							return 100;
+						else
+							return 1;
+					},
+				edgeJaccardLength: function(edge) {
+						if(edge.data('type') != 'front')
+							return 100;
+						else
+							return 10;
+					}
+				*/
+				});
+		}
+	});
+
+
+}); // on dom ready
+</script>
+</head>
+<body>
+<div id="cy"></div>
+</body>
+</html>
+HTMLEND
+); // echo
+	exit;
 }
 
 /* ------------------------------------- */
@@ -954,7 +1300,7 @@ class linkmgmt_gvmap {
 		$this->remote_id = $remote_id;
 
 
-		$this->data = new data();
+		$this->data = new cytoscapedata();
 
 		$hllabel = "";
 
@@ -1138,6 +1484,7 @@ class linkmgmt_gvmap {
 				}
 
 				$clustertitle = "${object['dname']}";
+				$label = "${object['dname']}";
 				$clusterattr['tooltip'] = $clustertitle;
 
 				unset($_GET['module']); // makeHrefProcess adds this
@@ -1156,14 +1503,20 @@ class linkmgmt_gvmap {
 				}
 
 				if(!empty($object['container_name']))
+				{
 					$clustertitle .= "<BR/>${object['container_name']}";
+					$label .= "\n${object['container_name']}";
+				}
 
 				if($object['rack_id'])
 				{
 					$rack = spotEntity('rack', $object['rack_id']);
 
 					if(!empty($rack['row_name']) || !empty($rack['name']))
+					{
 						$clustertitle .= "<BR/>${rack['row_name']} / ${rack['name']}";
+						$label .= "\n${rack['row_name']} / ${rack['name']}";
+					}
 				}
 
 				$embedin = $object['container_id'];
@@ -1181,7 +1534,7 @@ class linkmgmt_gvmap {
 
 				$gv->addCluster($cluster_id, $clustertitle, $clusterattr, $embedin);
 
-				$this->data->addnode($object_id, array('label' => $object['name']));
+				$this->data->addnode($object_id, array('label' => $label));
 
 			} /* isset cluster_id */
 		} /* object_id !== NULL */
@@ -1232,7 +1585,9 @@ class linkmgmt_gvmap {
 						$nodeattr,
 						"c${port['object_id']}"); /* see cluster_id */
 
-				$this->data->addnode($port['id'],array('parent' => $port['object_id'], 'label' => $port['name']));
+				$label = $port['name']."\n".( $port['iif_id'] != '1' ? $port['iif_name']."\n" : '' ).$port['oif_name'];
+
+				$this->data->addnode($port['id'],array('parent' => $port['object_id'], 'label' => $label));
 
 				$this->ports[$port['id']] = true;
 
@@ -2302,6 +2657,10 @@ function linkmgmt_renderObjectLinks($object_id) {
 	/* Graphviz map */
 	echo '<td width=100><span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
                                 array('op' => 'map','usemap' => 1))).'","name","height=800,width=800,scrollbars=yes");><a>Object Map</a></span></td>';
+
+	/* cytoscape map */
+	echo '<td width=100><span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
+                                array('op' => 'cytoscapemap'))).'","name","height=800,width=800,scrollbars=yes");><a>Cytoscape Object Map</a></span></td>';
 
 	/* Help */
 	echo '<td width=200><span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
