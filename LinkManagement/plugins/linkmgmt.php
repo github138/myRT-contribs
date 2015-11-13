@@ -1,4 +1,6 @@
 <?php
+// TODO linkchain cytoscape create libs?
+//	corret port sorting use index at least for current object
 /*
  * Link Management for RT >= 0.20.9
  *
@@ -153,6 +155,274 @@ $lm_cache = array(
 //	return 'std';
 //} /* linkmgmt_tabtrigger */
 
+class pv_linkchain {
+
+	public $start = null;
+	public $end = null;
+	public $init = null;
+	public $linked = null;
+
+	public $loop = false;
+
+	public $ports = array();
+
+	public $objcache = null;
+
+	function __construct($port_id, &$objectcache = null)
+	{
+
+		$this->init = $port_id;
+		$this->objcache = $objectcache;
+
+		// Link
+		$this->end = $this->_getlinks($port_id, false);
+
+		if(!$this->loop)
+			$this->start = $this->_getlinks($port_id, true);
+		else
+			$this->start = $this->last;
+
+		if($this->start == $this->end)
+			$this->linked = false;
+		else
+			$this->linked = true;
+
+
+	}
+
+	//recursive
+	function _getlinks($port_id, $back = false)
+	{
+		if($back)
+			$linktable = 'LinkBackend';
+		else
+			$linktable = 'Link';
+
+		if(isset($this->ports[$port_id][$linktable]))
+		{
+			$this->loop = true;
+
+			if(!$back)
+				$linktable = 'LinkBackend';
+			else
+				$linktable = 'Link';
+
+			return $this->ports[$this->last][$linktable]['remote_id'];
+		}
+
+		$port = pv_getPortInfo($port_id, $linktable);
+		$this->ports[$port_id][$linktable] = $port;
+
+		// check object IPv4
+		$object_id =  $port['object_id'];
+		if(!isset($this->objcache[$object_id]))
+		{
+			$object = spotEntity('object', $object_id);
+			$object['IPV4OBJ'] = considerConfiguredConstraint ($object, 'IPV4OBJ_LISTSRC');
+			$this->objcache[$object_id] = $object;
+		}
+		else
+			$object = $this->objcache[$object_id];
+
+		if($object['IPV4OBJ'])
+			$this->last = $port_id;
+
+		$remote_id = $this->ports[$port_id][$linktable]['remote_id'];
+
+		if($remote_id)
+		{
+			/* set reverse link on remote port */
+			$this->ports[$remote_id][$linktable] = pv_getPortInfo($remote_id, $linktable);
+
+			return $this->_getlinks($remote_id, !$back);
+		}
+
+		return $port_id;
+	}
+
+	function getchain()
+	{
+		$remote_id = $this->start;
+
+		// if not Link use LinkBackend
+		$back = $this->ports[$remote_id]['Link']['remote_id'];
+
+		$chain = "";
+
+		for(;$remote_id;)
+		{
+			$back = !$back;
+
+			if($back)
+			{
+				$linktable = 'LinkBackend';
+				$arrow = ' => ';
+			}
+			else
+			{
+				$linktable = 'Link';
+				$arrow = ' --> ';
+			}
+
+			$port = $this->ports[$remote_id][$linktable];
+
+			$text = $port['object_name']." [".$port['name']."]";
+
+			if($this->init == $remote_id)
+				$chain .= "<b>$text</b>";
+			else
+				$chain .= $text;
+
+			$remote_id = $port['remote_id'];
+
+			if($remote_id)
+				$chain .= $arrow."<br>";
+
+			if($this->loop && $remote_id == $this->start)
+				return $chain."LOOP!<br>";
+
+		}
+
+		return $chain;
+	}
+
+	function getchainhtml()
+	{
+		$remote_id = $this->start;
+
+		// if not Link use LinkBackend
+		$back = $this->ports[$remote_id]['Link']['remote_id'];
+
+		$chain = "<table>";
+
+		for(;$remote_id;)
+		{
+			$back = !$back;
+
+			if($back)
+			{
+				$linktable = 'LinkBackend';
+				$arrow = ' => ';
+			}
+			else
+			{
+				$linktable = 'Link';
+				$arrow = ' --> ';
+			}
+
+			$port = $this->ports[$remote_id][$linktable];
+
+			if($this->init == $remote_id)
+				$chain .= "<tr><td><b>".$port['object_name']."</b></td><td><b> [".$port['name']."]</b></td>";
+			else
+				$chain .= "<tr><td>".$port['object_name']."</td><td> [".$port['name']."]</td>";
+
+			if($remote_id == $this->start || $remote_id == $this->end)
+				$chain .= "<td><div name=\"port${remote_id}-status\"></div></td>";
+			else
+				$chain .= "<td></td>";
+
+			$remote_id = $port['remote_id'];
+
+			if($remote_id)
+				$chain .= "<td>$arrow</td></tr>";
+			else
+				$chain .= "<td></td></tr>";
+
+			if($this->loop && $remote_id == $this->start)
+			{
+				$chain .= "LOOP!<br>";
+				break;
+			}
+
+		}
+
+		$chain .= "</table>";
+
+		return $chain;
+	}
+} // pv_linkchain
+
+/*
+ *   from RT database.php fetchPortList()
+ *	with Link table selection
+ */
+function pv_fetchPortList ($sql_where_clause, $query_params = array(), $linktable = 'Link')
+{
+	$query = <<<END
+SELECT
+	Port.id,
+	Port.name,
+	Port.object_id,
+	Object.name AS object_name,
+	Port.l2address,
+	Port.label,
+	Port.reservation_comment,
+	Port.iif_id,
+	Port.type AS oif_id,
+	(SELECT PortInnerInterface.iif_name FROM PortInnerInterface WHERE PortInnerInterface.id = Port.iif_id) AS iif_name,
+	(SELECT PortOuterInterface.oif_name FROM PortOuterInterface WHERE PortOuterInterface.id = Port.type) AS oif_name,
+
+	IF(la.porta, la.cable, lb.cable) AS cableid,
+	IF(la.porta, pa.id, pb.id) AS remote_id,
+	IF(la.porta, pa.name, pb.name) AS remote_name,
+	IF(la.porta, pa.object_id, pb.object_id) AS remote_object_id,
+	IF(la.porta, oa.name, ob.name) AS remote_object_name,
+
+	(SELECT COUNT(*) FROM PortLog WHERE PortLog.port_id = Port.id) AS log_count,
+	PortLog.user,
+	UNIX_TIMESTAMP(PortLog.date) as time
+FROM
+	Port
+	INNER JOIN Object ON Port.object_id = Object.id
+
+	LEFT JOIN $linktable AS la ON la.porta = Port.id
+	LEFT JOIN Port AS pa ON pa.id = la.portb
+	LEFT JOIN Object AS oa ON pa.object_id = oa.id
+	LEFT JOIN $linktable AS lb on lb.portb = Port.id
+	LEFT JOIN Port AS pb ON pb.id = lb.porta
+	LEFT JOIN Object AS ob ON pb.object_id = ob.id
+
+	LEFT JOIN PortLog ON PortLog.id = (SELECT id FROM PortLog WHERE PortLog.port_id = Port.id ORDER BY date DESC LIMIT 1)
+WHERE
+	$sql_where_clause
+END;
+
+	$result = usePreparedSelectBlade ($query, $query_params);
+	$ret = array();
+	while ($row = $result->fetch (PDO::FETCH_ASSOC))
+	{
+		$row['l2address'] = l2addressFromDatabase ($row['l2address']);
+		$row['linked'] = isset ($row['remote_id']) ? 1 : 0;
+
+		// last changed log
+		$row['last_log'] = array();
+		if ($row['log_count'])
+		{
+			$row['last_log']['user'] = $row['user'];
+			$row['last_log']['time'] = $row['time'];
+		}
+		unset ($row['user']);
+		unset ($row['time']);
+
+		$ret[] = $row;
+	}
+	return $ret;
+} /* pv_fetchPortList */
+
+function pv_getPortInfo ($port_id, $linktable = 'Link')
+{
+        $result = pv_fetchPortList ('Port.id = ?', array ($port_id), $linktable);
+        return empty ($result) ? NULL : $result[0];
+} /* pv_getPortInfo */
+
+function pv_getObjectPortsAndLinks ($object_id)
+{
+        $ret = pv_fetchPortList ("Port.object_id = ?", array ($object_id));
+        return sortPortList ($ret, TRUE);
+} /* pv_getObjectPortsAndLinks */
+
+/* -------------------------------------------------------------------------- */
 /* -------------------------------------------------- */
 
 function linkmgmt_opHelp() {
@@ -719,7 +989,9 @@ class lm_Image_GraphViz extends Image_GraphViz {
 			break;
 		case 'json':
 			//echo json_encode($gvmap->data->objects);
-			echo json_encode($gvmap->data->sort());
+			$gvmap->data->getlinkchains($object_id);
+			//echo json_encode($gvmap->data->sort());
+			echo json_encode($gvmap->data->objects);
 			exit;
 
 	}
@@ -917,10 +1189,7 @@ class cytoscapedata
 		$this->nodes[$id] = $node;
 
 		if(isset($values['parent']))
-		{
-			$this->sort[$values['parent']][$values['label']] = $id;
-		}
-
+				$this->sort[$values['parent']][$values['label']] = $id;
 	}
 
 	function addedge($id, $source, $target, $values = NULL)
@@ -963,6 +1232,82 @@ class cytoscapedata
 		return array_merge($out,$this->edges);
 
 	}
+
+	function addlinkchain($linkchain, $index) {
+		//addnodes
+		//addedge
+		$remote_id = $linkchain->start;
+
+		// if not Link use LinkBackend
+		$back = $linkchain->ports[$remote_id]['Link']['remote_id'];
+
+		for(;$remote_id;)
+		{
+			$back = !$back;
+
+			if($back)
+			{
+				$linktable = 'LinkBackend';
+				$linktype= 'back';
+			}
+			else
+			{
+				$linktable = 'Link';
+				$linktype= 'front';
+			}
+
+			$port = $linkchain->ports[$remote_id][$linktable];
+
+			//portlist::var_dump_html($port);
+
+			if(!isset($this->nodes[$port['object_id']]))
+			{
+				$text = $port['object_name'];
+				$this->addnode($port['object_id'], array('label' => $port['object_name'], 'text' => $text));
+			}
+
+
+			$text = $port['name'];
+			$this->addnode($port['id'], array( 'label' => $port['name'], 'parent' => $port['object_id'], 'text' => $text, 'index' => $index ));
+
+			$index = null;
+
+			$remote_id = $port['remote_id'];
+
+			if($linkchain->loop && $remote_id == $linkchain->start)
+				$loop = '1';
+			else
+				$loop = '0';
+
+			if($remote_id)
+				$this->addedge($port['id'].$remote_id, $port['id'], $remote_id, array('label' => $port['cableid'], 'type' => $linktype, 'loop' => $loop));
+
+			if($linkchain->loop && $remote_id == $linkchain->start)
+				break;
+
+		}
+
+	}
+
+	function getlinkchains($object_id) {
+
+		$this->elements = array();
+		$this->objects = array();
+		$this->nodes = array();
+		$this->edges = array();
+
+	//	$object = spotEntity('object', $object_id);
+		$object['ports'] = pv_getObjectPortsAndLinks ($object_id);
+
+		$i = 0;
+		foreach($object['ports'] as $key => $port)
+		{
+			$i++;
+			$this->addlinkchain(new pv_linkchain($port['id']), $i);
+			//if($i == 2)
+			//	break;
+		}
+	}
 }
 
 function linkmgmt_cytoscapemap() {
@@ -995,6 +1340,8 @@ body {
 <script src="js/cytoscape.min.js"></script>
 <script src="js/cola.v3.min.js"></script>
 <script src="js/cytoscape-cola.js"></script>
+<script src="js/dagre.js"></script>
+<script src="js/cytoscape-dagre.js"></script>
 <script src="js/cytoscape-qtip.js"></script>
 <script>
 $(function(){ // on dom ready
@@ -1015,6 +1362,7 @@ var cy = cytoscape({
       style: {
         'background-color': '#666',
         'label': 'data(label)',
+	'width': 'label',
         'text-valign': 'center',
         'text-halign': 'center',
 	'text-wrap': 'wrap'
@@ -1052,8 +1400,16 @@ var cy = cytoscape({
 				else
 					return 'dashed';
 			 },
+	'width': function(ele){
+				if(ele.data('type') == 'front')
+					return '3';
+				else
+					return '5';
+			 },
+//	'curve-style': 'segments',
 	'font-size': '6',
-        'label': 'data(label)'
+        'label': 'data(label)',
+	'edge-text-rotation': 'autorotate'
       }
     },
     {
@@ -1141,6 +1497,100 @@ ready: function(){
 */
 });
 
+var cy2 = cytoscape({
+  container: document.getElementById('cy2'),
+
+  boxSelectionEnabled: false,
+  autounselectify: true,
+
+  style: [
+    {
+      selector: 'node',
+      css: {
+        'content': 'data(id)',
+	'text-wrap': 'wrap'
+      },
+      style: {
+        'background-color': '#666',
+        'label': 'data(text)',
+	'width': 'label',
+        'text-valign': 'center',
+        'text-halign': 'center',
+	'text-wrap': 'wrap'
+/*	'shape': function(ele) {
+			return 'rectangle';
+		},
+*/
+      }
+    },
+    {
+      selector: '\$node > node',
+      css: {
+        'padding-top': '10px',
+        'padding-left': '10px',
+        'padding-bottom': '10px',
+        'padding-right': '10px',
+        'text-valign': 'top',
+        'text-halign': 'center',
+        'background-color': '#bbb'
+      }
+    },
+    {
+      selector: 'edge',
+      css: {
+        'target-arrow-shape': 'triangle',
+	'line-color': function(ele){
+				if(ele.data('type') == 'front')
+					return 'black';
+				else
+					return 'grey';
+			 },
+	'line-style': function(ele){
+				if(ele.data('type') == 'front')
+					return 'solid';
+				else
+					return 'dashed';
+			 },
+	'width': function(ele){
+				if(ele.data('type') == 'front')
+					return '3';
+				else
+					return '5';
+			 },
+//	'curve-style': 'segments',
+	'font-size': '6',
+        'label': 'data(label)',
+	'edge-text-rotation': 'autorotate'
+      }
+    },
+    {
+      selector: ':selected',
+      css: {
+        'background-color': 'black',
+        'line-color': 'black',
+        'target-arrow-color': 'black',
+        'source-arrow-color': 'black'
+      }
+    },
+    {
+	selector: '.highlighted',
+	css: {
+        'line-color': '#ff0000',
+        'background-color': '#ff0000'
+      }
+	},
+    {
+	selector: '.clhighlighted',
+	css: {
+        'line-color': '#00ff00',
+        'background-color': '#00ff00'
+	}
+   }
+  ],
+
+wheelSensitivity: 0.1,
+});
+
 function highlight(evt) {
 
 	var hlclass = evt.data.hlclass;
@@ -1194,12 +1644,60 @@ function highlight(evt) {
 	}
 	console.log('End Loop ' + i );
 
+	//console.log('Event Type: ' + evt.originalEvent.type)
 	//alleles.layout({name: 'circle'});
+	if(evt.originalEvent.type != 'mouseup')
+		return;
 
+	var single = alleles.clone();
+	single = single.add(alleles.parents().clone());
+
+	cy2.remove(cy2.elements());
+//	$('#cy2').cytoscape({layout: {name: 'cola'}, elements: single, ready: function(){ this.resize();}});
+	cy2.add(single);
+//	cy2.nodes().positions(function(i, node){ return {x: 0, y: 0};});
+	cy2.layout({name: 'dagre', rankDir: 'LR'});
+//	cy2.fit();
 }
 
+//cy.on('mouseover', { hlclass: 'highlighted' }, tooltip );
 cy.on('mouseover', { hlclass: 'highlighted' }, highlight );
 cy.on('click', { hlclass: 'clhighlighted' }, highlight );
+
+function tooltip(evt) {
+
+	var ele = evt.cyTarget;
+
+	if(!ele.data)
+		return;
+
+	$('#qtip').qtip({
+		content: 'ID: ' + ele.data('id') + ' ' + ele.data('text') + 'Hello!',
+		position: {
+			my: 'top center',
+			at: 'bottom center'
+		},
+		show: {
+			delay: 0,
+			event: false,
+			ready: true,
+			effect: false
+		},
+		style: {
+			classes: 'qtip-bootstrap',
+			tip: {
+				corner: true,
+				width: 16,
+				height: 8
+			}
+		},
+		hide: {
+			fixed: true,
+			event: false,
+			inactive: 2000
+		}
+	});
+}
 
 $.ajax({
 	type: "GET",
@@ -1222,48 +1720,65 @@ $.ajax({
 				return;
 			}
 			cy.add(j);
+
+			/*
+				TODO: node ranking
+			*/
+
 			cy.layout({
-				name: 'cola',
+				name: 'dagre',
+				nodeSep: 5,
+				//edgeSep: 10,
+				rankDir: 'TB',
 				/*
-				alignment: function(node) {
-						if(node.isParent())
-							return { x: 100, y: 200 };
-					},
-				nodeSpacing: function(node) {
-						if(node.isParent())
-							return 10;
-						else
-							return 10 * node.degree();
-					 },
-				edgeLength: function(edge) {
-						if(edge.data('type') != 'front')
+				edgeWeight: function(edge) {
+						if(edge.data('type') == 'front')
 							return 1;
 						else
 							return 1000;
 					},
-				edgeSymDiffLength: function(edge) {
-						if(edge.data('type') != 'front')
-							return 100;
-						else
-							return 1;
-					},
-				edgeJaccardLength: function(edge) {
-						if(edge.data('type') != 'front')
-							return 100;
-						else
-							return 10;
-					}
 				*/
 				});
-		}
+
+			//$('#cy').cytoscape({layout: {name: 'preset'}, elements: j, ready: function(){ this.resize();}});
+			//$('#cy2').cytoscape({layout: {name: 'grid'}, elements: j, ready: function(){ this.resize();}});
+
+			//cy.resize();
+
+			// mark current node
+			cy.$('#$object_id').style('background-color','#ffcccc');
+
+			cy.elements().qtip({
+
+				content: function() {
+						return "TEST"; //this.id();
+					},
+				position: {
+					my: 'top center',
+					at: 'bottom center'
+					},
+				style: {
+					classes: 'qtip-bootstrap',
+					tip: {
+						width: 16,
+						height: 8
+						},
+					}
+			}); // qtip
+		} // success function
 	});
+
+
+
+
 
 
 }); // on dom ready
 </script>
 </head>
 <body>
-<div id="cy"></div>
+<div id="cy" style="position: absolute; height: 80%; width: 100%; left: 0; top: 20%;"></div>
+<div id="cy2" style="position: absolute; height: 20%; width: 100%; left: 0; top: 0%;"></div>
 </body>
 </html>
 HTMLEND
@@ -1494,7 +2009,7 @@ class linkmgmt_gvmap {
 				}
 
 				$clustertitle = "${object['dname']}";
-				$label = "${object['dname']}";
+				$text = "${object['dname']}";
 				$clusterattr['tooltip'] = $clustertitle;
 
 				unset($_GET['module']); // makeHrefProcess adds this
@@ -1515,7 +2030,7 @@ class linkmgmt_gvmap {
 				if(!empty($object['container_name']))
 				{
 					$clustertitle .= "<BR/>${object['container_name']}";
-					$label .= "\n${object['container_name']}";
+					$text .= "\n${object['container_name']}";
 				}
 
 				if($object['rack_id'])
@@ -1525,7 +2040,7 @@ class linkmgmt_gvmap {
 					if(!empty($rack['row_name']) || !empty($rack['name']))
 					{
 						$clustertitle .= "<BR/>${rack['row_name']} / ${rack['name']}";
-						$label .= "\n${rack['row_name']} / ${rack['name']}";
+						$text .= "\n${rack['row_name']} / ${rack['name']}";
 					}
 				}
 
@@ -1544,7 +2059,7 @@ class linkmgmt_gvmap {
 
 				$gv->addCluster($cluster_id, $clustertitle, $clusterattr, $embedin);
 
-				$this->data->addnode($object_id, array('label' => $label));
+				$this->data->addnode($object_id, array('label' => $object['name'], 'text' => $text));
 
 			} /* isset cluster_id */
 		} /* object_id !== NULL */
@@ -1557,16 +2072,24 @@ class linkmgmt_gvmap {
 
 
 				$nodelabel = htmlspecialchars("${port['name']}");
+				$text = $nodelabel;
 
 				if($port['iif_id'] != '1' )
+				{
 					$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['iif_name']}</FONT>";
+					$text .= "\n".$port['iif_name'];
+				}
 
 				$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['oif_name']}</FONT>";
+				$text .= "\n".$port['oif_name'];
 
 				// add ip address
 				if($object)
 					if(isset($object['portip'][$port['name']]))
+					{
 						$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">".$object['portip'][$port['name']]."</FONT>";
+						$text .= "\n".$object['portip'][$port['name']];
+					}
 
 				$nodeattr = array(
 							'label' => $nodelabel,
@@ -1600,9 +2123,7 @@ class linkmgmt_gvmap {
 						$nodeattr,
 						"c${port['object_id']}"); /* see cluster_id */
 
-				$label = $port['name']."\n".( $port['iif_id'] != '1' ? $port['iif_name']."\n" : '' ).$port['oif_name'];
-
-				$this->data->addnode($port['id'],array('parent' => $port['object_id'], 'label' => $label));
+				$this->data->addnode($port['id'],array('parent' => $port['object_id'], 'label' => $port['name'], 'text' => $text));
 
 				$this->ports[$port['id']] = true;
 
