@@ -155,16 +155,20 @@ $lm_cache = array(
 //	return 'std';
 //} /* linkmgmt_tabtrigger */
 
-class pv_linkchain {
+class pv_linkchain implements Iterator {
 
-	public $start = null;
-	public $end = null;
+	public $first = null;
+	public $last = null;
 	public $init = null;
 	public $linked = null;
+	public $linkcount = 0;
 
 	public $loop = false;
 
 	public $ports = array();
+
+	private $currentid = null;
+	private $back = null;
 
 	public $objcache = null;
 
@@ -175,37 +179,56 @@ class pv_linkchain {
 		$this->objcache = $objectcache;
 
 		// Link
-		$this->end = $this->_getlinks($port_id, false);
+		$this->last = $this->_getlinks($port_id, false);
 
 		if(!$this->loop)
-			$this->start = $this->_getlinks($port_id, true);
+			$this->first = $this->_getlinks($port_id, true);
 		else
-			$this->start = $this->last;
+			$this->first = $this->last;
 
-		if($this->start == $this->end)
+		if($this->first == $this->last)
 			$this->linked = false;
 		else
 			$this->linked = true;
 
-
+	//	echo "END ".$this->init." - ".$this->first." - ".$this->last."<br>";
 	}
 
-	//recursive
-	function _getlinks($port_id, $back = false)
+	function getlinktable($back)
 	{
 		if($back)
 			$linktable = 'LinkBackend';
 		else
 			$linktable = 'Link';
 
+		return $linktable;
+	}
+
+	function isback($linktable)
+	{
+		if($linktable == 'back')
+			return true;
+		else
+			return false;
+	}
+
+	function getlinktype()
+	{
+		return ($this->back ? 'back' : 'front' );
+	}
+
+	//recursive
+	function _getlinks($port_id, $back = false)
+	{
+
+		//echo "START".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
+		$linktable = $this->getlinktable($back);
+
 		if(isset($this->ports[$port_id][$linktable]))
 		{
 			$this->loop = true;
 
-			if(!$back)
-				$linktable = 'LinkBackend';
-			else
-				$linktable = 'Link';
+			$linktable = $this->getlinktable(!$back);
 
 			return $this->ports[$this->last][$linktable]['remote_id'];
 		}
@@ -224,25 +247,29 @@ class pv_linkchain {
 		else
 			$object = $this->objcache[$object_id];
 
+		if(0)
 		if($object['IPV4OBJ'])
 			$this->last = $port_id;
 
+		//echo "____".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
 		$remote_id = $this->ports[$port_id][$linktable]['remote_id'];
 
 		if($remote_id)
 		{
+			$this->linkcount++;
 			/* set reverse link on remote port */
 			$this->ports[$remote_id][$linktable] = pv_getPortInfo($remote_id, $linktable);
 
 			return $this->_getlinks($remote_id, !$back);
 		}
 
+		//echo "_X___".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
 		return $port_id;
 	}
 
 	function getchain()
 	{
-		$remote_id = $this->start;
+		$remote_id = $this->first;
 
 		// if not Link use LinkBackend
 		$back = $this->ports[$remote_id]['Link']['remote_id'];
@@ -253,14 +280,15 @@ class pv_linkchain {
 		{
 			$back = !$back;
 
+			$linktable = $this->getlinktable($back);
 			if($back)
 			{
-				$linktable = 'LinkBackend';
+			//	$linktable = 'LinkBackend';
 				$arrow = ' => ';
 			}
 			else
 			{
-				$linktable = 'Link';
+			//	$linktable = 'Link';
 				$arrow = ' --> ';
 			}
 
@@ -278,7 +306,7 @@ class pv_linkchain {
 			if($remote_id)
 				$chain .= $arrow."<br>";
 
-			if($this->loop && $remote_id == $this->start)
+			if($this->loop && $remote_id == $this->first)
 				return $chain."LOOP!<br>";
 
 		}
@@ -288,7 +316,7 @@ class pv_linkchain {
 
 	function getchainhtml()
 	{
-		$remote_id = $this->start;
+		$remote_id = $this->first;
 
 		// if not Link use LinkBackend
 		$back = $this->ports[$remote_id]['Link']['remote_id'];
@@ -298,15 +326,16 @@ class pv_linkchain {
 		for(;$remote_id;)
 		{
 			$back = !$back;
+			$linktable = $this->getlinktable($back);
 
 			if($back)
 			{
-				$linktable = 'LinkBackend';
+			//	$linktable = 'LinkBackend';
 				$arrow = ' => ';
 			}
 			else
 			{
-				$linktable = 'Link';
+			//	$linktable = 'Link';
 				$arrow = ' --> ';
 			}
 
@@ -317,7 +346,7 @@ class pv_linkchain {
 			else
 				$chain .= "<tr><td>".$port['object_name']."</td><td> [".$port['name']."]</td>";
 
-			if($remote_id == $this->start || $remote_id == $this->end)
+			if($remote_id == $this->first || $remote_id == $this->last)
 				$chain .= "<td><div name=\"port${remote_id}-status\"></div></td>";
 			else
 				$chain .= "<td></td>";
@@ -329,7 +358,7 @@ class pv_linkchain {
 			else
 				$chain .= "<td></td></tr>";
 
-			if($this->loop && $remote_id == $this->start)
+			if($this->loop && $remote_id == $this->first)
 			{
 				$chain .= "LOOP!<br>";
 				break;
@@ -341,6 +370,32 @@ class pv_linkchain {
 
 		return $chain;
 	}
+
+	/* Iterator */
+	function rewind() {
+		$this->currentid = $this->first;
+		$this->back = !$this->ports[$this->currentid]['Link']['remote_id'];
+	}
+
+	function current() {
+		$linktable = $this->getlinktable($this->back);
+		return $this->ports[$this->currentid][$linktable];
+	}
+
+	function key() {
+		return $this->currentid;
+	}
+
+	function next() {
+		$linktable = $this->getlinktable($this->back);
+		$this->currentid = $this->ports[$this->currentid][$linktable]['remote_id'];
+		$this->back = !$this->back;
+	}
+
+	function valid() {
+		return $this->currentid;
+	}
+
 } // pv_linkchain
 
 /*
@@ -1236,7 +1291,42 @@ class cytoscapedata
 	function addlinkchain($linkchain, $index) {
 		//addnodes
 		//addedge
-		$remote_id = $linkchain->start;
+
+		//	portlist::var_dump_html($linkchain);
+		foreach($linkchain as $id => $port)
+		{
+		//	echo $id;
+
+			if(!isset($this->nodes[$port['object_id']]))
+			{
+				$text = $port['object_name'];
+				$this->addnode($port['object_id'], array('label' => $port['object_name'], 'text' => $text));
+			}
+
+			$text = $port['name'];
+			$this->addnode($port['id'], array( 'label' => $port['name'], 'parent' => $port['object_id'], 'text' => $text, 'index' => $index ));
+			//$this->addnode('l_'.$port['id'], array( 'label' => $port['name'], 'parent' => $port['id'], 'text' => $text ));
+
+
+			if($port['remote_id'])
+			{
+				$this->addedge($port['id']."_".$port['remote_id'], $port['id'], $port['remote_id'], array('label' => $port['cableid'], 'type' => $linkchain->getlinktype()));
+			}
+
+		}
+
+		if(0)
+		if($linkchain->first != $linkchain->last )
+		{
+				$first = $linkchain->first;
+				$last = $linkchain->last;
+				$this->addedge("l${first}_${last}", $first, $last, array('type' => 'logical', 'label' => "logical"));
+		}
+
+		return;
+		/* ---------------------------------------*/
+
+		$remote_id = $linkchain->first;
 
 		// if not Link use LinkBackend
 		$back = $linkchain->ports[$remote_id]['Link']['remote_id'];
@@ -1274,7 +1364,7 @@ class cytoscapedata
 
 			$remote_id = $port['remote_id'];
 
-			if($linkchain->loop && $remote_id == $linkchain->start)
+			if($linkchain->loop && $remote_id == $linkchain->first)
 				$loop = '1';
 			else
 				$loop = '0';
@@ -1282,7 +1372,7 @@ class cytoscapedata
 			if($remote_id)
 				$this->addedge($port['id'].$remote_id, $port['id'], $remote_id, array('label' => $port['cableid'], 'type' => $linktype, 'loop' => $loop));
 
-			if($linkchain->loop && $remote_id == $linkchain->start)
+			if($linkchain->loop && $remote_id == $linkchain->first)
 				break;
 
 		}
@@ -1303,7 +1393,8 @@ class cytoscapedata
 		foreach($object['ports'] as $key => $port)
 		{
 			$i++;
-			$this->addlinkchain(new pv_linkchain($port['id']), $i);
+			$lc = new pv_linkchain($port['id']);
+			$this->addlinkchain($lc, $i);
 			//if($i == 2)
 			//	break;
 		}
@@ -1732,10 +1823,8 @@ $.ajax({
 				rankDir: 'TB',
 				/*
 				edgeWeight: function(edge) {
-						if(edge.data('type') == 'front')
+						if(edge.data('type') != 'logical')
 							return 1;
-						else
-							return 1000;
 					},
 				*/
 				});
