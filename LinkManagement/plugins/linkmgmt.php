@@ -230,7 +230,14 @@ class pv_linkchain implements Iterator {
 
 			$linktable = $this->getlinktable(!$back);
 
-			return $this->ports[$this->last][$linktable]['remote_id'];
+			//echo "$port_id --".$this->last."<br>";
+			//portlist::var_dump_html($this);
+
+			if($this->last)
+				return $this->ports[$this->last][$linktable]['remote_id'];
+			else
+				return $this->ports[$port_id][$linktable]['remote_id'];
+				
 		}
 
 		$port = pv_getPortInfo($port_id, $linktable);
@@ -388,7 +395,14 @@ class pv_linkchain implements Iterator {
 
 	function next() {
 		$linktable = $this->getlinktable($this->back);
-		$this->currentid = $this->ports[$this->currentid][$linktable]['remote_id'];
+
+		$remote_id = $this->ports[$this->currentid][$linktable]['remote_id'];
+	
+		if($this->loop && $remote_id == $this->first)
+			$this->currentid = false;
+		else
+			$this->currentid = $remote_id;
+
 		$this->back = !$this->back;
 	}
 
@@ -1045,6 +1059,8 @@ class lm_Image_GraphViz extends Image_GraphViz {
 		case 'json':
 			//echo json_encode($gvmap->data->objects);
 			$gvmap->data->getlinkchains($object_id);
+			//$gvmap->data->allobjects();
+
 			//echo json_encode($gvmap->data->sort());
 			echo json_encode($gvmap->data->objects);
 			exit;
@@ -1293,24 +1309,30 @@ class cytoscapedata
 		//addedge
 
 		//	portlist::var_dump_html($linkchain);
+		//	echo "<br>LOOP-".$linkchain->loop."-".$linkchain->linked."-".true."-".false."<br>";
 		foreach($linkchain as $id => $port)
 		{
+
+			if(0)
+			if(!$linkchain->linked)
+				continue;
 		//	echo $id;
 
 			if(!isset($this->nodes[$port['object_id']]))
 			{
 				$text = $port['object_name'];
-				$this->addnode($port['object_id'], array('label' => $port['object_name'], 'text' => $text));
+				$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text));
 			}
 
 			$text = $port['name'];
-			$this->addnode($port['id'], array( 'label' => $port['name'], 'parent' => $port['object_id'], 'text' => $text, 'index' => $index ));
-			//$this->addnode('l_'.$port['id'], array( 'label' => $port['name'], 'parent' => $port['id'], 'text' => $text ));
+			$this->addnode('p'.$port['id'], array( 'label' => $port['name'], 'parent' => 'o'.$port['object_id'], 'text' => $text, 'index' => $index , 'loop' => ($linkchain->loop ? '1' : '0')));
+
+			//$this->addnode('l_'.$port['id'], array( 'label' => $port['name'], 'parent' => 'p'.$port['id'], 'text' => $text ));
 
 
 			if($port['remote_id'])
 			{
-				$this->addedge($port['id']."_".$port['remote_id'], $port['id'], $port['remote_id'], array('label' => $port['cableid'], 'type' => $linkchain->getlinktype()));
+				$this->addedge('e'.$port['id']."_".$port['remote_id'], 'p'.$port['id'], 'p'.$port['remote_id'], array('label' => $port['cableid'], 'type' => $linkchain->getlinktype(), 'loop' => $linkchain->loop));
 			}
 
 		}
@@ -1320,7 +1342,7 @@ class cytoscapedata
 		{
 				$first = $linkchain->first;
 				$last = $linkchain->last;
-				$this->addedge("l${first}_${last}", $first, $last, array('type' => 'logical', 'label' => "logical"));
+				$this->addedge("l${first}_${last}",'p'.$first, 'p'.$last, array('type' => 'logical', 'label' => "logical"));
 		}
 
 		return;
@@ -1397,6 +1419,27 @@ class cytoscapedata
 			$this->addlinkchain($lc, $i);
 			//if($i == 2)
 			//	break;
+		}
+	}
+
+	function allobjects()
+	{
+
+		/* to slow andugly graph */
+		return;
+		$this->elements = array();
+		$this->objects = array();
+		$this->nodes = array();
+		$this->edges = array();
+
+		$objects = listCells('object');
+
+		$i = 0;
+		foreach($objects as $object)
+		{
+			$this->getlinkchains($object['id']);
+			$i++;
+			if($i > 31 ) break;
 		}
 	}
 }
@@ -1503,6 +1546,15 @@ var cy = cytoscape({
 	'edge-text-rotation': 'autorotate'
       }
     },
+	{
+		selector: '.logical',
+		css: {
+			'line-color': '#0000ff',
+			'width': 5,
+			'curve-style': 'segments',
+			'z-index': 0
+		}
+	},
     {
       selector: ':selected',
       css: {
@@ -1735,19 +1787,20 @@ function highlight(evt) {
 	}
 	console.log('End Loop ' + i );
 
-	//console.log('Event Type: ' + evt.originalEvent.type)
+	console.log('Event Type: ' + evt.originalEvent.type)
+	console.log('Event Type: ' + evt.type)
 	//alleles.layout({name: 'circle'});
-	if(evt.originalEvent.type != 'mouseup')
+	if(evt.type != 'click')
 		return;
 
 	var single = alleles.clone();
 	single = single.add(alleles.parents().clone());
 
 	cy2.remove(cy2.elements());
-//	$('#cy2').cytoscape({layout: {name: 'cola'}, elements: single, ready: function(){ this.resize();}});
+//	$('#cy2').cytoscape({layout: {name: 'cola'}, elements: single,});
 	cy2.add(single);
 //	cy2.nodes().positions(function(i, node){ return {x: 0, y: 0};});
-	cy2.layout({name: 'dagre', rankDir: 'LR'});
+	cy2.layout({name: 'dagre', rankDir: 'LR', ready: layoutready});
 //	cy2.fit();
 }
 
@@ -1818,15 +1871,22 @@ $.ajax({
 
 			cy.layout({
 				name: 'dagre',
+				/*
 				nodeSep: 5,
-				//edgeSep: 10,
 				rankDir: 'TB',
+				*/
+				//edgeSep: 10,
 				/*
 				edgeWeight: function(edge) {
-						if(edge.data('type') != 'logical')
+						if(edge.data('type') == 'front')
+							return 10;
+						else
 							return 1;
+						
 					},
 				*/
+				ready: layoutready,
+				stop: layoutstop
 				});
 
 			//$('#cy').cytoscape({layout: {name: 'preset'}, elements: j, ready: function(){ this.resize();}});
@@ -1835,8 +1895,9 @@ $.ajax({
 			//cy.resize();
 
 			// mark current node
-			cy.$('#$object_id').style('background-color','#ffcccc');
+			//cy.$('#$object_id').style('background-color','#ffcccc');
 
+			if(0)
 			cy.elements().qtip({
 
 				content: function() {
@@ -1863,6 +1924,25 @@ $.ajax({
 
 
 }); // on dom ready
+
+function layoutready(evt) {
+	var cy = evt.cy;
+	// highlight current object
+	cy.$('#o$object_id').style('background-color','#ffcccc');
+
+	var e = cy.$('[loop = "1"]').style('background-color','#ff6666');
+
+//	console.log(e[0].data('loop'));
+
+	cy.add({group: 'edges', data: {id:'l691_2991', source: 'p691', target: 'p2991', label: 'test'}, classes: 'logical'});
+
+}
+
+function layoutstop(evt) {
+	var cy = evt.cy;
+	cy.elements().locked = true;
+//	cy.add({group: 'nodes', data: {id:'l2493', parent:'p2943', label: 'test'}});
+}
 </script>
 </head>
 <body>
@@ -1915,7 +1995,7 @@ class linkmgmt_gvmap {
 		error_reporting($this->errorlevel & ~E_STRICT);
 
 		$graphattr = array(
-					'rankdir' => 'RL',
+					'rankdir' => 'LR',
 				//	'ranksep' => '0',
 					'nodesep' => '0',
 				//	'overlay' => false,
@@ -1932,6 +2012,19 @@ class linkmgmt_gvmap {
 		//$this->gv = new Image_GraphViz(true, $graphattr, "map".$object_id);
 		$this->gv = new lm_Image_GraphViz(true, $graphattr, "map".$object_id);
 
+		$object['ports'] = pv_getObjectPortsAndLinks ($object_id);
+
+		$i = 0;
+		foreach($object['ports'] as $key => $port)
+		{
+			$i++;
+			$lc = new pv_linkchain($port['id']);
+			$this->addlinkchain($lc, $i);
+			//if($i == 2)
+			//	break;
+		}
+		return;
+		/* --------------------------- */
 		if($object_id === NULL)
 		{
 			/* all objects ! */
@@ -2007,6 +2100,230 @@ class linkmgmt_gvmap {
 
 	function __destruct() {
 		error_reporting($this->errorlevel);
+	}
+
+	function addlinkchain($linkchain, $index)
+	{
+		global $lm_multilink_port_types;
+
+		foreach($linkchain as $id => $port)
+		{
+			$cluster_id = "c".$port['object_id'];
+
+			if(
+				!isset($gv->graph['clusters'][$cluster_id]) &&
+				!isset($gv->graph['subgraphs'][$cluster_id])
+			) {
+				$object_id = $port['object_id'];
+				$object = spotEntity ('object', $object_id);
+
+				// ip addresses
+				amplifyCell($object);
+				$object['portip'] = array();
+				foreach($object['ipv4'] as $ipv4)
+				{
+					$object['portip'][$ipv4['osif']] = $ipv4['addrinfo']['ip'];
+				}
+
+			//	$object['attr'] = getAttrValues($object_id);
+
+				$clusterattr = array();
+
+				$this->_getcolor('cluster', 'default', $this->alpha, $clusterattr, 'color');
+				$this->_getcolor('cluster', 'default', $this->alpha, $clusterattr, 'fontcolor');
+
+				if($this->object_id == $object_id)
+				{
+					$clusterattr['rank'] = 'source';
+
+					$this->_getcolor('cluster', 'current', $this->alpha, $clusterattr, 'color');
+					$this->_getcolor('cluster', 'current', $this->alpha, $clusterattr, 'fontcolor');
+				}
+
+				$clustertitle = "${object['dname']}";
+				$text = "${object['dname']}";
+				$clusterattr['tooltip'] = $clustertitle;
+
+				unset($_GET['module']); // makeHrefProcess adds this
+				unset($_GET['port_id']);
+				unset($_GET['remote_id']);
+				$_GET['object_id'] = $object_id;
+				//$_GET['hl'] = 'o';
+
+				$clusterattr['URL'] = $this->_makeHrefProcess($_GET);
+
+				//has_problems
+				if($object['has_problems'] != 'no')
+				{
+					$clusterattr['style'] = 'filled';
+					$this->_getcolor('cluster', 'problem', $this->alpha, $clusterattr, 'fillcolor');
+				}
+
+				if(!empty($object['container_name']))
+				{
+					$clustertitle .= "<BR/>${object['container_name']}";
+					$text .= "\n${object['container_name']}";
+				}
+
+				if($object['rack_id'])
+				{
+					$rack = spotEntity('rack', $object['rack_id']);
+
+					if(!empty($rack['row_name']) || !empty($rack['name']))
+					{
+						$clustertitle .= "<BR/>${rack['row_name']} / ${rack['name']}";
+						$text .= "\n${rack['row_name']} / ${rack['name']}";
+					}
+				}
+
+				$embedin = $object['container_id'];
+				if(empty($embedin))
+					$embedin = 'default';
+				else
+				{
+					$embedin = "c$embedin"; /* see cluster_id */
+
+					/* add container / cluster if not already exists */
+					$this->_add($gv, $object['container_id'], NULL);
+				}
+
+				$clusterattr['id'] = "$object_id----"; /* used for js context menu */
+
+				$this->gv->addCluster($cluster_id, $port['object_name'], $clusterattr, $embedin);
+			}
+
+
+				$nodelabel = htmlspecialchars("${port['name']}");
+				$text = $nodelabel;
+
+				if($port['iif_id'] != '1' )
+				{
+					$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['iif_name']}</FONT>";
+					$text .= "\n".$port['iif_name'];
+				}
+
+				$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['oif_name']}</FONT>";
+				$text .= "\n".$port['oif_name'];
+
+				// add ip address
+				if($object)
+					if(isset($object['portip'][$port['name']]))
+					{
+						$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">".$object['portip'][$port['name']]."</FONT>";
+						$text .= "\n".$object['portip'][$port['name']];
+					}
+
+				$nodeattr = array(
+							'label' => $nodelabel,
+						);
+
+				$this->_getcolor('port', 'default',$this->alpha, $nodeattr, 'fontcolor');
+				$this->_getcolor('oif_id', $port['oif_id'],$this->alpha, $nodeattr, 'color');
+
+				if($this->port_id == $port['id']) {
+					$nodeattr['style'] = 'filled';
+					$nodeattr['fillcolor'] = $this->_getcolor('port', 'current', $this->alpha);
+				}
+
+				if($this->remote_id == $port['id']) {
+					$nodeattr['style'] = 'filled';
+					$nodeattr['fillcolor'] = $this->_getcolor('port', 'remote', $this->alpha);
+				}
+
+				$nodeattr['tooltip'] = htmlspecialchars("${port['name']}");
+
+				unset($_GET['module']);
+				unset($_GET['remote_id']);
+				$_GET['object_id'] = $port['object_id'];
+				$_GET['port_id'] = $port['id'];
+				$_GET['hl'] = 'p';
+
+				$nodeattr['URL'] = $this->_makeHrefProcess($_GET);
+				$nodeattr['id'] = "${port['object_id']}-${port['id']}--"; /* for js context menu */
+
+				$this->gv->addNode($port['id'],
+						$nodeattr,
+						"c${port['object_id']}"); /* see cluster_id */
+
+			$remote_id = $port['remote_id'];
+
+			if($remote_id)
+			{
+				if(
+					!isset($gv->graph['edgesFrom'][$port['id']][$port['remote_id']]) &&
+					!isset($gv->graph['edgesFrom'][$port['remote_id']][$port['id']])
+				) {
+
+					$linktype = $linkchain->getlinktype();
+
+					$edgetooltip = $port['object_name'].':'.$port['name'].
+							' - '.$port['cableid'].' -> '.
+							$port['remote_name'].':'.$port['remote_object_name'];
+
+					$edgeattr = array(
+							'fontsize' => 8,
+							'label' => htmlspecialchars($port['cableid']),
+							'tooltip' => $edgetooltip,
+							'sametail' => $linktype,
+							'samehead' => $linktype,
+						);
+
+					$this->_getcolor('edge', 'default', $this->alpha, $edgeattr, 'color');
+					$this->_getcolor('edge', 'default', $this->alpha, $edgeattr, 'fontcolor');
+
+					if($linktype == 'back' )
+					{
+						$edgeattr['style'] =  'dashed';
+						$edgeattr['arrowhead'] = 'none';
+						$edgeattr['arrowtail'] = 'none';
+
+						/* multilink ports */
+						if(in_array($port['oif_id'], $lm_multilink_port_types))
+						{
+							$edgeattr['dir'] = 'both';
+							$edgeattr['arrowtail'] = 'dot';
+						}
+
+						// TODO
+						if(0)
+						if(in_array($port['remote_oif_id'], $lm_multilink_port_types))
+						{
+							$edgeattr['dir'] = 'both';
+							$edgeattr['arrowhead'] = 'dot';
+						}
+					}
+
+					if(
+						($port['id'] == $this->port_id && $port['remote_id'] == $this->remote_id) ||
+						($port['id'] == $this->remote_id && $port['remote_id'] == $this->port_id)
+					)
+					{
+						$this->_getcolor('edge', 'highlight', 'ff', $edgeattr, 'color');
+						$edgeattr['penwidth'] = 2; /* bold */
+					}
+
+					unset($_GET['module']);
+					$_GET['object_id'] = $port['object_id'];
+					$_GET['port_id'] = $port['id'];
+					$_GET['remote_id'] = $port['remote_id'];
+
+					$edgeattr['URL'] = $this->_makeHrefProcess($_GET);
+
+					$edgeattr['id'] = $port['object_id']."-".$port['id']."-".$port['remote_id']."-".$linktype; /* for js context menu  */
+
+					$this->gv->addEdge(array($port['id'] => $port['remote_id']),
+								$edgeattr,
+								array(
+									$port['id'] => $linktype,
+									$port['remote_id'] => $linktype,
+								)
+							);
+
+				}
+			}
+
+
+		}
 	}
 
 	function setFalseOnError($newvalue)
