@@ -184,14 +184,16 @@ class pv_linkchain implements Iterator {
 		if(!$this->loop)
 			$this->first = $this->_getlinks($port_id, true);
 		else
-			$this->first = $this->last;
+		{
+			$linktable = $this->getlinktable(true);
 
-		if($this->first == $this->last)
-			$this->linked = false;
-		else
-			$this->linked = true;
+			$this->first = $this->ports[$this->last][$linktable]['remote_id'];
 
-	//	echo "END ".$this->init." - ".$this->first." - ".$this->last."<br>";
+			///$this->first = $this->last;
+		}
+
+		$this->linked = ($this->linkcount > 0);
+		//echo "END ".$this->init." - ".$this->first." - ".$this->last."-".$this->loop."<br>";
 	}
 
 	function getlinktable($back)
@@ -1325,16 +1327,25 @@ class cytoscapedata
 			}
 
 			$text = $port['name'];
-			$this->addnode('p'.$port['id'], array( 'label' => $port['name'], 'parent' => 'o'.$port['object_id'], 'text' => $text, 'index' => $index , 'loop' => ($linkchain->loop ? '1' : '0')));
+			$nodedata = array( 'label' => $port['name'], 'parent' => 'o'.$port['object_id'], 'text' => $text, 'index' => $index , 'loop' => ($linkchain->loop ? '1' : '0'));
 
 			//$this->addnode('l_'.$port['id'], array( 'label' => $port['name'], 'parent' => 'p'.$port['id'], 'text' => $text ));
 
 
 			if($port['remote_id'])
 			{
-				$this->addedge('e'.$port['id']."_".$port['remote_id'], 'p'.$port['id'], 'p'.$port['remote_id'], array('label' => $port['cableid'], 'type' => $linkchain->getlinktype(), 'loop' => $linkchain->loop));
+				$edgedata = array('label' => $port['cableid'], 'type' => $linkchain->getlinktype(), 'loop' => $linkchain->loop);
+
+				if($linkchain->loop && $port['remote_id'] == $linkchain->first)
+				{
+					$nodedata['loopedge'] = array( 'id' => 'el'.$port['id']."_".$port['remote_id'], 'source' => 'p'.$port['id'], 'target' => 'p'.$port['remote_id'], 'data' => $edgedata);
+				}
+				//else
+
+					$this->addedge('e'.$port['id']."_".$port['remote_id'], 'p'.$port['id'], 'p'.$port['remote_id'], $edgedata);
 			}
 
+			$this->addnode('p'.$port['id'], $nodedata);
 		}
 
 		if(0)
