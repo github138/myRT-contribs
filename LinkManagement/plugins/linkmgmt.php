@@ -1338,10 +1338,9 @@ class cytoscapedata
 
 				if($linkchain->loop && $port['remote_id'] == $linkchain->first)
 				{
-					$nodedata['loopedge'] = array( 'id' => 'el'.$port['id']."_".$port['remote_id'], 'source' => 'p'.$port['id'], 'target' => 'p'.$port['remote_id'], 'data' => $edgedata);
+					$nodedata['loopedge'] = array('group' => 'edges', 'data' => array( 'id' => 'le'.$port['id']."_".$port['remote_id'], 'source' => 'p'.$port['id'], 'target' => 'p'.$port['remote_id']) +  $edgedata);
 				}
-				//else
-
+				else
 					$this->addedge('e'.$port['id']."_".$port['remote_id'], 'p'.$port['id'], 'p'.$port['remote_id'], $edgedata);
 			}
 
@@ -1490,14 +1489,7 @@ body {
 <script src="js/cytoscape-qtip.js"></script>
 <script>
 $(function(){ // on dom ready
-
-var cy = cytoscape({
-  container: document.getElementById('cy'),
-
-  boxSelectionEnabled: false,
-  autounselectify: true,
-
-  style: [
+  var cystyle = [
     {
       selector: 'node',
       css: {
@@ -1566,6 +1558,12 @@ var cy = cytoscape({
 			'z-index': 0
 		}
 	},
+	{
+		selector: '.loopedge',
+		css: {
+			'curve-style': 'segments',
+		}
+	},
     {
       selector: ':selected',
       css: {
@@ -1589,163 +1587,20 @@ var cy = cytoscape({
         'background-color': '#00ff00'
 	}
    }
-  ],
-
-wheelSensitivity: 0.1,
- /* elements: {
-    nodes: [
-      { data: { id: 'a', parent: 'b' }, position: { x: 215, y: 85 } },
-      { data: { id: 'b' } },
-      { data: { id: 'c', parent: 'b' }, position: { x: 300, y: 85 } },
-      { data: { id: 'd' }, position: { x: 215, y: 175 } },
-      { data: { id: 'e' } },
-      { data: { id: 'f', parent: 'e' }, position: { x: 300, y: 175 } }
-    ],
-    edges: [
-      { data: { id: 'ad', source: 'a', target: 'd' } },
-      { data: { id: 'eb', source: 'e', target: 'b' } }
-
-    ]
-  },
-*/
-
-/*  layout: {
-    name: 'cola'
-    //padding: 5
-  },
-*/
-/*
-ready: function(){
-    window.cy = this;
-
-	this.nodes().qtip({
-		content: 'ID: Hello!',
-		position: {
-			my: 'top center',
-			at: 'bottom center'
-		},
-		style: {
-			classes: 'qtip-bootstrap',
-			tip: {
-				width: 16,
-				height: 8
-			}
-		}
-	});
-
-    var dijkstra = cy.elements().dijkstra('#441');
-
-    var bfs = dijkstra.pathTo( cy.$('#6707') );
-    var x=0;
-    var highlightNextEle = function(){
-      if(x<bfs.length){
-     var el=bfs[x];
-     el.addClass('highlighted');
-        x++;
-       // setTimeout(highlightNextEle, 500);
-	highlightNextEle();
-      }
-       };
-    highlightNextEle();
-  } // ready function
-*/
-});
+  ];
 
 var cy2 = cytoscape({
-  container: document.getElementById('cy2'),
+	container: document.getElementById('cy2'),
 
-  boxSelectionEnabled: false,
-  autounselectify: true,
-
-  style: [
-    {
-      selector: 'node',
-      css: {
-        'content': 'data(id)',
-	'text-wrap': 'wrap'
-      },
-      style: {
-        'background-color': '#666',
-        'label': 'data(text)',
-	'width': 'label',
-        'text-valign': 'center',
-        'text-halign': 'center',
-	'text-wrap': 'wrap'
-/*	'shape': function(ele) {
-			return 'rectangle';
-		},
-*/
-      }
-    },
-    {
-      selector: '\$node > node',
-      css: {
-        'padding-top': '10px',
-        'padding-left': '10px',
-        'padding-bottom': '10px',
-        'padding-right': '10px',
-        'text-valign': 'top',
-        'text-halign': 'center',
-        'background-color': '#bbb'
-      }
-    },
-    {
-      selector: 'edge',
-      css: {
-        'target-arrow-shape': 'triangle',
-	'line-color': function(ele){
-				if(ele.data('type') == 'front')
-					return 'black';
-				else
-					return 'grey';
-			 },
-	'line-style': function(ele){
-				if(ele.data('type') == 'front')
-					return 'solid';
-				else
-					return 'dashed';
-			 },
-	'width': function(ele){
-				if(ele.data('type') == 'front')
-					return '3';
-				else
-					return '5';
-			 },
-//	'curve-style': 'segments',
-	'font-size': '6',
-        'label': 'data(label)',
-	'edge-text-rotation': 'autorotate'
-      }
-    },
-    {
-      selector: ':selected',
-      css: {
-        'background-color': 'black',
-        'line-color': 'black',
-        'target-arrow-color': 'black',
-        'source-arrow-color': 'black'
-      }
-    },
-    {
-	selector: '.highlighted',
-	css: {
-        'line-color': '#ff0000',
-        'background-color': '#ff0000'
-      }
-	},
-    {
-	selector: '.clhighlighted',
-	css: {
-        'line-color': '#00ff00',
-        'background-color': '#00ff00'
-	}
-   }
-  ],
-
-wheelSensitivity: 0.1,
+	boxSelectionEnabled: false,
+	autounselectify: true,
+	style: cystyle,
+	wheelSensitivity: 0.1,
 });
 
 function highlight(evt) {
+
+	cy = evt.cy;
 
 	var hlclass = evt.data.hlclass;
 	var ele = evt.cyTarget;
@@ -1815,10 +1670,6 @@ function highlight(evt) {
 //	cy2.fit();
 }
 
-//cy.on('mouseover', { hlclass: 'highlighted' }, tooltip );
-cy.on('mouseover', { hlclass: 'highlighted' }, highlight );
-cy.on('click', { hlclass: 'clhighlighted' }, highlight );
-
 function tooltip(evt) {
 
 	var ele = evt.cyTarget;
@@ -1867,6 +1718,7 @@ $.ajax({
 	dataTye: 'json',
 	error: function(){ alert("Error loading"); },
 	success: function(data) {
+
 			var j = JSON.parse(data);
 			if(j.length == 0)
 			{
@@ -1874,12 +1726,28 @@ $.ajax({
 				window.close();
 				return;
 			}
-			cy.add(j);
+var cy = cytoscape({
+	container: document.getElementById('cy'),
+
+	boxSelectionEnabled: false,
+	autounselectify: true,
+	style: cystyle,
+	wheelSensitivity: 0.1,
+	elements: j,
+	layout: { name: 'dagre', ready: layoutready, stop: layoutstop }
+});
+
+//cy.on('mouseover', { hlclass: 'highlighted' }, tooltip );
+cy.on('mouseover', { hlclass: 'highlighted' }, highlight );
+cy.on('click', { hlclass: 'clhighlighted' }, highlight );
+
+			//cy.add(j);
 
 			/*
 				TODO: node ranking
 			*/
 
+			if(0)
 			cy.layout({
 				name: 'dagre',
 				/*
@@ -1899,14 +1767,6 @@ $.ajax({
 				ready: layoutready,
 				stop: layoutstop
 				});
-
-			//$('#cy').cytoscape({layout: {name: 'preset'}, elements: j, ready: function(){ this.resize();}});
-			//$('#cy2').cytoscape({layout: {name: 'grid'}, elements: j, ready: function(){ this.resize();}});
-
-			//cy.resize();
-
-			// mark current node
-			//cy.$('#$object_id').style('background-color','#ffcccc');
 
 			if(0)
 			cy.elements().qtip({
@@ -1929,11 +1789,6 @@ $.ajax({
 		} // success function
 	});
 
-
-
-
-
-
 }); // on dom ready
 
 function layoutready(evt) {
@@ -1945,14 +1800,25 @@ function layoutready(evt) {
 
 //	console.log(e[0].data('loop'));
 
-	cy.add({group: 'edges', data: {id:'l691_2991', source: 'p691', target: 'p2991', label: 'test'}, classes: 'logical'});
+//	cy.add({group: 'edges', data: {id:'l691_2991', source: 'p691', target: 'p2991', label: 'test'}, classes: 'logical'});
 
 }
 
 function layoutstop(evt) {
 	var cy = evt.cy;
-	cy.elements().locked = true;
+//	cy.elements().locked = true;
 //	cy.add({group: 'nodes', data: {id:'l2493', parent:'p2943', label: 'test'}});
+
+	var les = cy.$('[loopedge]');
+
+	if(les)
+		cy.batch( function() {
+			les.each(function(i, ele) {
+				var le = ele.data('loopedge');
+				var edge = cy.add(le);
+				edge.addClass('loopedge');
+			});	
+		});
 }
 </script>
 </head>
