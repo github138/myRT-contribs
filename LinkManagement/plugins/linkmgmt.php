@@ -1333,7 +1333,7 @@ class cytoscapedata
 
 			if($port['remote_id'])
 			{
-				$edgedata = array('label' => $port['cableid'], 'type' => $linkchain->getlinktype(), 'loop' => $linkchain->loop);
+				$edgedata = array('label' => $port['cableid'], 'type' => $linkchain->getlinktype(), 'loop' => ($linkchain->loop ? '1' : '0'));
 
 				if($linkchain->loop && $port['remote_id'] == $linkchain->first)
 				{
@@ -1634,13 +1634,13 @@ function highlight(evt) {
 	if(evt.type != 'click')
 		return;
 
-	var single = hleles.clone();
-	single = single.add(hleles.parents().clone());
+	var hleles2 = hleles.clone();
+	hleles2 = hleles2.add(hleles.parents().clone());
 
 	var cy2 = evt.data.cy2
 
 	cy2.remove(cy2.elements());
-	cy2.add(single);
+	cy2.add(hleles2);
 	cy2.layout({name: 'dagre', rankDir: 'LR', ready: layoutready});
 }
 
@@ -1787,7 +1787,7 @@ function layoutready(evt) {
 	// highlight current object
 	cy.$('#o$object_id').style('background-color','#ffcccc');
 
-	var e = cy.$('[loop = "1"]').style('background-color','#ff6666');
+	var e = cy.$('node[loop = "1"]').style('background-color','#ff6666');
 
 //	console.log(e[0].data('loop'));
 
@@ -1803,13 +1803,17 @@ function layoutstop(evt) {
 	var les = cy.$('[loopedge]');
 
 	if(les)
+	{
 		cy.batch( function() {
 			les.each(function(i, ele) {
 				var le = ele.data('loopedge');
 				var edge = cy.add(le);
 				edge.addClass('loopedge');
+				//edge.style('line-color', '#ffffff'); // TypeError text-transform undefined
 			});	
 		});
+		cy.$('edge[loop = "1"]').style('line-color','#ff6666');
+	}
 }
 </script>
 </head>
