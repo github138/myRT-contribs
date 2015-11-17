@@ -1315,7 +1315,6 @@ class cytoscapedata
 		foreach($linkchain as $id => $port)
 		{
 
-			if(0)
 			if(!$linkchain->linked)
 				continue;
 		//	echo $id;
@@ -1558,12 +1557,6 @@ $(function(){ // on dom ready
 			'z-index': 0
 		}
 	},
-	{
-		selector: '.loopedge',
-		css: {
-			'curve-style': 'segments',
-		}
-	},
     {
       selector: ':selected',
       css: {
@@ -1588,15 +1581,6 @@ $(function(){ // on dom ready
 	}
    }
   ];
-
-var cy2 = cytoscape({
-	container: document.getElementById('cy2'),
-
-	boxSelectionEnabled: false,
-	autounselectify: true,
-	style: cystyle,
-	wheelSensitivity: 0.1,
-});
 
 function highlight(evt) {
 
@@ -1662,6 +1646,8 @@ function highlight(evt) {
 	var single = alleles.clone();
 	single = single.add(alleles.parents().clone());
 
+	var cy2 = evt.data.cy2
+
 	cy2.remove(cy2.elements());
 //	$('#cy2').cytoscape({layout: {name: 'cola'}, elements: single,});
 	cy2.add(single);
@@ -1726,20 +1712,37 @@ $.ajax({
 				window.close();
 				return;
 			}
-var cy = cytoscape({
-	container: document.getElementById('cy'),
 
-	boxSelectionEnabled: false,
-	autounselectify: true,
-	style: cystyle,
-	wheelSensitivity: 0.1,
-	elements: j,
-	layout: { name: 'dagre', ready: layoutready, stop: layoutstop }
-});
+			var cy2 = cytoscape({
+				container: document.getElementById('cy2'),
+
+				boxSelectionEnabled: false,
+				autounselectify: true,
+				style: cystyle,
+				wheelSensitivity: 0.1,
+			});
+
+			cystyle.push({
+				selector: '.loopedge',
+				css: {
+					'curve-style': 'segments',
+				}
+			});
+
+			var cy = cytoscape({
+				container: document.getElementById('cy'),
+
+				boxSelectionEnabled: false,
+				autounselectify: true,
+				style: cystyle,
+				wheelSensitivity: 0.1,
+				elements: j,
+				layout: { name: 'dagre', ready: layoutready, stop: layoutstop }
+			});
 
 //cy.on('mouseover', { hlclass: 'highlighted' }, tooltip );
 cy.on('mouseover', { hlclass: 'highlighted' }, highlight );
-cy.on('click', { hlclass: 'clhighlighted' }, highlight );
+cy.on('click', { hlclass: 'clhighlighted', cy2: cy2 }, highlight );
 
 			//cy.add(j);
 
