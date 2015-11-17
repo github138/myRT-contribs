@@ -1,6 +1,7 @@
 <?php
 // TODO linkchain cytoscape create libs?
-//	corret port sorting use index at least for current object
+//	extend linkchain port/object data eg. ip address, rack, ...
+//	caching..
 /*
  * Link Management for RT >= 0.20.9
  *
@@ -1033,9 +1034,6 @@ class lm_Image_GraphViz extends Image_GraphViz {
 
 	if($debug) echo "-- DEBUG --<br>";
 
-	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl, $remote_id);
-
-	if($debug) echo "-- after gvmap --<br>";
 
 	switch($type) {
 		case 'gif':
@@ -1059,15 +1057,15 @@ class lm_Image_GraphViz extends Image_GraphViz {
 			$ctype = 'text/plain';
 			break;
 		case 'json':
-			//echo json_encode($gvmap->data->objects);
-			$gvmap->data->getlinkchains($object_id);
-			//$gvmap->data->allobjects();
-
-			//echo json_encode($gvmap->data->sort());
-			echo json_encode($gvmap->data->objects);
+			$data = new cytoscapedata();
+			$data->getlinkchains($object_id);
+			echo json_encode($data->objects);
 			exit;
-
 	}
+
+	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl, $remote_id);
+
+	if($debug) echo "-- after gvmap --<br>";
 
 	if($usemap)
 	{
@@ -1353,61 +1351,6 @@ class cytoscapedata
 				$last = $linkchain->last;
 				$this->addedge("l${first}_${last}",'p'.$first, 'p'.$last, array('type' => 'logical', 'label' => "logical"));
 		}
-
-		return;
-		/* ---------------------------------------*/
-
-		$remote_id = $linkchain->first;
-
-		// if not Link use LinkBackend
-		$back = $linkchain->ports[$remote_id]['Link']['remote_id'];
-
-		for(;$remote_id;)
-		{
-			$back = !$back;
-
-			if($back)
-			{
-				$linktable = 'LinkBackend';
-				$linktype= 'back';
-			}
-			else
-			{
-				$linktable = 'Link';
-				$linktype= 'front';
-			}
-
-			$port = $linkchain->ports[$remote_id][$linktable];
-
-			//portlist::var_dump_html($port);
-
-			if(!isset($this->nodes[$port['object_id']]))
-			{
-				$text = $port['object_name'];
-				$this->addnode($port['object_id'], array('label' => $port['object_name'], 'text' => $text));
-			}
-
-
-			$text = $port['name'];
-			$this->addnode($port['id'], array( 'label' => $port['name'], 'parent' => $port['object_id'], 'text' => $text, 'index' => $index ));
-
-			$index = null;
-
-			$remote_id = $port['remote_id'];
-
-			if($linkchain->loop && $remote_id == $linkchain->first)
-				$loop = '1';
-			else
-				$loop = '0';
-
-			if($remote_id)
-				$this->addedge($port['id'].$remote_id, $port['id'], $remote_id, array('label' => $port['cableid'], 'type' => $linktype, 'loop' => $loop));
-
-			if($linkchain->loop && $remote_id == $linkchain->first)
-				break;
-
-		}
-
 	}
 
 	function getlinkchains($object_id) {
