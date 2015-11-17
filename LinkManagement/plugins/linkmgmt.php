@@ -1059,6 +1059,7 @@ class lm_Image_GraphViz extends Image_GraphViz {
 		case 'json':
 			$data = new cytoscapedata();
 			$data->getlinkchains($object_id);
+			//$data->allobjects(); // ugly graph; slow
 			echo json_encode($data->objects);
 			exit;
 	}
@@ -1360,6 +1361,11 @@ class cytoscapedata
 		$this->nodes = array();
 		$this->edges = array();
 
+		$this->_getlinkchains($object_id);
+	}
+
+	function _getlinkchains($object_id) {
+
 	//	$object = spotEntity('object', $object_id);
 		$object['ports'] = pv_getObjectPortsAndLinks ($object_id);
 
@@ -1373,12 +1379,10 @@ class cytoscapedata
 			//	break;
 		}
 	}
-
 	function allobjects()
 	{
 
-		/* to slow andugly graph */
-		return;
+		/* to slow and ugly graph */
 		$this->elements = array();
 		$this->objects = array();
 		$this->nodes = array();
@@ -1389,7 +1393,7 @@ class cytoscapedata
 		$i = 0;
 		foreach($objects as $object)
 		{
-			$this->getlinkchains($object['id']);
+			$this->_getlinkchains($object['id']);
 			$i++;
 			if($i > 31 ) break;
 		}
@@ -1790,6 +1794,19 @@ class linkmgmt_gvmap {
 
 	public $data = NULL;
 
+	function addlinkchainsobject($object_id)
+	{
+
+		$object['ports'] = pv_getObjectPortsAndLinks ($object_id);
+
+		$i = 0;
+		foreach($object['ports'] as $key => $port)
+		{
+			$i++;
+			$lc = new pv_linkchain($port['id']);
+			$this->addlinkchain($lc, $i);
+		}
+	}
 
 	function __construct($object_id = NULL, $port_id = NULL, $allports = false, $hl = NULL, $remote_id = NULL) {
 		$this->allports = $allports;
@@ -1797,9 +1814,6 @@ class linkmgmt_gvmap {
 		$this->object_id = $object_id;
 		$this->port_id = $port_id;
 		$this->remote_id = $remote_id;
-
-
-		$this->data = new cytoscapedata();
 
 		$hllabel = "";
 
@@ -1827,18 +1841,6 @@ class linkmgmt_gvmap {
 		//$this->gv = new Image_GraphViz(true, $graphattr, "map".$object_id);
 		$this->gv = new lm_Image_GraphViz(true, $graphattr, "map".$object_id);
 
-		$object['ports'] = pv_getObjectPortsAndLinks ($object_id);
-
-		$i = 0;
-		foreach($object['ports'] as $key => $port)
-		{
-			$i++;
-			$lc = new pv_linkchain($port['id']);
-			$this->addlinkchain($lc, $i);
-			//if($i == 2)
-			//	break;
-		}
-		return;
 		/* --------------------------- */
 		if($object_id === NULL)
 		{
@@ -1855,7 +1857,8 @@ class linkmgmt_gvmap {
 			$objects = listCells('object');
 
 			foreach($objects as $obj)
-				$this->_add($this->gv, $obj['id'], NULL);
+				$this->addlinkchainsobject($obj['id']);
+			//	$this->_add($this->gv, $obj['id'], NULL);
 
 			return;
 		}
@@ -1869,12 +1872,14 @@ class linkmgmt_gvmap {
 						)
 				);
 
-			$this->_add($this->gv, $object_id, $port_id);
+			$this->addlinkchainsobject($object_id);
+			//$this->_add($this->gv, $object_id, $port_id);
 
 			$children = getEntityRelatives ('children', 'object', $object_id); //'entity_id'
 
 			foreach($children as $child)
-				$this->_add($this->gv, $child['entity_id'], NULL);
+				$this->addlinkchainsobject($obj['id']);
+			//	$this->_add($this->gv, $child['entity_id'], NULL);
 		}
 
 		switch($hl)
@@ -1883,7 +1888,8 @@ class linkmgmt_gvmap {
 			case 'port':
 				$hllabel = " (Port highlight)";
 				$this->alpha = '30';
-				$this->_add($this->gv, $object_id, NULL);
+				$this->addlinkchainsobject($object_id);
+				//$this->_add($this->gv, $object_id, NULL);
 				break;
 			case 'o':
 			case 'object':
@@ -1893,7 +1899,8 @@ class linkmgmt_gvmap {
 				$objects = listCells('object');
 
 				foreach($objects as $obj)
-					$this->_add($this->gv, $obj['id'], NULL);
+					$this->addlinkchainsobject($obj['id']);
+					//$this->_add($this->gv, $obj['id'], NULL);
 
 				break;
 
