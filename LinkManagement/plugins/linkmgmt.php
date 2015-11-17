@@ -1605,55 +1605,43 @@ function highlight(evt) {
 	}
 
 
-	console.log('Event ' + hlclass + ' ' + id );
+//	console.log('Event ' + hlclass + ' ' + id );
 
+	// remove existing highlights
 	cy.$('.' + hlclass).removeClass(hlclass);
-	var starteles = ele.neighborhood();
-	var alleles = ele.closedNeighborhood();
-	var eles = starteles;
 
-	for(i=0;i<10;i++)
+	var hleles = ele.closedNeighborhood();
+
+	var hlcount = hleles.length;
+
+	// max 100
+	for(i=0;i<100;i++)
 	{
-		alleles = alleles.closedNeighborhood();
+		hleles = hleles.closedNeighborhood();
 
-		// TODO loop direct neigbours only
-		// eles grows with each run
-		eles.addClass(hlclass);
-
-	//	console.log('nL: ' + eles.size() );
-	//	if(eles.length<2) { break; }
-
-		eles = eles.neighborhood();
-		if(starteles.anySame(eles))
-		{
-	//		console.log('Loop Same' + i );
-		if(0)
-		if(i>10)
-		{
-			console.log('Loop break' + i );
+		if(hlcount == hleles.length)
 			break;
-		}
-		}
-	}
-	console.log('End Loop ' + i );
 
-	console.log('Event Type: ' + evt.originalEvent.type)
-	console.log('Event Type: ' + evt.type)
-	//alleles.layout({name: 'circle'});
+		hlcount = hleles.length;
+
+	}
+	//console.log('End Loop ' + i );
+	hleles.addClass(hlclass);
+
+//	console.log('Event Type: ' + evt.originalEvent.type)
+//	console.log('Event Type: ' + evt.type)
+
 	if(evt.type != 'click')
 		return;
 
-	var single = alleles.clone();
-	single = single.add(alleles.parents().clone());
+	var single = hleles.clone();
+	single = single.add(hleles.parents().clone());
 
 	var cy2 = evt.data.cy2
 
 	cy2.remove(cy2.elements());
-//	$('#cy2').cytoscape({layout: {name: 'cola'}, elements: single,});
 	cy2.add(single);
-//	cy2.nodes().positions(function(i, node){ return {x: 0, y: 0};});
 	cy2.layout({name: 'dagre', rankDir: 'LR', ready: layoutready});
-//	cy2.fit();
 }
 
 function tooltip(evt) {
