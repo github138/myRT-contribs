@@ -1433,6 +1433,7 @@ body {
 <script src="js/dagre.js"></script>
 <script src="js/cytoscape-dagre.js"></script>
 <script src="js/cytoscape-qtip.js"></script>
+<script src="js/cytoscape.js-navigator.js_mod"></script>
 <script>
 $(function(){ // on dom ready
   var cystyle = [
@@ -1672,14 +1673,16 @@ $.ajax({
 				style: cystyle,
 				wheelSensitivity: 0.1,
 				elements: j,
-				layout: { name: 'dagre', ready: layoutready, stop: layoutstop }
+				layout: { name: 'dagre', ready: layoutready, stop: layoutstop },
+				ready: function() {
+							window.cy = this;
+							//$('#cy').cytoscapeNavigator({ }); // not working with cytoscape 2.5 at the moment
+				 },
 			});
 
-//cy.on('mouseover', { hlclass: 'highlighted' }, tooltip );
-cy.on('mouseover', { hlclass: 'highlighted' }, highlight );
-cy.on('click', { hlclass: 'clhighlighted', cy2: cy2 }, highlight );
-
-			//cy.add(j);
+			//cy.on('mouseover', { hlclass: 'highlighted' }, tooltip );
+			cy.on('mouseover', { hlclass: 'highlighted' }, highlight );
+			cy.on('click', { hlclass: 'clhighlighted', cy2: cy2 }, highlight );
 
 			/*
 				TODO: node ranking
@@ -1707,7 +1710,7 @@ cy.on('click', { hlclass: 'clhighlighted', cy2: cy2 }, highlight );
 				});
 
 			if(0)
-			cy.elements().qtip({
+			cy.$('node').qtip({
 
 				content: function() {
 						return "TEST"; //this.id();
@@ -1726,6 +1729,7 @@ cy.on('click', { hlclass: 'clhighlighted', cy2: cy2 }, highlight );
 			}); // qtip
 		} // success function
 	});
+
 
 }); // on dom ready
 
