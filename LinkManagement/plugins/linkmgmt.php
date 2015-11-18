@@ -299,7 +299,7 @@ class pv_linkchain implements Iterator {
 		/* get more port info */
 		// TODO
 		if(!empty($rack['row_name']) || !empty($rack['name']))
-			$port['rack_text'] = "${rack['row_name']} / ${rack['name']}";
+			$port['rack_text'] = "${rack['row_name']}\n${rack['name']}";
 
 		if($object)
 			if(isset($object['portip'][$port['name']]))
@@ -1476,15 +1476,16 @@ body {
 <meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
 <title>Compound nodes</title>
 <script src="js/jquery-1.4.4.min.js"></script>
-<script src="js/jquery.qtip.min.js"></script>
-<link rel="stylesheet" type="text/css" href="css/jquery.qtip.min.css">
 <script src="js/cytoscape.min.js"></script>
-<script src="js/cola.v3.min.js"></script>
-<script src="js/cytoscape-cola.js"></script>
 <script src="js/dagre.js"></script>
 <script src="js/cytoscape-dagre.js"></script>
-<script src="js/cytoscape-qtip.js"></script>
-<script src="js/cytoscape.js-navigator.js_mod"></script>
+<!--<script src="js/cola.v3.min.js"></script>
+<script src="js/cytoscape-cola.js"></script>-->
+<!--<link rel="stylesheet" type="text/css" href="css/jquery.qtip.min.css">-->
+<!--<script src="js/jquery.qtip.min.js"></script>-->
+<!--<script src="js/cytoscape-qtip.js"></script>-->
+<!--<script src="js/cytoscape-css-renderer.js"></script>-->
+<!--<script src="js/cytoscape.js-navigator.js_mod"></script>-->
 <script>
 $(function(){ // on dom ready
   var cystyle = [
@@ -1702,6 +1703,7 @@ $.ajax({
 
 			var cy2 = cytoscape({
 				container: document.getElementById('cy2'),
+				//renderer: { name: 'css' },
 
 				boxSelectionEnabled: false,
 				autounselectify: true,
