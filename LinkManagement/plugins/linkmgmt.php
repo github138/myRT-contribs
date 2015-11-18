@@ -1651,42 +1651,6 @@ function highlight(evt) {
 	cy2.layout({name: 'dagre', rankDir: 'LR', ready: layoutready});
 }
 
-function tooltip(evt) {
-
-	var ele = evt.cyTarget;
-
-	if(!ele.data)
-		return;
-
-	if(0)
-	$('#qtip').qtip({
-		content: 'ID: ' + ele.data('id') + ' ' + ele.data('text') + 'Hello!',
-		position: {
-			my: 'top center',
-			at: 'bottom center'
-		},
-		show: {
-			delay: 0,
-			event: false,
-			ready: true,
-			effect: false
-		},
-		style: {
-			classes: 'qtip-bootstrap',
-			tip: {
-				corner: true,
-				width: 16,
-				height: 8
-			}
-		},
-		hide: {
-			fixed: true,
-			event: false,
-			inactive: 2000
-		}
-	});
-}
-
 $.ajax({
 	type: "GET",
 	url: "https://10.49.130.104/RackTables/index.php",
@@ -1742,7 +1706,6 @@ $.ajax({
 				 },
 			});
 
-			//cy.on('mouseover', { hlclass: 'highlighted' }, tooltip );
 			cy.on('mouseover', { hlclass: 'highlighted' }, highlight );
 			cy.on('click', { hlclass: 'clhighlighted', cy2: cy2 }, highlight );
 
