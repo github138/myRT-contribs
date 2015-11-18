@@ -1118,6 +1118,14 @@ class lm_Image_GraphViz extends Image_GraphViz {
 			//$data->allobjects(); // ugly graph; slow
 			echo json_encode($data->objects);
 			exit;
+			break;
+		case 'jsonall':
+			$data = new cytoscapedata();
+			//$data->getlinkchains($object_id);
+			$data->allobjects(); // ugly graph; slow
+			echo json_encode($data->objects);
+			exit;
+			break;
 	}
 
 	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl, $remote_id);
@@ -1284,13 +1292,15 @@ class lm_Image_GraphViz extends Image_GraphViz {
 
 class cytoscapedata
 {
-	public $elements = array();
+//	public $elements = array();
 	public $objects = array();
 
-	private $nodes = array();
-	private $edges = array();
+//	private $nodes = array();
+//	private $edges = array();
 
 	private $sort = array();
+
+	public $ids = array();
 
 	function __construct()
 	{
@@ -1307,11 +1317,14 @@ class cytoscapedata
 
 		$node['data'] = $data;
 
-		$this->elements['nodes'][] = $node;
+	//	$this->elements['nodes'][] = $node;
 
 	//	$node['position'] = array('x' => 0, 'y' => 0 );
 		$this->objects[] = array('group' => 'nodes')  + $node;
 
+		$this->ids[$id] = $id;
+
+		return;
 
 		/* sort within parent */
 		$this->nodes[$id] = $node;
@@ -1333,12 +1346,11 @@ class cytoscapedata
 
 		$edge['data'] = $data;
 
-		$this->elements['edges'][] = $edge;
+		//$this->elements['edges'][] = $edge;
 
 		$this->objects[] = array('group' => 'edges') + $edge;
 
-
-		$this->edges[] = array('group' => 'edges') + $edge;
+		//$this->edges[] = array('group' => 'edges') + $edge;
 	}
 
 	function sort()
@@ -1369,6 +1381,9 @@ class cytoscapedata
 		//	echo "<br>LOOP-".$linkchain->loop."-".$linkchain->linked."-".true."-".false."<br>";
 		foreach($linkchain as $id => $port)
 		{
+
+			if(isset($this->ids['p'.$id]))
+				continue;
 
 		//	portlist::var_dump_html($port);
 			if(!$linkchain->linked)
@@ -1429,6 +1444,13 @@ class cytoscapedata
 		$i = 0;
 		foreach($object['ports'] as $key => $port)
 		{
+
+			if(isset($this->ids['p'.$port['id']]))
+			{
+			//	echo "BREAK ".$port['id'];
+				break;
+			}
+
 			$i++;
 			$lc = new pv_linkchain($port['id']);
 			$this->addlinkchain($lc, $i);
@@ -1450,9 +1472,10 @@ class cytoscapedata
 		$i = 0;
 		foreach($objects as $object)
 		{
+			//echo $object['id']."<br>";
 			$this->_getlinkchains($object['id']);
 			$i++;
-			if($i > 31 ) break;
+			if($i > 20 ) break;
 		}
 	}
 }
@@ -1482,16 +1505,16 @@ body {
 <meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
 <title>Compound nodes</title>
 <!--<script src="js/jquery-1.4.4.min.js"></script>-->
-<script src="js/jquery-1.11.3.min.js"></script>
-<script src="js/cytoscape.min.js"></script>
+<script src="js/jquery-1.11.3.js"></script>
+<script src="js/cytoscape.js"></script>
 <script src="js/dagre.js"></script>
 <script src="js/cytoscape-dagre.js"></script>
-<!--<script src="js/cola.v3.min.js"></script>
-<script src="js/cytoscape-cola.js"></script>-->
+<script src="js/cola.v3.min.js"></script>
+<script src="js/cytoscape-cola.js"></script>
 <link rel="stylesheet" type="text/css" href="css/jquery.qtip.min.css">
 <script src="js/jquery.qtip.min.js"></script>
 <script src="js/cytoscape-qtip.js"></script>
-<!--<script src="js/cytoscape-css-renderer.js"></script>-->
+<!--<script src="js/cytoscape-css-renderer_mod.js"></script>-->
 <!--<script src="js/cytoscape.js-navigator.js_mod"></script>-->
 <script>
 $(function(){ // on dom ready
@@ -1699,7 +1722,7 @@ $.ajax({
 				style: cystyle,
 				wheelSensitivity: 0.1,
 				elements: j,
-				layout: { name: 'dagre', ready: layoutready, stop: layoutstop },
+				layout: { name: 'dagre', nodeSep: 3, /* edgeSep: 30, */ ready: layoutready, stop: layoutstop },
 				ready: function() {
 							window.cy = this;
 							//$('#cy').cytoscapeNavigator({ }); // not working with cytoscape 2.5 at the moment
@@ -1734,6 +1757,7 @@ $.ajax({
 				stop: layoutstop
 				});
 
+			if(1)
 			cy.$(':child').qtip({
 
 				content: function() {
