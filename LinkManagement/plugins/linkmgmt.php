@@ -1375,7 +1375,7 @@ class cytoscapedata
 				$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text));
 			}
 
-			$text = $port['name'].(isset($port['portip']) ? "\n".$port['portip'] : "");
+			$text = (isset($port['portip']) ? $port['portip'] : $port['name']);
 			$nodedata = array( 'label' => $port['name'], 'parent' => 'o'.$port['object_id'], 'text' => $text, 'index' => $index , 'loop' => ($linkchain->loop ? '1' : '0'));
 
 			//$this->addnode('l_'.$port['id'], array( 'label' => $port['name'], 'parent' => 'p'.$port['id'], 'text' => $text ));
@@ -1475,15 +1475,16 @@ body {
 <meta charset=utf-8 />
 <meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
 <title>Compound nodes</title>
-<script src="js/jquery-1.4.4.min.js"></script>
+<!--<script src="js/jquery-1.4.4.min.js"></script>-->
+<script src="js/jquery-1.11.3.min.js"></script>
 <script src="js/cytoscape.min.js"></script>
 <script src="js/dagre.js"></script>
 <script src="js/cytoscape-dagre.js"></script>
 <!--<script src="js/cola.v3.min.js"></script>
 <script src="js/cytoscape-cola.js"></script>-->
-<!--<link rel="stylesheet" type="text/css" href="css/jquery.qtip.min.css">-->
-<!--<script src="js/jquery.qtip.min.js"></script>-->
-<!--<script src="js/cytoscape-qtip.js"></script>-->
+<link rel="stylesheet" type="text/css" href="css/jquery.qtip.min.css">
+<script src="js/jquery.qtip.min.js"></script>
+<script src="js/cytoscape-qtip.js"></script>
 <!--<script src="js/cytoscape-css-renderer.js"></script>-->
 <!--<script src="js/cytoscape.js-navigator.js_mod"></script>-->
 <script>
@@ -1651,6 +1652,7 @@ function tooltip(evt) {
 	if(!ele.data)
 		return;
 
+	if(0)
 	$('#qtip').qtip({
 		content: 'ID: ' + ele.data('id') + ' ' + ele.data('text') + 'Hello!',
 		position: {
@@ -1763,11 +1765,14 @@ $.ajax({
 				stop: layoutstop
 				});
 
-			if(0)
-			cy.$('node').qtip({
+			cy.$(':child').qtip({
 
 				content: function() {
-						return "TEST"; //this.id();
+
+						return this.id() + '<br>' 
+						+ 'Index: ' + this.data('index') + '<br>'
+						+ 'Name: ' + this.data('label') + '<br>'
+						+ 'Text: ' + this.data('text');
 					},
 				position: {
 					my: 'top center',
