@@ -1371,11 +1371,11 @@ class cytoscapedata
 
 			if(!isset($this->nodes[$port['object_id']]))
 			{
-				$text = $port['object_name'];
+				$text = $port['object_name'].(isset($port['rack_text']) ? "\n".$port['rack_text'] : "" );
 				$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text));
 			}
 
-			$text = $port['name'];
+			$text = $port['name'].(isset($port['portip']) ? "\n".$port['portip'] : "");
 			$nodedata = array( 'label' => $port['name'], 'parent' => 'o'.$port['object_id'], 'text' => $text, 'index' => $index , 'loop' => ($linkchain->loop ? '1' : '0'));
 
 			//$this->addnode('l_'.$port['id'], array( 'label' => $port['name'], 'parent' => 'p'.$port['id'], 'text' => $text ));
@@ -1708,6 +1708,7 @@ $.ajax({
 				style: cystyle,
 				wheelSensitivity: 0.1,
 			});
+			cy2.style().selector('node').style('label','data(text)');
 
 			cystyle.push({
 				selector: '.loopedge',
