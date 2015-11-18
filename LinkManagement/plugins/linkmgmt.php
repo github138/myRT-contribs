@@ -156,6 +156,8 @@ $lm_cache = array(
 //	return 'std';
 //} /* linkmgmt_tabtrigger */
 
+$lm_objcache = array();
+
 class pv_linkchain implements Iterator {
 
 	public $first = null;
@@ -175,9 +177,13 @@ class pv_linkchain implements Iterator {
 
 	function __construct($port_id, &$objectcache = null)
 	{
+		global $lm_objcache;
 
 		$this->init = $port_id;
-		$this->objcache = $objectcache;
+		if($objectcache === null)
+			$this->objcache = $lm_objcache;
+		else
+			$this->objcache = $objectcache;
 
 		// Link
 		$this->last = $this->_getlinks($port_id, false);
@@ -244,18 +250,62 @@ class pv_linkchain implements Iterator {
 		}
 
 		$port = pv_getPortInfo($port_id, $linktable);
-		$this->ports[$port_id][$linktable] = $port;
 
 		// check object IPv4
 		$object_id =  $port['object_id'];
-		if(!isset($this->objcache[$object_id]))
+		if(!isset($this->objcache['o'.$object_id]))
 		{
 			$object = spotEntity('object', $object_id);
 			$object['IPV4OBJ'] = considerConfiguredConstraint ($object, 'IPV4OBJ_LISTSRC');
-			$this->objcache[$object_id] = $object;
+
+			/* get more object info */
+
+			if(1)
+			{
+			// ip addresses
+			//amplifyCell($object); /* get ports, ipv4, ipv6, nat4 and files */
+			$object['ipv4'] = getObjectIPv4Allocations ($object_id);
+			$object['portip'] = array();
+			foreach($object['ipv4'] as $ipv4)
+			{
+				$object['portip'][$ipv4['osif']] = $ipv4['addrinfo']['ip'];
+			}
+			}
+
+			// rack
+			if(1)
+			if($object['rack_id'])
+			{
+				if(!isset($this->objcache['r'.$object['rack_id']]))
+				{
+					$rack = spotEntity('rack', $object['rack_id']);
+					$this->objcache['r'.$object['rack_id']] = $rack;
+				}
+				else
+					$rack = $this->objcache['r'.$object['rack_id']];
+
+				if(!empty($rack['row_name']) || !empty($rack['name']))
+				{
+					$object['rack_text'] = "${rack['row_name']} / ${rack['name']}";
+				}
+			}
+
+			$this->objcache['o'.$object_id] = $object;
+
 		}
 		else
-			$object = $this->objcache[$object_id];
+			$object = $this->objcache['o'.$object_id];
+
+		/* get more port info */
+		// TODO
+		if(!empty($rack['row_name']) || !empty($rack['name']))
+			$port['rack_text'] = "${rack['row_name']} / ${rack['name']}";
+
+		if($object)
+			if(isset($object['portip'][$port['name']]))
+				$port['portip'] = $object['portip'][$port['name']];
+
+		$this->ports[$port_id][$linktable] = $port;
 
 		if(0)
 		if($object['IPV4OBJ'])
@@ -1314,6 +1364,7 @@ class cytoscapedata
 		foreach($linkchain as $id => $port)
 		{
 
+		//	portlist::var_dump_html($port);
 			if(!$linkchain->linked)
 				continue;
 		//	echo $id;
