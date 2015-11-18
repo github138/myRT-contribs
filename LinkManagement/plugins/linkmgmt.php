@@ -167,6 +167,7 @@ class pv_linkchain implements Iterator {
 	public $linkcount = 0;
 
 	public $loop = false;
+	private $lastipobjport = null;
 
 	public $ports = array();
 
@@ -194,7 +195,15 @@ class pv_linkchain implements Iterator {
 		{
 			$linktable = $this->getlinktable(true);
 
-			$this->first = $this->ports[$this->last][$linktable]['remote_id'];
+			/* set first object */
+			$object_id = $this->ports[$port_id][$linktable]['object_id'];
+			$object = $this->objcache['o'.$object_id];
+
+			if($object['IPV4OBJ'])
+				$this->lastipobjport = $port_id;
+
+			$this->first = $this->lastipobjport;
+			$this->last = $this->ports[$this->first][$linktable]['remote_id'];
 
 			///$this->first = $this->last;
 		}
@@ -251,7 +260,6 @@ class pv_linkchain implements Iterator {
 
 		$port = pv_getPortInfo($port_id, $linktable);
 
-		// check object IPv4
 		$object_id =  $port['object_id'];
 		if(!isset($this->objcache['o'.$object_id]))
 		{
@@ -296,8 +304,10 @@ class pv_linkchain implements Iterator {
 		else
 			$object = $this->objcache['o'.$object_id];
 
+		if($object['IPV4OBJ'])
+			$this->lastipobjport = $port_id;
+
 		/* get more port info */
-		// TODO
 		if(!empty($rack['row_name']) || !empty($rack['name']))
 			$port['rack_text'] = "${rack['row_name']}\n${rack['name']}";
 
@@ -306,10 +316,6 @@ class pv_linkchain implements Iterator {
 				$port['portip'] = $object['portip'][$port['name']];
 
 		$this->ports[$port_id][$linktable] = $port;
-
-		if(0)
-		if($object['IPV4OBJ'])
-			$this->last = $port_id;
 
 		//echo "____".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
 		$remote_id = $this->ports[$port_id][$linktable]['remote_id'];
