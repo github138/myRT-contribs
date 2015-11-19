@@ -1908,8 +1908,8 @@ class linkmgmt_gvmap {
 			$objects = listCells('object');
 
 			foreach($objects as $obj)
-				$this->addlinkchainsobject($obj['id']);
-			//	$this->_add($this->gv, $obj['id'], NULL);
+				//$this->addlinkchainsobject($obj['id']); // TODO optimize for all objects
+				$this->_add($this->gv, $obj['id'], NULL); // for all still faster and nicer looking graph
 
 			return;
 		}
@@ -1990,14 +1990,6 @@ class linkmgmt_gvmap {
 				$object_id = $port['object_id'];
 				$object = spotEntity ('object', $object_id);
 
-				// ip addresses
-				amplifyCell($object);
-				$object['portip'] = array();
-				foreach($object['ipv4'] as $ipv4)
-				{
-					$object['portip'][$ipv4['osif']] = $ipv4['addrinfo']['ip'];
-				}
-
 			//	$object['attr'] = getAttrValues($object_id);
 
 				$clusterattr = array();
@@ -2014,8 +2006,6 @@ class linkmgmt_gvmap {
 				}
 
 				$clustertitle = "${object['dname']}";
-				$text = "${object['dname']}";
-				$clusterattr['tooltip'] = $clustertitle;
 
 				unset($_GET['module']); // makeHrefProcess adds this
 				unset($_GET['port_id']);
@@ -2033,21 +2023,10 @@ class linkmgmt_gvmap {
 				}
 
 				if(!empty($object['container_name']))
-				{
 					$clustertitle .= "<BR/>${object['container_name']}";
-					$text .= "\n${object['container_name']}";
-				}
 
-				if($object['rack_id'])
-				{
-					$rack = spotEntity('rack', $object['rack_id']);
-
-					if(!empty($rack['row_name']) || !empty($rack['name']))
-					{
-						$clustertitle .= "<BR/>${rack['row_name']} / ${rack['name']}";
-						$text .= "\n${rack['row_name']} / ${rack['name']}";
-					}
-				}
+				if(!empty($port['rack_text']))
+					$clustertitle .= "<BR/>${port['rack_text']}";
 
 				$embedin = $object['container_id'];
 				if(empty($embedin))
@@ -2061,8 +2040,9 @@ class linkmgmt_gvmap {
 				}
 
 				$clusterattr['id'] = "$object_id----"; /* used for js context menu */
+				$clusterattr['tooltip'] = $clustertitle;
 
-				$this->gv->addCluster($cluster_id, $port['object_name'], $clusterattr, $embedin);
+				$this->gv->addCluster($cluster_id, $clustertitle, $clusterattr, $embedin);
 			}
 
 
@@ -2079,12 +2059,8 @@ class linkmgmt_gvmap {
 				$text .= "\n".$port['oif_name'];
 
 				// add ip address
-				if($object)
-					if(isset($object['portip'][$port['name']]))
-					{
-						$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">".$object['portip'][$port['name']]."</FONT>";
-						$text .= "\n".$object['portip'][$port['name']];
-					}
+				if(isset($port['portip']))
+					$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">".$port['portip']."</FONT>";
 
 				$nodeattr = array(
 							'label' => $nodelabel,
@@ -2338,8 +2314,6 @@ class linkmgmt_gvmap {
 
 				$gv->addCluster($cluster_id, $clustertitle, $clusterattr, $embedin);
 
-				$this->data->addnode($object_id, array('label' => $object['name'], 'text' => $text));
-
 			} /* isset cluster_id */
 		} /* object_id !== NULL */
 
@@ -2401,8 +2375,6 @@ class linkmgmt_gvmap {
 				$gv->addNode($port['id'],
 						$nodeattr,
 						"c${port['object_id']}"); /* see cluster_id */
-
-				$this->data->addnode($port['id'],array('parent' => $port['object_id'], 'label' => $port['name'], 'text' => $text));
 
 				$this->ports[$port['id']] = true;
 
@@ -2481,7 +2453,6 @@ class linkmgmt_gvmap {
 								)
 							);
 
-					$this->data->addedge($port['id'].$port['remote_id'], $port['id'],$port['remote_id'],array('label' => $port['cableid'], 'type' => $linktype));
 				}
 			}
 
