@@ -1112,20 +1112,6 @@ class lm_Image_GraphViz extends Image_GraphViz {
 		case 'cmapx':
 			$ctype = 'text/plain';
 			break;
-		case 'json':
-			$data = new cytoscapedata();
-			$data->getlinkchains($object_id);
-			//$data->allobjects(); // ugly graph; slow
-			echo json_encode($data->objects);
-			exit;
-			break;
-		case 'jsonall':
-			$data = new cytoscapedata();
-			//$data->getlinkchains($object_id);
-			$data->allobjects(); // ugly graph; slow
-			echo json_encode($data->objects);
-			exit;
-			break;
 	}
 
 	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl, $remote_id);
@@ -1484,6 +1470,15 @@ function linkmgmt_cytoscapemap() {
 
 	$object_id = $_GET['object_id'];
 
+	if(isset($_GET['json']))
+	{
+		$data = new cytoscapedata();
+		$data->getlinkchains($object_id);
+		//$data->allobjects(); // ugly graph; slow
+		echo json_encode($data->objects);
+		exit;
+	}
+
 	echo (<<<HTMLEND
 <!DOCTYPE html>
 <html>
@@ -1681,8 +1676,8 @@ $.ajax({
 		page: 'object',
 		tab: 'linkmgmt',
 		object_id: $object_id,
-		op: 'map',
-		type: 'json'
+		op: 'cytoscapemap',
+		json: 'json'
 		},
 	dataTye: 'json',
 	error: function(){ alert("Error loading"); },
