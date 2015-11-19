@@ -160,6 +160,12 @@ $lm_objcache = array();
 
 class pv_linkchain implements Iterator {
 
+	const B2B_LINK_BGCOLOR = '#d8d8d8';
+	const CURRENT_PORT_BGCOLOR = '#ffff99';
+	const CURRENT_OBJECT_BGCOLOR = '#ff0000';
+	const HL_PORT_BGCOLOR = '#00ff00';
+	const ALTERNATE_ROW_BGCOLOR = '#f0f0f0';
+
 	public $first = null;
 	public $last = null;
 	public $init = null;
@@ -196,7 +202,7 @@ class pv_linkchain implements Iterator {
 			$linktable = $this->getlinktable(true);
 
 			/* set first object */
-			$object_id = $this->ports[$port_id][$linktable]['object_id'];
+			$object_id = $this->ports[$port_id]['object_id'];
 			$object = $this->objcache['o'.$object_id];
 
 			if($object['IPV4OBJ'])
@@ -210,6 +216,46 @@ class pv_linkchain implements Iterator {
 
 		$this->linked = ($this->linkcount > 0);
 		//echo "END ".$this->init." - ".$this->first." - ".$this->last."-".$this->loop."<br>";
+		//echo "PORTS: $port_id";
+		//portlist::var_dump_html($this->ports);
+		//echo "END PORTS:";
+	}
+
+	function _setportprevlink($port, $linktable, $prevport)
+	{
+		$port[$linktable] = array(
+					'cableid' => $prevport[$linktable]['cableid'],
+					'remote_id' => $prevport['id'],
+					'remote_name' => $prevport['name'],
+					'remote_object_id' => $prevport['object_id'],
+					'remote_object_name' => $prevport['object_name'],
+				);
+
+		return $port;
+	}
+
+	function _setportlink($port, $linktable)
+	{
+		$port[$linktable] = array(
+					'cableid' => $port['cableid'],
+					'remote_id' => $port['remote_id'],
+					'remote_name' => $port['remote_name'],
+					'remote_object_id' => $port['remote_object_id'],
+					'remote_object_name' => $port['remote_object_name'],
+				);
+
+		unset($port['cableid']);
+		unset($port['remote_id']);
+		unset($port['remote_name']);
+		unset($port['remote_object_id']);
+		unset($port['remote_object_name']);
+
+		return $port;
+	}
+
+	function _getportlink($port, $linktype)
+	{
+		return array_merge($port, $port[$linktype]);
 	}
 
 	function getlinktable($back)
@@ -236,27 +282,12 @@ class pv_linkchain implements Iterator {
 	}
 
 	//recursive
-	function _getlinks($port_id, $back = false)
+	function _getlinks($port_id, $back = false, $prevport_id = null)
 	{
+
 
 		//echo "START".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
 		$linktable = $this->getlinktable($back);
-
-		if(isset($this->ports[$port_id][$linktable]))
-		{
-			$this->loop = true;
-
-			$linktable = $this->getlinktable(!$back);
-
-			//echo "$port_id --".$this->last."<br>";
-			//portlist::var_dump_html($this);
-
-			if($this->last)
-				return $this->ports[$this->last][$linktable]['remote_id'];
-			else
-				return $this->ports[$port_id][$linktable]['remote_id'];
-				
-		}
 
 		$port = pv_getPortInfo($port_id, $linktable);
 
@@ -311,11 +342,52 @@ class pv_linkchain implements Iterator {
 		if(!empty($rack['row_name']) || !empty($rack['name']))
 			$port['rack_text'] = "${rack['row_name']}\n${rack['name']}";
 
+		$port['type'] = 'unknown';
+
 		if($object)
 			if(isset($object['portip'][$port['name']]))
 				$port['portip'] = $object['portip'][$port['name']];
 
-		$this->ports[$port_id][$linktable] = $port;
+	//	$this->ports[$port_id][$linktable] = $port;
+
+		$port = $this->_setportlink($port, $linktable);
+
+		if($prevport_id)
+		{
+			$prevlinktable =  $this->getlinktable(!$back);
+			$port = $this->_setportprevlink($port, $prevlinktable, $this->ports[$prevport_id]);
+			//$this->ports[$prevport_id] = $this->_setportprevlink($this->ports[$prevport_id], $prevlinktable, $port);
+		}
+
+		if(isset($this->ports[$port_id]))
+		{
+			if(!isset($this->ports[$port_id][$linktable]))
+				$this->ports[$port_id][$linktable] = $port[$linktable];
+			else
+			{
+				$this->ports[$port_id][$prevlinktable] = $port[$linktable];
+
+				/* LOOP detected */
+				$this->loop = true;
+
+				//$prevlinktable = $this->getlinktable(!$back);
+
+				if($this->last)
+					return $this->ports[$this->last][$prevlinktable]['remote_id'];
+				else
+					return $this->ports[$port_id][$prevlinktable]['remote_id'];
+
+			}
+		}
+		else
+			$this->ports[$port_id] = $port;
+
+		if(0)
+		{
+		echo "START-----------------------------";
+		portlist::var_dump_html($this->ports);
+		echo "$port_id-->$linktable ------------------ END -<br>";
+		}
 
 		//echo "____".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
 		$remote_id = $this->ports[$port_id][$linktable]['remote_id'];
@@ -324,9 +396,9 @@ class pv_linkchain implements Iterator {
 		{
 			$this->linkcount++;
 			/* set reverse link on remote port */
-			$this->ports[$remote_id][$linktable] = pv_getPortInfo($remote_id, $linktable);
+			//$this->ports[$remote_id][$linktable] = pv_getPortInfo($remote_id, $linktable);
 
-			return $this->_getlinks($remote_id, !$back);
+			return $this->_getlinks($remote_id, !$back, $port_id);
 		}
 
 		//echo "_X___".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
@@ -335,6 +407,7 @@ class pv_linkchain implements Iterator {
 
 	function getchaintext()
 	{
+		//portlist::var_dump_html($this->ports);
 		$chain = "";
 		foreach($this as $id => $port)
 		{
@@ -345,6 +418,8 @@ class pv_linkchain implements Iterator {
 				$arrow = ' => ';
 
 			$text = $port['object_name']." [".$port['name']."]";
+
+			//$text = $this->getprintport($port, false);
 		
 			if($id == $this->init)
 				$chain .= "*$text*";
@@ -364,7 +439,51 @@ class pv_linkchain implements Iterator {
 		}
 		return $chain;
 	}
+
+	function getprintport($port, $multilink = false) {
+		global $lm_cache;
+
+		/* set bgcolor for current port */
+		if($port['id'] == $this->init) {
+			$bgcolor = 'bgcolor='.self::CURRENT_PORT_BGCOLOR;
+			$idtag = ' id='.$port['id'];
+		} else {
+			$bgcolor = '';
+			$idtag = '';
+		}
+
+		$mac = trim(preg_replace('/(..)/','$1:',$port['l2address']),':');
+
+		$title = "Label: ${port['label']}\nMAC: $mac\nTypeID: ${port['type']}\nPortID: ${port['id']}";
+
+		return '<td'.$idtag.' align=center '.$bgcolor.' title="'.$title.'"><pre>[<a href="'
+			.makeHref(array('page'=>'object', 'tab' => 'linkmgmt', 'object_id' => $port['object_id'], 'hl_port_id' => $port['id']))
+			.'#'.$port['id']
+			.'">'.$port['name'].'</a>]</pre>'.($multilink && $lm_cache['allowbacklink'] ? $this->_getlinkportsymbol($port['id'], 'back') : '' ).'</td>';
+
+	} /* printport */
 	
+	/*
+	 * return link symbol
+	 */
+	function _getlinkportsymbol($port_id, $linktype) {
+		$retval = '<span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
+			array('op' => 'PortLinkDialog','port' => $port_id,'linktype' => $linktype ))).'","name","height=800,width=800");'
+		        .'>';
+
+                $img = getImageHREF ('plug', $linktype.' Link this port');
+
+		if($linktype == 'back')
+			$img = str_replace('<img',
+				'<img style="transform:rotate(180deg);-o-transform:rotate(180deg);-ms-transform:rotate(180deg);-moz-transform:rotate(180deg);-webkit-transform:rotate(180deg);"',
+				$img);
+
+		$retval .= $img;
+		$retval .= "</span>";
+		return $retval;
+
+	} /* _getlinkportsymbol */
+
 	// html table
 	function getchainhtml()
 	{
@@ -426,12 +545,12 @@ class pv_linkchain implements Iterator {
 	/* Iterator */
 	function rewind() {
 		$this->currentid = $this->first;
-		$this->back = !$this->ports[$this->currentid]['Link']['remote_id'];
+		$this->back = !isset($this->ports[$this->currentid]['Link']['remote_id']);
 	}
 
 	function current() {
 		$linktable = $this->getlinktable($this->back);
-		return $this->ports[$this->currentid][$linktable];
+		return $this->_getportlink($this->ports[$this->currentid],$linktable);
 	}
 
 	function key() {
