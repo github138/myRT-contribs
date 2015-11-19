@@ -333,53 +333,39 @@ class pv_linkchain implements Iterator {
 		return $port_id;
 	}
 
-	function getchain()
+	function getchaintext()
 	{
-		$remote_id = $this->first;
-
-		// if not Link use LinkBackend
-		$back = $this->ports[$remote_id]['Link']['remote_id'];
-
 		$chain = "";
-
-		for(;$remote_id;)
+		foreach($this as $id => $port)
 		{
-			$back = !$back;
-
-			$linktable = $this->getlinktable($back);
-			if($back)
-			{
-			//	$linktable = 'LinkBackend';
-				$arrow = ' => ';
-			}
-			else
-			{
-			//	$linktable = 'Link';
+			$linktype = $this->getlinktype();
+			if($linktype == 'front')
 				$arrow = ' --> ';
-			}
-
-			$port = $this->ports[$remote_id][$linktable];
+			else
+				$arrow = ' => ';
 
 			$text = $port['object_name']." [".$port['name']."]";
-
-			if($this->init == $remote_id)
-				$chain .= "<b>$text</b>";
+		
+			if($id == $this->init)
+				$chain .= "*$text*";
 			else
-				$chain .= $text;
+				$chain .= "$text";
 
 			$remote_id = $port['remote_id'];
 
 			if($remote_id)
-				$chain .= $arrow."<br>";
+				$chain .= $arrow;
 
 			if($this->loop && $remote_id == $this->first)
-				return $chain."LOOP!<br>";
-
+			{
+				$chain .= "LOOP!";
+				break;
+			}
 		}
-
 		return $chain;
 	}
-
+	
+	// html table
 	function getchainhtml()
 	{
 		$remote_id = $this->first;
@@ -3467,6 +3453,9 @@ function linkmgmt_renderObjectLinks($object_id) {
 
 	$rowcount = 0;
 	foreach($ports as $key => $port) {
+
+		$lc = new pv_linkchain($port['id']);
+		echo $lc->getchaintext()."<br>";
 
 		$plist = new portlist($port, $object_id, $allports, $allback);
 
