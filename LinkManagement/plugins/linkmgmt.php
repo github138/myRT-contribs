@@ -187,6 +187,7 @@ class pv_linkchain implements Iterator {
 		global $lm_objcache;
 
 		$this->init = $port_id;
+
 		if($objectcache === null)
 			$this->objcache = $lm_objcache;
 		else
@@ -215,6 +216,9 @@ class pv_linkchain implements Iterator {
 		}
 
 		$this->linked = ($this->linkcount > 0);
+
+		$this->object_id = $this->ports[$this->init]['object_id'];
+
 		//echo "END ".$this->init." - ".$this->first." - ".$this->last."-".$this->loop."<br>";
 		//echo "PORTS: $port_id";
 		//portlist::var_dump_html($this->ports);
@@ -284,8 +288,6 @@ class pv_linkchain implements Iterator {
 	//recursive
 	function _getlinks($port_id, $back = false, $prevport_id = null)
 	{
-
-
 		//echo "START".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
 		$linktable = $this->getlinktable($back);
 
@@ -340,7 +342,10 @@ class pv_linkchain implements Iterator {
 
 		/* get more port info */
 		if(!empty($rack['row_name']) || !empty($rack['name']))
+		{
+			$port['rack_id'] = $rack['id'];
 			$port['rack_text'] = "${rack['row_name']}\n${rack['name']}";
+		}
 
 		$port['type'] = 'unknown';
 
@@ -419,8 +424,6 @@ class pv_linkchain implements Iterator {
 
 			$text = $port['object_name']." [".$port['name']."]";
 
-			//$text = $this->getprintport($port, false);
-		
 			if($id == $this->init)
 				$chain .= "*$text*";
 			else
@@ -440,6 +443,78 @@ class pv_linkchain implements Iterator {
 		return $chain;
 	}
 
+	function getchainrow()
+	{
+		//portlist::var_dump_html($this->ports);
+		$chain = "<tr><td></td><td><table align=right><tr>";
+		$i=0;
+		foreach($this as $id => $port)
+		{
+			$object_text = $this->getprintobject($port);
+			$port_text = $this->getprintport($port, false);
+
+			$linktype = $this->getlinktype();
+			if($linktype == 'front')
+			{
+				$arrow = ' ---> ';
+				$chain .= $object_text."<td>></td>".$port_text;
+			}
+			else
+			{
+				$arrow = ' ===> ';
+				$chain .= $port_text."<td><</td>".$object_text;
+			}
+
+			$object_id = $port['object_id'];
+
+			if($object_id == $this->object_id)
+				$chain .= "</tr></table></td><td><table><tr><td>";
+
+			$remote_id = $port['remote_id'];
+
+			if($remote_id)
+				$chain .= "<td>$arrow</td>";
+
+			if($this->loop && $remote_id == $this->first)
+			{
+				$chain .= "LOOP!";
+				break;
+			}
+			$i++;
+		}
+		return $chain."</tr></table></tr>";
+	}
+
+	/*
+	 */
+	function getprintobject($port) {
+		$object_id = $port['object_id'];
+
+		if($object_id == $this->object_id) {
+                        $color='color: '.self::CURRENT_OBJECT_BGCOLOR;
+                } else {
+                        $color='';
+                }
+
+		$style = "font-size: 80%;";
+
+                if(empty($port['rack_id']))
+			$rackinfo = '<span style="'.$style.'">Unmounted</span>';
+                else
+		{
+			$rack = $this->objcache['r'.$port['rack_id']];
+                        $rackinfo = '<a style="'.$style.'" href='.makeHref(array('page'=>'row', 'row_id'=>$rack['row_id'])).'>'.$rack['row_name']
+                                .'</a>/<a style="'.$style.'" href='.makeHref(array('page'=>'rack', 'rack_id'=>$rack['id'])).'>'
+                                .$rack['name'].'</a>';
+		}
+
+                return '<td><table align=center cellpadding=5 cellspacing=0 border=1><tr><td align=center><a style="font-weight:bold;'
+                        .$color.'" href="'.makeHref(array('page'=>'object', 'tab' => 'linkmgmt', 'object_id' => $object_id))
+                        .'"><pre>'.$port['object_name'].'</pre></a><pre>'.$rackinfo
+                        .'</pre></td></tr></table></td>';
+
+	} /* printobject */
+
 	function getprintport($port, $multilink = false) {
 		global $lm_cache;
 
@@ -454,7 +529,7 @@ class pv_linkchain implements Iterator {
 
 		$mac = trim(preg_replace('/(..)/','$1:',$port['l2address']),':');
 
-		$title = "Label: ${port['label']}\nMAC: $mac\nTypeID: ${port['type']}\nPortID: ${port['id']}";
+		$title = "Label: ${port['label']}\nMAC: $mac\nTypeID: ${port['oif_id']}\nPortID: ${port['id']}";
 
 		return '<td'.$idtag.' align=center '.$bgcolor.' title="'.$title.'"><pre>[<a href="'
 			.makeHref(array('page'=>'object', 'tab' => 'linkmgmt', 'object_id' => $port['object_id'], 'hl_port_id' => $port['id']))
@@ -3574,7 +3649,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 	foreach($ports as $key => $port) {
 
 		$lc = new pv_linkchain($port['id']);
-		echo $lc->getchaintext()."<br>";
+		echo "<tr><td>".$lc->getchainrow()."</td></tr>";
 
 		$plist = new portlist($port, $object_id, $allports, $allback);
 
