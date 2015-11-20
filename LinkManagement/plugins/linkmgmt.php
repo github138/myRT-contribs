@@ -1702,6 +1702,7 @@ $(function(){ // on dom ready
         'background-color': '#666',
         'label': 'data(label)',
 	'width': 'label',
+	'min-zoomed-font-size' : 8,
         'text-valign': 'center',
         'text-halign': 'center',
 	'text-wrap': 'wrap'
@@ -1720,7 +1721,8 @@ $(function(){ // on dom ready
         'padding-right': '10px',
         'text-valign': 'top',
         'text-halign': 'center',
-        'background-color': '#bbb'
+        'background-color': '#bbb',
+	'min-zoomed-font-size' : 6,
       }
     },
     {
@@ -1746,7 +1748,8 @@ $(function(){ // on dom ready
 					return '5';
 			 },
 //	'curve-style': 'segments',
-	'font-size': '6',
+	'font-size': '8',
+	'min-zoomed-font-size' : 8,
         'label': 'data(label)',
 	'edge-text-rotation': 'autorotate'
       }
