@@ -1,5 +1,6 @@
 <?php
 // TODO linkchain cytoscape create libs?
+//	linkchain all objects graph cytoscape takes ages
 //	multilink
 /*
  * Link Management for RT >= 0.20.9
@@ -441,25 +442,69 @@ class pv_linkchain implements Iterator {
 		return $chain;
 	}
 
-	function getchainrow()
+	function getchainrow($rowbgcolor = '#ffffff')
 	{
 		//portlist::var_dump_html($this->ports);
-		$chain = "<tr><td></td><td><table align=right><tr>";
+		$port_id = $this->init;
+
+		$initport = $this->ports[$port_id];
+
+		$urlparams = array(
+				'module' => 'redirect',
+				'page' => 'object',
+				'tab' => 'linkmgmt',
+				'op' => 'map',
+				'usemap' => 1,
+				'object_id' => $initport['object_id'],
+				);
+
+		$hl_port_id = NULL;
+		if($hl_port_id !== NULL)
+			$urlparams['hl_port_id'] = $hl_port_id;
+		else
+			$urlparams['port_id'] = $port_id;
+
+	//	portlist::var_dump_html($initport);
+
+		$title = "linkcount: ".$this->linkcount."\nTypeID: ${initport['oif_id']}\nPortID: $port_id";
+
+		$onclick = 'onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
+                                $urlparams)).'","Map","height=500,width=800,scrollbars=yes");';
+
+		if($hl_port_id == $port_id)
+			$hlbgcolor = "bgcolor=".self::HL_PORT_BGCOLOR;
+		else
+			$hlbgcolor = "bgcolor=$rowbgcolor";
+
+		/* Current Port */
+		$chain = '<tr '.$hlbgcolor.'><td nowrap="nowrap" bgcolor='.self::CURRENT_PORT_BGCOLOR.' title="'.$title.
+			'"><a '.$onclick.'>'.
+			$initport['name'].': </a></td>';
+
+		$chain .= "<td><table align=right><tr>";
+
+
 		$i=0;
 		foreach($this as $id => $port)
 		{
 			$object_text = $this->getprintobject($port);
-			$port_text = $this->getprintport($port, false);
+			$port_text = $this->getprintport($port);
 
 			$linktype = $this->getlinktype();
+			if($id == $this->first)
+			{
+				$chain .= $this->_printlinkportsymbol($port_id, $linktype);
+				$chain .= $this->printcomment($port);
+			}
+
 			if($linktype == 'front')
 			{
-				$arrow = ' ---> ';
+			//	$arrow = ' ---> ';
 				$chain .= $object_text."<td>></td>".$port_text;
 			}
 			else
 			{
-				$arrow = ' ===> ';
+			//	$arrow = ' ===> ';
 				$chain .= $port_text."<td><</td>".$object_text;
 			}
 
@@ -471,13 +516,21 @@ class pv_linkchain implements Iterator {
 			$remote_id = $port['remote_id'];
 
 			if($remote_id)
-				$chain .= "<td>$arrow</td>";
+				$chain .= $this->printlink($port, $linktype);
+				//$chain .= "<td>$arrow</td>";
+
+			if($id == $this->last && !$this->loop)
+			{
+				$chain .= $this->_printlinkportsymbol($port_id, $linktype);
+				$chain .= $this->printcomment($port);
+			}
 
 			if($this->loop && $remote_id == $this->first)
 			{
 				$chain .= '<td bgcolor=#ff9966>LOOP</td>';
 				break;
 			}
+
 			$i++;
 		}
 		return $chain."</tr></table></tr>";
@@ -516,6 +569,8 @@ class pv_linkchain implements Iterator {
 	function getprintport($port, $multilink = false) {
 		global $lm_cache;
 
+		// TODO CHECK multilink
+
 		/* set bgcolor for current port */
 		if($port['id'] == $this->init) {
 			$bgcolor = 'bgcolor='.self::CURRENT_PORT_BGCOLOR;
@@ -537,6 +592,25 @@ class pv_linkchain implements Iterator {
 	} /* printport */
 	
 	/*
+	 */
+	function printlink($port, $linktype) {
+
+		if($linktype == 'back')
+			$arrow = '====>';
+		else
+			$arrow = '---->';
+
+		$port_id = $port['id'];
+
+		/* link */
+		return '<td align=center>'
+			.'<pre><a class="editcable" id='.$port_id.'>'.$port['cableid']
+			."</a></pre><pre>$arrow</pre>"
+			.$this->_printUnLinkPort($port, $linktype)
+			.'</td>';
+	} /* printlink */
+
+	/*
 	 * return link symbol
 	 */
 	function _getlinkportsymbol($port_id, $linktype) {
@@ -556,6 +630,74 @@ class pv_linkchain implements Iterator {
 		return $retval;
 
 	} /* _getlinkportsymbol */
+
+	/*
+	 * print link symbol
+	 *
+	 */
+       function _printlinkportsymbol($port_id, $linktype = 'front') {
+		global $lm_cache;
+
+		if($linktype == 'front' && !$lm_cache['allowlink'])
+			return;
+
+		if($linktype != 'front' && !$lm_cache['allowbacklink'])
+			return;
+
+               	return "<td align=center>"
+			.$this->_getlinkportsymbol($port_id, $linktype)
+			."</td>";
+
+        } /* _printlinkportsymbol */
+
+	/*
+	 */
+	function printcomment($port) {
+
+		if(!empty($port['reservation_comment'])) {
+			$prefix = '<b>Reserved: </b>';
+		} else
+			$prefix = '';
+
+		return '<td>'.$prefix.'<i><a class="editcmt" id='.$port['id'].'>'.$port['reservation_comment'].'</a></i></td>';
+
+	} /* printComment */
+
+	/*
+	 * return link cut symbol
+	 *
+         * TODO $opspec_list
+	 */
+	function _printUnLinkPort($src_port, $linktype) {
+		global $lm_cache;
+
+		if($linktype == 'front' && !$lm_cache['allowlink'])
+			return;
+
+		if($linktype != 'front' && !$lm_cache['allowbacklink'])
+			return;
+
+		$dst_port = $this->ports[$src_port['remote_id']];
+
+		/* use RT unlink for front link, linkmgmt unlink for back links */
+		if($linktype == 'back')
+			$tab = 'linkmgmt';
+		else
+			$tab = 'ports';
+
+		return '<a href='.
+                               makeHrefProcess(array(
+					'op'=>'unlinkPort',
+					'port_id'=>$src_port['id'],
+					'remote_id' => $dst_port['id'],
+					'object_id'=> $this->ports[$this->init]['object_id'],
+					'tab' => $tab,
+					'linktype' => $linktype)).
+                       ' onclick="return confirm(\'unlink ports '.$src_port['name']. ' -> '.$dst_port['name']
+					.' ('.$linktype.') with cable ID: '.$src_port['cableid'].'?\');">'.
+                       getImageHREF ('cut', $linktype.' Unlink this port').'</a>';
+
+	} /* _printUnLinkPort */
 
 	// html table
 	function getchainhtml()
@@ -613,6 +755,11 @@ class pv_linkchain implements Iterator {
 		$chain .= "</table>";
 
 		return $chain;
+	}
+
+	function getport($id)
+	{
+		return $this->ports[$id];
 	}
 
 	/* Iterator */
@@ -1684,6 +1831,7 @@ body {
 <script src="js/cytoscape-dagre.js"></script>
 <script src="js/cola.v3.min.js"></script>
 <script src="js/cytoscape-cola.js"></script>
+<!--<script src="js/cytoscape-spread.js"></script>-->
 <link rel="stylesheet" type="text/css" href="css/jquery.qtip.min.css">
 <script src="js/jquery.qtip.min.js"></script>
 <script src="js/cytoscape-qtip.js"></script>
@@ -3651,15 +3799,17 @@ function linkmgmt_renderObjectLinks($object_id) {
 
 		$lc = new pv_linkchain($port['id']);
 
-		echo "<tr><td>".$lc->getchainrow()."</td></tr>";
+		echo "<tr><td>".$lc->getchainrow(($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."</td></tr>";
 
+		if(0)
+		{
 		$plist = new portlist($port, $object_id, $allports, $allback);
-
-		//echo "<td><img src=\"index.php?module=redirect&page=object&tab=linkmgmt&op=map&object_id=$object_id&port_id=${port['id']}&allports=$allports\" ></td>";
 
 		if($plist->printportlistrow($first, $hl_port_id, ($rowcount % 2 ? portlist::ALTERNATE_ROW_BGCOLOR : "#ffffff")) )
 			$rowcount++;
+		}
 
+		$rowcount++;
 	}
 
 	echo "</table>";
@@ -4275,7 +4425,7 @@ class portlist {
 		if($linktype != 'front' && !$lm_cache['allowbacklink'])
 			return;
 
-                echo "<td align=center>";
+		echo "<td align=center>";
 
 		echo $this->_getlinkportsymbol($port_id, $linktype);
 
