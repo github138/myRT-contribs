@@ -156,7 +156,7 @@ $lm_cache = array(
 //	return 'std';
 //} /* linkmgmt_tabtrigger */
 
-$lm_objcache = array();
+$linkchain_cache = array();
 
 class pv_linkchain implements Iterator {
 
@@ -180,18 +180,15 @@ class pv_linkchain implements Iterator {
 	private $currentid = null;
 	private $back = null;
 
-	public $objcache = null;
+	public $cache = null;
 
-	function __construct($port_id, &$objectcache = null)
+	function __construct($port_id)
 	{
-		global $lm_objcache;
+		global $linkchain_cache;
 
 		$this->init = $port_id;
 
-		if($objectcache === null)
-			$this->objcache = $lm_objcache;
-		else
-			$this->objcache = $objectcache;
+		$this->cache = &$linkchain_cache;
 
 		// Link
 		$this->last = $this->_getlinks($port_id, false);
@@ -204,7 +201,7 @@ class pv_linkchain implements Iterator {
 
 			/* set first object */
 			$object_id = $this->ports[$port_id]['object_id'];
-			$object = $this->objcache['o'.$object_id];
+			$object = $this->cache['o'.$object_id];
 
 			if($object['IPV4OBJ'])
 				$this->lastipobjport = $port_id;
@@ -294,7 +291,7 @@ class pv_linkchain implements Iterator {
 		$port = pv_getPortInfo($port_id, $linktable);
 
 		$object_id =  $port['object_id'];
-		if(!isset($this->objcache['o'.$object_id]))
+		if(!isset($this->cache['o'.$object_id]))
 		{
 			$object = spotEntity('object', $object_id);
 			$object['IPV4OBJ'] = considerConfiguredConstraint ($object, 'IPV4OBJ_LISTSRC');
@@ -317,13 +314,13 @@ class pv_linkchain implements Iterator {
 			if(1)
 			if($object['rack_id'])
 			{
-				if(!isset($this->objcache['r'.$object['rack_id']]))
+				if(!isset($this->cache['r'.$object['rack_id']]))
 				{
 					$rack = spotEntity('rack', $object['rack_id']);
-					$this->objcache['r'.$object['rack_id']] = $rack;
+					$this->cache['r'.$object['rack_id']] = $rack;
 				}
 				else
-					$rack = $this->objcache['r'.$object['rack_id']];
+					$rack = $this->cache['r'.$object['rack_id']];
 
 				if(!empty($rack['row_name']) || !empty($rack['name']))
 				{
@@ -331,11 +328,11 @@ class pv_linkchain implements Iterator {
 				}
 			}
 
-			$this->objcache['o'.$object_id] = $object;
+			$this->cache['o'.$object_id] = $object;
 
 		}
 		else
-			$object = $this->objcache['o'.$object_id];
+			$object = $this->cache['o'.$object_id];
 
 		if($object['IPV4OBJ'])
 			$this->lastipobjport = $port_id;
@@ -400,9 +397,6 @@ class pv_linkchain implements Iterator {
 		if($remote_id)
 		{
 			$this->linkcount++;
-			/* set reverse link on remote port */
-			//$this->ports[$remote_id][$linktable] = pv_getPortInfo($remote_id, $linktable);
-
 			return $this->_getlinks($remote_id, !$back, $port_id);
 		}
 
@@ -502,7 +496,7 @@ class pv_linkchain implements Iterator {
 			$rackinfo = '<span style="'.$style.'">Unmounted</span>';
                 else
 		{
-			$rack = $this->objcache['r'.$port['rack_id']];
+			$rack = $this->cache['r'.$port['rack_id']];
                         $rackinfo = '<a style="'.$style.'" href='.makeHref(array('page'=>'row', 'row_id'=>$rack['row_id'])).'>'.$rack['row_name']
                                 .'</a>/<a style="'.$style.'" href='.makeHref(array('page'=>'rack', 'rack_id'=>$rack['id'])).'>'
                                 .$rack['name'].'</a>';
@@ -3649,6 +3643,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 	foreach($ports as $key => $port) {
 
 		$lc = new pv_linkchain($port['id']);
+
 		echo "<tr><td>".$lc->getchainrow()."</td></tr>";
 
 		$plist = new portlist($port, $object_id, $allports, $allback);
