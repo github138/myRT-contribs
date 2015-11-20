@@ -226,6 +226,7 @@ class pv_linkchain implements Iterator {
 	{
 		$port[$linktable] = array(
 					'cableid' => $prevport[$linktable]['cableid'],
+					'linked' => $prevport[$linktable]['linked'],
 					'remote_id' => $prevport['id'],
 					'remote_name' => $prevport['name'],
 					'remote_object_id' => $prevport['object_id'],
@@ -239,6 +240,7 @@ class pv_linkchain implements Iterator {
 	{
 		$port[$linktable] = array(
 					'cableid' => $port['cableid'],
+					'linked' => $port['linked'],
 					'remote_id' => $port['remote_id'],
 					'remote_name' => $port['remote_name'],
 					'remote_object_id' => $port['remote_object_id'],
@@ -246,6 +248,7 @@ class pv_linkchain implements Iterator {
 				);
 
 		unset($port['cableid']);
+		unset($port['linked']);
 		unset($port['remote_id']);
 		unset($port['remote_name']);
 		unset($port['remote_object_id']);
@@ -254,9 +257,10 @@ class pv_linkchain implements Iterator {
 		return $port;
 	}
 
-	function _getportlink($port, $linktype)
+	function _getportlink($port)
 	{
-		return array_merge($port, $port[$linktype]);
+		$linktable = $this->getlinktable($this->back);
+		return array_merge($port, $port[$linktable], array('linktype' => $this->getlinktype(), 'linktable' => $linktable));
 	}
 
 	function getlinktable($back)
@@ -415,7 +419,7 @@ class pv_linkchain implements Iterator {
 		$chain = "";
 		foreach($this as $id => $port)
 		{
-			$linktype = $this->getlinktype();
+			$linktype = $port['linktype']; //$this->getlinktype();
 			if($linktype == 'front')
 				$arrow = ' --> ';
 			else
@@ -489,7 +493,8 @@ class pv_linkchain implements Iterator {
 			$object_text = $this->getprintobject($port);
 			$port_text = $this->getprintport($port);
 
-			$linktype = $this->getlinktype();
+			$linktype = $port['linktype']; //$this->getlinktype();
+
 			if($id == $this->first)
 			{
 				$chain .= $this->_printlinkportsymbol($port_id, $linktype);
@@ -766,11 +771,13 @@ class pv_linkchain implements Iterator {
 	function rewind() {
 		$this->currentid = $this->first;
 		$this->back = !isset($this->ports[$this->currentid]['Link']['remote_id']);
+
+		if(!$this->linkcount)
+			$this->back = !$this->back;
 	}
 
 	function current() {
-		$linktable = $this->getlinktable($this->back);
-		return $this->_getportlink($this->ports[$this->currentid],$linktable);
+		return $this->_getportlink($this->ports[$this->currentid]);
 	}
 
 	function key() {
