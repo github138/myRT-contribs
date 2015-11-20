@@ -1,7 +1,6 @@
 <?php
 // TODO linkchain cytoscape create libs?
-//	extend linkchain port/object data eg. ip address, rack, ...
-//	caching..
+//	multilink
 /*
  * Link Management for RT >= 0.20.9
  *
@@ -1626,7 +1625,7 @@ class cytoscapedata
 	function allobjects()
 	{
 
-		/* to slow and ugly graph */
+		/* ugly graph */
 		$this->elements = array();
 		$this->objects = array();
 		$this->nodes = array();
@@ -1640,7 +1639,7 @@ class cytoscapedata
 			//echo $object['id']."<br>";
 			$this->_getlinkchains($object['id']);
 			$i++;
-			if($i > 20 ) break;
+			//if($i > 20 ) break;
 		}
 	}
 }
@@ -1653,7 +1652,7 @@ function linkmgmt_cytoscapemap() {
 	{
 		$data = new cytoscapedata();
 		$data->getlinkchains($object_id);
-		//$data->allobjects(); // ugly graph; slow
+		//$data->allobjects(); // ugly graph;
 		echo json_encode($data->objects);
 		exit;
 	}
@@ -2087,7 +2086,7 @@ class linkmgmt_gvmap {
 			$objects = listCells('object');
 
 			foreach($objects as $obj)
-				//$this->addlinkchainsobject($obj['id']); // TODO optimize for all objects
+				//$this->addlinkchainsobject($obj['id']); // long dot runtime !!
 				$this->_add($this->gv, $obj['id'], NULL); // for all still faster and nicer looking graph
 
 			return;
