@@ -527,6 +527,7 @@ class pv_linkchain implements Iterator {
 			if($this->loop && $remote_id == $this->first)
 			{
 				$chain .= '<td bgcolor=#ff9966>LOOP</td>';
+				showWarning("Possible Loop on Port ($linktype) ".$port['name']);
 				break;
 			}
 
@@ -3801,12 +3802,17 @@ function linkmgmt_renderObjectLinks($object_id) {
 
 	$rowcount = 0;
 	foreach($ports as $key => $port) {
+		if(1)
+		{
 
 		$lc = new pv_linkchain($port['id']);
 
 		echo "<tr><td>".$lc->getchainrow(($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."</td></tr>";
 
-		if(0)
+		$rowcount++;
+
+		}
+		else
 		{
 		$plist = new portlist($port, $object_id, $allports, $allback);
 
@@ -3814,7 +3820,6 @@ function linkmgmt_renderObjectLinks($object_id) {
 			$rowcount++;
 		}
 
-		$rowcount++;
 	}
 
 	echo "</table>";
