@@ -218,7 +218,7 @@ class pv_linkchain implements Iterator {
 
 		//echo "END ".$this->init." - ".$this->first." - ".$this->last."-".$this->loop."<br>";
 		//echo "PORTS: $port_id";
-		//portlist::var_dump_html($this->ports);
+		//$this::var_dump_html($this->ports);
 		//echo "END PORTS:";
 	}
 
@@ -392,7 +392,7 @@ class pv_linkchain implements Iterator {
 		if(0)
 		{
 		echo "START-----------------------------";
-		portlist::var_dump_html($this->ports);
+		$this::var_dump_html($this->ports);
 		echo "$port_id-->$linktable ------------------ END -<br>";
 		}
 
@@ -411,7 +411,7 @@ class pv_linkchain implements Iterator {
 
 	function getchaintext()
 	{
-		//portlist::var_dump_html($this->ports);
+		//$this::var_dump_html($this->ports);
 		$chain = "";
 		foreach($this as $id => $port)
 		{
@@ -444,7 +444,7 @@ class pv_linkchain implements Iterator {
 
 	function getchainrow($rowbgcolor = '#ffffff')
 	{
-		//portlist::var_dump_html($this->ports);
+		//$this::var_dump_html($this->ports);
 		$port_id = $this->init;
 
 		$initport = $this->ports[$port_id];
@@ -464,12 +464,11 @@ class pv_linkchain implements Iterator {
 		else
 			$urlparams['port_id'] = $port_id;
 
-	//	portlist::var_dump_html($initport);
+	//	$this::var_dump_html($initport);
 
 		$title = "linkcount: ".$this->linkcount."\nTypeID: ${initport['oif_id']}\nPortID: $port_id";
 
-		$onclick = 'onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
-                                $urlparams)).'","Map","height=500,width=800,scrollbars=yes");';
+		$onclick = 'onclick=window.open("'.makeHrefProcess(array_merge($_GET, $urlparams)).'","Map","height=500,width=800,scrollbars=yes");';
 
 		if($hl_port_id == $port_id)
 			$hlbgcolor = "bgcolor=".self::HL_PORT_BGCOLOR;
@@ -614,7 +613,7 @@ class pv_linkchain implements Iterator {
 	 * return link symbol
 	 */
 	function _getlinkportsymbol($port_id, $linktype) {
-		$retval = '<span onclick=window.open("'.makeHrefProcess(portlist::urlparamsarray(
+		$retval = '<span onclick=window.open("'.makeHrefProcess(array_merge($_GET,
 			array('op' => 'PortLinkDialog','port' => $port_id,'linktype' => $linktype ))).'","name","height=800,width=800");'
 		        .'>';
 
@@ -794,6 +793,12 @@ class pv_linkchain implements Iterator {
 		return $this->currentid;
 	}
 
+	/* for debugging only */
+	function var_dump_html(&$var) {
+		echo "<pre>------------------Start Var Dump -------------------------\n";
+		var_dump($var);
+		echo "\n---------------------END Var Dump ------------------------</pre>";
+	}
 } // pv_linkchain
 
 /*
