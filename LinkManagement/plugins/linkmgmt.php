@@ -332,19 +332,24 @@ class pv_linkchain implements Iterator {
 
 		}
 		else
+		{
 			$object = $this->cache['o'.$object_id];
+
+			if(isset($object['rack_id']))
+				$rack = $this->cache['r'.$object['rack_id']];
+			else
+				$rack = null;
+		}
 
 		if($object['IPV4OBJ'])
 			$this->lastipobjport = $port_id;
 
-		/* get more port info */
+		/* set port rack infos */
 		if(!empty($rack['row_name']) || !empty($rack['name']))
 		{
 			$port['rack_id'] = $rack['id'];
 			$port['rack_text'] = "${rack['row_name']}\n${rack['name']}";
 		}
-
-		$port['type'] = 'unknown';
 
 		if($object)
 			if(isset($object['portip'][$port['name']]))
@@ -471,7 +476,7 @@ class pv_linkchain implements Iterator {
 
 			if($this->loop && $remote_id == $this->first)
 			{
-				$chain .= "LOOP!";
+				$chain .= '<td bgcolor=#ff9966>LOOP</td>';
 				break;
 			}
 			$i++;
