@@ -501,21 +501,26 @@ class pv_linkchain implements Iterator {
 				$chain .= $this->printcomment($port);
 			}
 
+			$object_id = $port['object_id'];
+
 			if($linktype == 'front')
 			{
 			//	$arrow = ' ---> ';
-				$chain .= $object_text."<td>></td>".$port_text;
+				$chain .= $object_text."<td>></td>";
+
+				if($object_id == $this->object_id)
+					$chain .= "</tr></table></td><td><table><tr><td>";
+
+				$chain .= $port_text;
+
 			}
 			else
 			{
 			//	$arrow = ' ===> ';
 				$chain .= $port_text."<td><</td>".$object_text;
+				if($object_id == $this->object_id)
+					$chain .= "</tr></table></td><td><table><tr><td>";
 			}
-
-			$object_id = $port['object_id'];
-
-			if($object_id == $this->object_id)
-				$chain .= "</tr></table></td><td><table><tr><td>";
 
 			$remote_id = $port['remote_id'];
 
