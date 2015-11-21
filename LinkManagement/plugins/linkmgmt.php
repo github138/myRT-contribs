@@ -1621,23 +1621,19 @@ class lm_Image_GraphViz extends Image_GraphViz {
 
 class cytoscapedata
 {
-//	public $elements = array();
 	public $objects = array();
-
-//	private $nodes = array();
-//	private $edges = array();
-
-	private $sort = array();
 
 	public $ids = array();
 
+	public $parents = NULL;
+
 	function __construct()
 	{
-		$this->elements['nodes'] = array();
-		$this->elements['edges'] = array();
+		$this->parents['objects'] = array();
+		$this->parents['edges'] = array();
 	}
 
-	function addnode($id, $values = NULL)
+	function addnode($id, $values = NULL, &$arr = NULL)
 	{
 		$data = array( 'id' => $id );
 
@@ -1649,20 +1645,16 @@ class cytoscapedata
 	//	$this->elements['nodes'][] = $node;
 
 	//	$node['position'] = array('x' => 0, 'y' => 0 );
+
 		$this->objects[] = array('group' => 'nodes')  + $node;
 
+		if($arr !== NULL)
+			$arr[] = array('group' => 'nodes')  + $node;
+
 		$this->ids[$id] = $id;
-
-		return;
-
-		/* sort within parent */
-		$this->nodes[$id] = $node;
-
-		if(isset($values['parent']))
-				$this->sort[$values['parent']][$values['label']] = $id;
 	}
 
-	function addedge($id, $source, $target, $values = NULL)
+	function addedge($id, $source, $target, $values = NULL, &$arr = NULL)
 	{
 		$data = array(
 				'id' => $id,
@@ -1677,29 +1669,14 @@ class cytoscapedata
 
 		//$this->elements['edges'][] = $edge;
 
-		$this->objects[] = array('group' => 'edges') + $edge;
+		if($arr !== NULL)
+		{
+			$arr[$id] = array('group' => 'edges') + $edge;
+		}
+		else
+			$this->objects[] = array('group' => 'edges') + $edge;
 
 		//$this->edges[] = array('group' => 'edges') + $edge;
-	}
-
-	function sort()
-	{
-		$out = array();
-
-		ksort($this->nodes);
-
-		foreach($this->sort as $id => $node)
-			$out[] = array('group' => 'nodes') + $this->nodes[$id];
-
-		foreach($this->sort as $parent => $childs)
-		{
-			ksort($childs); // port names as key TODO corret port number sorting
-			foreach($childs as $child)
-				$out[] = array('group' => 'nodes') + $this->nodes[$child];
-		}
-
-		return array_merge($out,$this->edges);
-
 	}
 
 	function addlinkchain($linkchain, $index) {
@@ -1722,7 +1699,8 @@ class cytoscapedata
 			if(!isset($this->nodes[$port['object_id']]))
 			{
 				$text = $port['object_name'].(isset($port['rack_text']) ? "\n".$port['rack_text'] : "" );
-				$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text));
+				$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text, 'type' => 'obj'));
+				$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text, 'type' => 'obj'), $this->parents['objects']);
 			}
 
 			$text = (isset($port['portip']) ? $port['portip'] : $port['name']);
@@ -1733,14 +1711,32 @@ class cytoscapedata
 
 			if($port['remote_id'])
 			{
-				$edgedata = array('label' => $port['cableid'], 'type' => $linkchain->getlinktype(), 'loop' => ($linkchain->loop ? '1' : '0'));
+				$linktype = $linkchain->getlinktype();
+				$edgedata = array('label' => $port['cableid'], 'type' => $linktype, 'loop' => ($linkchain->loop ? '1' : '0'));
 
 				if($linkchain->loop && $port['remote_id'] == $linkchain->first)
 				{
 					$nodedata['loopedge'] = array('group' => 'edges', 'data' => array( 'id' => 'le'.$port['id']."_".$port['remote_id'], 'source' => 'p'.$port['id'], 'target' => 'p'.$port['remote_id']) +  $edgedata);
 				}
 				else
+				{
 					$this->addedge('e'.$port['id']."_".$port['remote_id'], 'p'.$port['id'], 'p'.$port['remote_id'], $edgedata);
+					$id1 = $port['object_id'];
+					if($id1 > $port['remote_object_id'])
+					{
+						$id1 = $port['remote_object_id'];
+						$id2 = $port['object_id'];
+					}
+					else
+						$id2 = $port['remote_object_id'];
+
+					$peid = "pe".$id1."_".$id2;
+
+					if(isset($this->parents['edges'][$peid]))
+						$this->parents['edges'][$peid]['data']['linkcount'][$linktype]++;
+					else
+						$this->addedge($peid, 'o'.$id1, 'o'.$id2, array('linktype' => 'mixed', 'linkcount' => array( $linktype => 1)), $this->parents['edges']);
+				}
 			}
 
 			$this->addnode('p'.$port['id'], $nodedata);
@@ -1757,12 +1753,15 @@ class cytoscapedata
 
 	function getlinkchains($object_id) {
 
-		$this->elements = array();
 		$this->objects = array();
-		$this->nodes = array();
-		$this->edges = array();
+		$this->parents['objects'] = array();
+		$this->parents['edges'] = array();
 
 		$this->_getlinkchains($object_id);
+	}
+
+	function getparents() {
+		return array_merge($this->parents['objects'], array_values($this->parents['edges']));
 	}
 
 	function _getlinkchains($object_id) {
@@ -1786,15 +1785,15 @@ class cytoscapedata
 			//if($i == 2)
 			//	break;
 		}
+
 	}
+
 	function allobjects()
 	{
 
-		/* ugly graph */
-		$this->elements = array();
 		$this->objects = array();
-		$this->nodes = array();
-		$this->edges = array();
+		$this->parents['objects'] = array();
+		$this->parents['edges'] = array();
 
 		$objects = listCells('object');
 
@@ -1819,6 +1818,7 @@ function linkmgmt_cytoscapemap() {
 		$data->getlinkchains($object_id);
 		//$data->allobjects(); // ugly graph;
 		echo json_encode($data->objects);
+		//echo json_encode($data->getparents());
 		exit;
 	}
 
@@ -1871,11 +1871,14 @@ $(function(){ // on dom ready
 	'min-zoomed-font-size' : 8,
         'text-valign': 'center',
         'text-halign': 'center',
-	'text-wrap': 'wrap'
-/*	'shape': function(ele) {
-			return 'rectangle';
+	'text-wrap': 'wrap',
+	'shape': function(ele) {
+			if(ele.data('type') == 'obj')
+				return 'rectangle';
+			else
+				return 'ellipse';
 		},
-*/
+
       }
     },
     {
@@ -1908,10 +1911,22 @@ $(function(){ // on dom ready
 					return 'dashed';
 			 },
 	'width': function(ele){
+				var ret = 1;
 				if(ele.data('type') == 'front')
-					return '3';
+					ret = 3;
 				else
-					return '5';
+					ret = 5;
+
+				if(0)
+				if(ele.data('linkcount'))
+				{
+				if(ele.data('linkcount').front)
+					ret = (ele.data('linkcount').front * 3);
+				if(ele.data('linkcount').back)
+					ret = (ele.data('linkcount').back * 5);
+				}
+
+				return ret;
 			 },
 //	'curve-style': 'segments',
 	'font-size': '8',
