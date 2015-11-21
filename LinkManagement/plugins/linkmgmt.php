@@ -302,16 +302,16 @@ class pv_linkchain implements Iterator {
 
 			/* get more object info */
 
-			if(1)
+			if($object['IPV4OBJ'])
 			{
-			// ip addresses
-			//amplifyCell($object); /* get ports, ipv4, ipv6, nat4 and files */
-			$object['ipv4'] = getObjectIPv4Allocations ($object_id);
-			$object['portip'] = array();
-			foreach($object['ipv4'] as $ipv4)
-			{
-				$object['portip'][$ipv4['osif']] = $ipv4['addrinfo']['ip'];
-			}
+				// ip addresses
+				//amplifyCell($object); /* get ports, ipv4, ipv6, nat4 and files */
+				$object['ipv4'] = getObjectIPv4Allocations ($object_id);
+				$object['portip'] = array();
+				foreach($object['ipv4'] as $ipv4)
+				{
+					$object['portip'][$ipv4['osif']] = $ipv4['addrinfo']['ip'];
+				}
 			}
 
 			// rack
