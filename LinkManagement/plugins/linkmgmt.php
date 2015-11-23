@@ -1780,7 +1780,13 @@ class cytoscapedata
 
 	function getelements()
 	{
-		return array_merge(array_values($this->parents), array_values($this->nodes), array_values($this->edges['nodes']));
+		return array('parents' => array_values($this->parents),
+			'nodes' =>  array_values($this->nodes),
+			'edges' =>  array(
+					'parents' => array_values($this->edges['parents']),
+					'nodes' => array_values($this->edges['nodes'])
+					)
+			);
 	}
 
 	function gettest()
@@ -1845,9 +1851,13 @@ function linkmgmt_cytoscapemap() {
 		$data->getlinkchains($object_id);
 		//$data->allobjects(); // ugly graph;
 		//echo json_encode($data->objects);
-		//echo json_encode($data->getparents());
+
+		if(isset($_GET['parents']))
+			echo json_encode($data->getparents());
+		else
+			echo json_encode($data->getelements());
+
 		//echo json_encode($data->gettest());
-		echo json_encode($data->getelements());
 		exit;
 	}
 
@@ -2051,10 +2061,15 @@ function highlight(evt) {
 	var hleles2 = hleles.clone();
 	hleles2 = hleles2.add(hleles.parents().clone());
 
-	var cy2 = evt.data.cy2
+	var cy2 = evt.data.cy2;
+
+	var ret = evt.data.ret;
+
+	var j = ret.parents.concat(ret.nodes).concat(ret.edges.nodes);
 
 	cy2.remove(cy2.elements());
 	cy2.add(hleles2);
+	cy2.add(j);
 	cy2.layout({name: 'dagre', rankDir: 'LR', ready: layoutready});
 }
 
@@ -2072,7 +2087,11 @@ $.ajax({
 	error: function(){ alert("Error loading"); },
 	success: function(data) {
 
-			var j = JSON.parse(data);
+			var ret = JSON.parse(data);
+
+			//j = ret.parents.concat(ret.edges.parents);
+			j = ret.parents.concat(ret.nodes).concat(ret.edges.nodes);
+
 			if(j.length == 0)
 			{
 				alert("No Links to display. Closing Window");
@@ -2145,7 +2164,7 @@ $.ajax({
 			});
 
 			cy.on('mouseover', { hlclass: 'highlighted' }, highlight );
-			cy.on('click', { hlclass: 'clhighlighted', cy2: cy2 }, highlight );
+			cy.on('click', { hlclass: 'clhighlighted', cy2: cy2 , ret: ret}, highlight );
 
 			/*
 				TODO: node ranking
