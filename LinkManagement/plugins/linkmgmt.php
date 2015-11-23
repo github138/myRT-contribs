@@ -197,7 +197,7 @@ class pv_linkchain implements Iterator {
 			$this->first = $this->_getlinks($port_id, true);
 		else
 		{
-			$linktable = $this->getlinktable(true);
+			$linktype = $this->getlinktype(true);
 
 			/* set first object */
 			$object_id = $this->ports[$port_id]['object_id'];
@@ -207,7 +207,7 @@ class pv_linkchain implements Iterator {
 				$this->lastipobjport = $port_id;
 
 			$this->first = $this->lastipobjport;
-			$this->last = $this->ports[$this->first][$linktable]['remote_id'];
+			$this->last = $this->ports[$this->first][$linktype]['remote_id'];
 
 			///$this->first = $this->last;
 		}
@@ -218,15 +218,15 @@ class pv_linkchain implements Iterator {
 
 		//echo "END ".$this->init." - ".$this->first." - ".$this->last."-".$this->loop."<br>";
 		//echo "PORTS: $port_id";
-		//$this::var_dump_html($this->ports);
+		//$this::var_dump_html($this);
 		//echo "END PORTS:";
 	}
 
-	function _setportprevlink($port, $linktable, $prevport)
+	function _setportprevlink($port, $linktype, $prevport)
 	{
-		$port[$linktable] = array(
-					'cableid' => $prevport[$linktable]['cableid'],
-					'linked' => $prevport[$linktable]['linked'],
+		$port[$linktype] = array(
+					'cableid' => $prevport[$linktype]['cableid'],
+					'linked' => $prevport[$linktype]['linked'],
 					'remote_id' => $prevport['id'],
 					'remote_name' => $prevport['name'],
 					'remote_object_id' => $prevport['object_id'],
@@ -236,9 +236,9 @@ class pv_linkchain implements Iterator {
 		return $port;
 	}
 
-	function _setportlink($port, $linktable)
+	function _setportlink($port, $linktype)
 	{
-		$port[$linktable] = array(
+		$port[$linktype] = array(
 					'cableid' => $port['cableid'],
 					'linked' => $port['linked'],
 					'remote_id' => $port['remote_id'],
@@ -259,8 +259,8 @@ class pv_linkchain implements Iterator {
 
 	function _getportlink($port)
 	{
-		$linktable = $this->getlinktable($this->back);
-		return array_merge($port, $port[$linktable], array('linktype' => $this->getlinktype(), 'linktable' => $linktable));
+		$linktype = $this->getlinktype($this->back);
+		return array_merge($port, $port[$linktype], array('linktype' => $linktype));
 	}
 
 	function getlinktable($back)
@@ -281,9 +281,9 @@ class pv_linkchain implements Iterator {
 			return false;
 	}
 
-	function getlinktype()
+	function getlinktype($back)
 	{
-		return ($this->back ? 'back' : 'front' );
+		return ($back ? 'back' : 'front' );
 	}
 
 	//recursive
@@ -291,6 +291,7 @@ class pv_linkchain implements Iterator {
 	{
 		//echo "START".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
 		$linktable = $this->getlinktable($back);
+		$linktype = $this->getlinktype($back);
 
 		$port = pv_getPortInfo($port_id, $linktable);
 
@@ -359,34 +360,33 @@ class pv_linkchain implements Iterator {
 			if(isset($object['portip'][$port['name']]))
 				$port['portip'] = $object['portip'][$port['name']];
 
-	//	$this->ports[$port_id][$linktable] = $port;
+	//	$this->ports[$port_id][$linkttype] = $port;
 
-		$port = $this->_setportlink($port, $linktable);
+		$port = $this->_setportlink($port, $linktype);
 
 		if($prevport_id)
 		{
-			$prevlinktable =  $this->getlinktable(!$back);
-			$port = $this->_setportprevlink($port, $prevlinktable, $this->ports[$prevport_id]);
-			//$this->ports[$prevport_id] = $this->_setportprevlink($this->ports[$prevport_id], $prevlinktable, $port);
+			$prevlinktype =  $this->getlinktype(!$back);
+			$port = $this->_setportprevlink($port, $prevlinktype, $this->ports[$prevport_id]);
 		}
 
 		if(isset($this->ports[$port_id]))
 		{
-			if(!isset($this->ports[$port_id][$linktable]))
-				$this->ports[$port_id][$linktable] = $port[$linktable];
+			if(!isset($this->ports[$port_id][$linktype]))
+				$this->ports[$port_id][$linktype] = $port[$linktype];
 			else
 			{
-				$this->ports[$port_id][$prevlinktable] = $port[$linktable];
+				$this->ports[$port_id][$prevlinktype] = $port[$linktype];
 
 				/* LOOP detected */
 				$this->loop = true;
 
-				//$prevlinktable = $this->getlinktable(!$back);
+				//$prevlinktype = $this->getlinktype(!$back);
 
 				if($this->last)
-					return $this->ports[$this->last][$prevlinktable]['remote_id'];
+					return $this->ports[$this->last][$prevlinktype]['remote_id'];
 				else
-					return $this->ports[$port_id][$prevlinktable]['remote_id'];
+					return $this->ports[$port_id][$prevlinktype]['remote_id'];
 
 			}
 		}
@@ -397,11 +397,11 @@ class pv_linkchain implements Iterator {
 		{
 		echo "START-----------------------------";
 		$this::var_dump_html($this->ports);
-		echo "$port_id-->$linktable ------------------ END -<br>";
+		echo "$port_id-->$linktype ------------------ END -<br>";
 		}
 
 		//echo "____".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
-		$remote_id = $this->ports[$port_id][$linktable]['remote_id'];
+		$remote_id = $this->ports[$port_id][$linktype]['remote_id'];
 
 		if($remote_id)
 		{
@@ -715,14 +715,14 @@ class pv_linkchain implements Iterator {
 		$remote_id = $this->first;
 
 		// if not Link use LinkBackend
-		$back = $this->ports[$remote_id]['Link']['remote_id'];
+		$back = $this->ports[$remote_id]['front']['remote_id'];
 
 		$chain = "<table>";
 
 		for(;$remote_id;)
 		{
 			$back = !$back;
-			$linktable = $this->getlinktable($back);
+			$linktype = $port['linktype'];
 
 			if($back)
 			{
@@ -735,7 +735,7 @@ class pv_linkchain implements Iterator {
 				$arrow = ' --> ';
 			}
 
-			$port = $this->ports[$remote_id][$linktable];
+			$port = $this->ports[$remote_id][$linktype];
 
 			if($this->init == $remote_id)
 				$chain .= "<tr><td><b>".$port['object_name']."</b></td><td><b> [".$port['name']."]</b></td>";
@@ -775,7 +775,7 @@ class pv_linkchain implements Iterator {
 	/* Iterator */
 	function rewind() {
 		$this->currentid = $this->first;
-		$this->back = !isset($this->ports[$this->currentid]['Link']['remote_id']);
+		$this->back = !isset($this->ports[$this->currentid]['front']['remote_id']);
 
 		if(!$this->linkcount)
 			$this->back = !$this->back;
@@ -790,9 +790,9 @@ class pv_linkchain implements Iterator {
 	}
 
 	function next() {
-		$linktable = $this->getlinktable($this->back);
+		$linktype = $this->getlinktype($this->back);
 
-		$remote_id = $this->ports[$this->currentid][$linktable]['remote_id'];
+		$remote_id = $this->ports[$this->currentid][$linktype]['remote_id'];
 	
 		if($this->loop && $remote_id == $this->first)
 			$this->currentid = false;
@@ -1720,7 +1720,7 @@ class cytoscapedata
 
 			if($port['remote_id'])
 			{
-				$linktype = $linkchain->getlinktype();
+				$linktype = $port['linktype'];
 				$edgedata = array('label' => $port['cableid'], 'type' => $linktype, 'loop' => ($linkchain->loop ? '1' : '0'));
 
 				if($linkchain->loop && $port['remote_id'] == $linkchain->first)
@@ -2518,7 +2518,7 @@ class linkmgmt_gvmap {
 					!isset($gv->graph['edgesFrom'][$port['remote_id']][$port['id']])
 				) {
 
-					$linktype = $linkchain->getlinktype();
+					$linktype = $port['linktype'];
 
 					$edgetooltip = $port['object_name'].':'.$port['name'].
 							' - '.$port['cableid'].' -> '.
