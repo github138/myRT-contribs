@@ -1775,12 +1775,16 @@ class cytoscapedata
 	}
 
 	function getparents() {
-		return array_merge(array_values[$this->parents], array_values($this->edges['parents']));
+		return array_merge(array_values($this->parents), array_values($this->edges['parents']));
+	}
+
+	function getelements()
+	{
+		return array_merge(array_values($this->parents), array_values($this->nodes), array_values($this->edges['nodes']));
 	}
 
 	function gettest()
 	{
-
 		return array_merge(array_values($this->parents), array_values($this->edges['parents']));
 		//return array_merge(array_values($this->parents), array_values($this->edges['parents']), array_values($this->nodes), array_values($this->edges['nodes']));
 	}
@@ -1838,11 +1842,12 @@ function linkmgmt_cytoscapemap() {
 	if(isset($_GET['json']))
 	{
 		$data = new cytoscapedata();
-		//$data->getlinkchains($object_id);
-		$data->allobjects(); // ugly graph;
+		$data->getlinkchains($object_id);
+		//$data->allobjects(); // ugly graph;
 		//echo json_encode($data->objects);
 		//echo json_encode($data->getparents());
-		echo json_encode($data->gettest());
+		//echo json_encode($data->gettest());
+		echo json_encode($data->getelements());
 		exit;
 	}
 
