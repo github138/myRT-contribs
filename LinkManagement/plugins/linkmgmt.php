@@ -1625,12 +1625,16 @@ class cytoscapedata
 
 	public $ids = array();
 
-	public $parents = NULL;
+	public $parents = array();
+	public $nodes = array();
+
+	public $edges = NULL;
 
 	function __construct()
 	{
-		$this->parents['objects'] = array();
-		$this->parents['edges'] = array();
+
+		$this->edges['parents'] = array();
+		$this->edges['nodes'] = array();
 	}
 
 	function addnode($id, $values = NULL, &$arr = NULL)
@@ -1647,6 +1651,11 @@ class cytoscapedata
 	//	$node['position'] = array('x' => 0, 'y' => 0 );
 
 		$this->objects[] = array('group' => 'nodes')  + $node;
+
+		if(isset($values['parent']))
+			$this->nodes[$id] = array('group' => 'nodes')  + $node;
+		else
+			$this->parents[$id] = array('group' => 'nodes')  + $node;
 
 		if($arr !== NULL)
 			$arr[] = array('group' => 'nodes')  + $node;
@@ -1696,11 +1705,11 @@ class cytoscapedata
 				continue;
 		//	echo $id;
 
-			if(!isset($this->nodes[$port['object_id']]))
+			if(!isset($this->parents['o'.$port['object_id']]))
 			{
 				$text = $port['object_name'].(isset($port['rack_text']) ? "\n".$port['rack_text'] : "" );
 				$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text, 'type' => 'obj'));
-				$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text, 'type' => 'obj'), $this->parents['objects']);
+			//	$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text, 'type' => 'obj'), $this->parents['objects']);
 			}
 
 			$text = (isset($port['portip']) ? $port['portip'] : $port['name']);
@@ -1721,6 +1730,7 @@ class cytoscapedata
 				else
 				{
 					$this->addedge('e'.$port['id']."_".$port['remote_id'], 'p'.$port['id'], 'p'.$port['remote_id'], $edgedata);
+					$this->addedge('e'.$port['id']."_".$port['remote_id'], 'p'.$port['id'], 'p'.$port['remote_id'], $edgedata, $this->edges['nodes']);
 					$id1 = $port['object_id'];
 					if($id1 > $port['remote_object_id'])
 					{
@@ -1732,10 +1742,10 @@ class cytoscapedata
 
 					$peid = "pe".$id1."_".$id2;
 
-					if(isset($this->parents['edges'][$peid]))
-						$this->parents['edges'][$peid]['data']['linkcount'][$linktype]++;
+					if(isset($this->edges['parents'][$peid]))
+						$this->edges['parents'][$peid]['data']['linkcount']++;
 					else
-						$this->addedge($peid, 'o'.$id1, 'o'.$id2, array('linktype' => 'mixed', 'linkcount' => array( $linktype => 1)), $this->parents['edges']);
+						$this->addedge($peid, 'o'.$id1, 'o'.$id2, array('linktype' => $linktype, 'linkcount' => 1), $this->edges['parents']);
 				}
 			}
 
@@ -1749,19 +1759,30 @@ class cytoscapedata
 				$last = $linkchain->last;
 				$this->addedge("l${first}_${last}",'p'.$first, 'p'.$last, array('type' => 'logical', 'label' => "logical"));
 		}
+
+		//portlist::var_dump_html($this->parents);
 	}
 
 	function getlinkchains($object_id) {
 
 		$this->objects = array();
-		$this->parents['objects'] = array();
-		$this->parents['edges'] = array();
+		$this->parents = array();
+		$this->nodes = array();
+		$this->edges['parents'] = array();
+		$this->edges['nodes'] = array();
 
 		$this->_getlinkchains($object_id);
 	}
 
 	function getparents() {
-		return array_merge($this->parents['objects'], array_values($this->parents['edges']));
+		return array_merge(array_values[$this->parents], array_values($this->edges['parents']));
+	}
+
+	function gettest()
+	{
+
+		return array_merge(array_values($this->parents), array_values($this->edges['parents']));
+		//return array_merge(array_values($this->parents), array_values($this->edges['parents']), array_values($this->nodes), array_values($this->edges['nodes']));
 	}
 
 	function _getlinkchains($object_id) {
@@ -1792,8 +1813,10 @@ class cytoscapedata
 	{
 
 		$this->objects = array();
-		$this->parents['objects'] = array();
-		$this->parents['edges'] = array();
+		$this->parents = array();
+		$this->nodes = array();
+		$this->edges['parents'] = array();
+		$this->edges['nodes'] = array();
 
 		$objects = listCells('object');
 
@@ -1803,7 +1826,7 @@ class cytoscapedata
 			//echo $object['id']."<br>";
 			$this->_getlinkchains($object['id']);
 			$i++;
-			//if($i > 20 ) break;
+			if($i > 20 ) break;
 		}
 	}
 }
@@ -1815,10 +1838,11 @@ function linkmgmt_cytoscapemap() {
 	if(isset($_GET['json']))
 	{
 		$data = new cytoscapedata();
-		$data->getlinkchains($object_id);
-		//$data->allobjects(); // ugly graph;
-		echo json_encode($data->objects);
+		//$data->getlinkchains($object_id);
+		$data->allobjects(); // ugly graph;
+		//echo json_encode($data->objects);
 		//echo json_encode($data->getparents());
+		echo json_encode($data->gettest());
 		exit;
 	}
 
@@ -1917,15 +1941,13 @@ $(function(){ // on dom ready
 				else
 					ret = 5;
 
-				if(0)
+				if(1)
 				if(ele.data('linkcount'))
 				{
-				if(ele.data('linkcount').front)
-					ret = (ele.data('linkcount').front * 3);
-				if(ele.data('linkcount').back)
-					ret = (ele.data('linkcount').back * 5);
+					ret = (ele.data('linkcount') * ret);
 				}
 
+				console.log(ele.data('id') + ret);
 				return ret;
 			 },
 //	'curve-style': 'segments',
@@ -2079,7 +2101,38 @@ $.ajax({
 				style: cystyle,
 				wheelSensitivity: 0.1,
 				elements: j,
-				layout: { name: 'dagre', nodeSep: 3, /* edgeSep: 30, */ ready: layoutready, stop: layoutstop },
+				layout: { name: 'dagre', nodeSep: 3, /* edgeSep: 30, */ ready: layoutready, stop: layoutstop,
+					/*
+						'edgeWeight': function(edge) {
+									if(edge.data('linkcount'))
+										return edge.data('linkcount') * 10;
+									else
+										return 1;
+						},
+					*/
+					/*
+						'minLen': function(edge) {
+
+								if(!edge.data('linktype'))
+									return 10;
+
+								if(edge.data('linktype') == 'back')
+									ret = 10;
+								else
+									ret = 50;
+
+								ret = ret / edge.data('linkcount');
+
+								if(ret < 0)
+									ret = 1;
+
+								if(ret > 10)
+									ret = 5;
+
+								return parseInt(ret);
+						},
+					*/
+					},
 				ready: function() {
 							window.cy = this;
 							//$('#cy').cytoscapeNavigator({ }); // not working with cytoscape 2.5 at the moment
