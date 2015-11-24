@@ -532,7 +532,7 @@ class pv_linkchain implements Iterator {
 			$remote_id = $port['remote_id'];
 
 			if($remote_id)
-				if($object_id != $remote_object_id || $allback)
+				if($object_id != $remote_object_id || $allback || $linktype == 'front')
 					$chain .= $this->printlink($port, $linktype);
 				else
 					$chain .= "<td>></td>";
