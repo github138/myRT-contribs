@@ -480,7 +480,7 @@ class pv_linkchain implements Iterator {
 			$hlbgcolor = "bgcolor=$rowbgcolor";
 
 		/* Current Port */
-		$chain = '<tr '.$hlbgcolor.'><td nowrap="nowrap" bgcolor='.self::CURRENT_PORT_BGCOLOR.' title="'.$title.
+		$chain = '<tr '.$hlbgcolor.'><td nowrap="nowrap" bgcolor='.($this->loop ? '#ff9966' : self::CURRENT_PORT_BGCOLOR).' title="'.$title.
 			'"><a '.$onclick.'>'.
 			$initport['name'].': </a></td>';
 
@@ -547,7 +547,7 @@ class pv_linkchain implements Iterator {
 			if($this->loop && $remote_id == $this->first)
 			{
 				$chain .= '<td bgcolor=#ff9966>LOOP</td>';
-				showWarning("Possible Loop on Port ($linktype) ".$port['name']);
+				showWarning("Possible Loop on Port ($linktype) ".$initport['name']);
 				break;
 			}
 
