@@ -585,9 +585,10 @@ class pv_linkchain implements Iterator {
 	} /* printobject */
 
 	function getprintport($port, $multilink = false) {
-		global $lm_cache;
+		global $lm_cache, $lm_multilink_port_types;
 
-		// TODO CHECK multilink
+		/* multilink port */
+		$multilink = in_array($port['oif_id'], $lm_multilink_port_types);
 
 		/* set bgcolor for current port */
 		if($port['id'] == $this->init) {
