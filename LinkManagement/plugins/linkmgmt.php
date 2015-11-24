@@ -446,7 +446,7 @@ class pv_linkchain implements Iterator {
 		return $chain;
 	}
 
-	function getchainrow($rowbgcolor = '#ffffff')
+	function getchainrow($allback = false, $rowbgcolor = '#ffffff')
 	{
 		//$this::var_dump_html($this->ports);
 		$port_id = $this->init;
@@ -490,25 +490,32 @@ class pv_linkchain implements Iterator {
 		$i=0;
 		foreach($this as $id => $port)
 		{
+			//self::var_dump_html($port);
+
 			$object_text = $this->getprintobject($port);
 			$port_text = $this->getprintport($port);
 
 			$linktype = $port['linktype']; //$this->getlinktype();
+			$prevlinktype = ($linktype == 'front' ? 'back' : 'front');
 
 			if($id == $this->first)
 			{
-				$chain .= $this->_printlinkportsymbol($port_id, $linktype);
+				$chain .= $this->_printlinkportsymbol($id, $prevlinktype);
 				$chain .= $this->printcomment($port);
 			}
 
 			$object_id = $port['object_id'];
 
+			$prevobject_id = $port[$prevlinktype]['remote_object_id'];
+			$remote_object_id = $port['remote_object_id'];
+
 			if($linktype == 'front')
 			{
 			//	$arrow = ' ---> ';
-				$chain .= $object_text."<td>></td>";
+				if($prevobject_id != $object_id || $allback)
+					$chain .= $object_text."<td>></td>";
 
-				if($object_id == $this->object_id)
+				if($object_id == $this->object_id && $remote_object_id != $object_id)
 					$chain .= "</tr></table></td><td><table><tr><td>";
 
 				$chain .= $port_text;
@@ -518,19 +525,22 @@ class pv_linkchain implements Iterator {
 			{
 			//	$arrow = ' ===> ';
 				$chain .= $port_text."<td><</td>".$object_text;
-				if($object_id == $this->object_id)
+				if($object_id == $this->object_id && $remote_object_id != $object_id)
 					$chain .= "</tr></table></td><td><table><tr><td>";
 			}
 
 			$remote_id = $port['remote_id'];
 
 			if($remote_id)
-				$chain .= $this->printlink($port, $linktype);
+				if($object_id != $remote_object_id || $allback)
+					$chain .= $this->printlink($port, $linktype);
+				else
+					$chain .= "<td>></td>";
 				//$chain .= "<td>$arrow</td>";
 
 			if($id == $this->last && !$this->loop)
 			{
-				$chain .= $this->_printlinkportsymbol($port_id, $linktype);
+				$chain .= $this->_printlinkportsymbol($id, $linktype);
 				$chain .= $this->printcomment($port);
 			}
 
@@ -3912,7 +3922,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 		$lc = new pv_linkchain($port['id']);
 
 		if($allports || $lc->linkcount > 0)
-			echo "<tr><td>".$lc->getchainrow(($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."</td></tr>";
+			echo "<tr><td>".$lc->getchainrow($allback, ($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."</td></tr>";
 
 		$rowcount++;
 
