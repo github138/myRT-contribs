@@ -2073,13 +2073,13 @@ function highlight(evt) {
 
 	var cy2 = evt.data.cy2;
 
-	var ret = evt.data.ret;
+	//var ret = evt.data.ret;
 
-	var j = ret.parents.concat(ret.nodes).concat(ret.edges.nodes);
+	//var j = ret.parents.concat(ret.nodes).concat(ret.edges.nodes);
 
 	cy2.remove(cy2.elements());
 	cy2.add(hleles2);
-	cy2.add(j);
+	//cy2.add(j);
 	cy2.layout({name: 'dagre', rankDir: 'LR', ready: layoutready});
 }
 
