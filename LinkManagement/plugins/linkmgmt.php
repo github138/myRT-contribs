@@ -493,7 +493,10 @@ class pv_linkchain implements Iterator {
 			//self::var_dump_html($port);
 
 			$object_text = $this->getprintobject($port);
+
 			$port_text = $this->getprintport($port);
+			if($id == $port_id)
+				$port_text = "</tr></table></td><td><table><tr><td>".$port_text;
 
 			$linktype = $port['linktype']; //$this->getlinktype();
 			$prevlinktype = ($linktype == 'front' ? 'back' : 'front');
@@ -515,9 +518,6 @@ class pv_linkchain implements Iterator {
 				if($prevobject_id != $object_id || $allback)
 					$chain .= $object_text."<td>></td>";
 
-				if($object_id == $this->object_id && $remote_object_id != $object_id)
-					$chain .= "</tr></table></td><td><table><tr><td>";
-
 				$chain .= $port_text;
 
 			}
@@ -525,8 +525,6 @@ class pv_linkchain implements Iterator {
 			{
 			//	$arrow = ' ===> ';
 				$chain .= $port_text."<td><</td>".$object_text;
-				if($object_id == $this->object_id && $remote_object_id != $object_id)
-					$chain .= "</tr></table></td><td><table><tr><td>";
 			}
 
 			$remote_id = $port['remote_id'];
