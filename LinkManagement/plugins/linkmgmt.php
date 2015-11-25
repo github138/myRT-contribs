@@ -263,16 +263,6 @@ class pv_linkchain implements Iterator {
 		return array_merge($port, $port[$linktype], array('linktype' => $linktype));
 	}
 
-	function getlinktable($back)
-	{
-		if($back)
-			$linktable = 'LinkBackend';
-		else
-			$linktable = 'Link';
-
-		return $linktable;
-	}
-
 	function isback($linktable)
 	{
 		if($linktable == 'back')
@@ -290,10 +280,9 @@ class pv_linkchain implements Iterator {
 	function _getlinks($port_id, $back = false, $prevport_id = null)
 	{
 		//echo "START".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
-		$linktable = $this->getlinktable($back);
 		$linktype = $this->getlinktype($back);
 
-		$port = pv_getPortInfo($port_id, $linktable);
+		$port = pv_getPortInfo($port_id, $back);
 
 		$object_id =  $port['object_id'];
 		if(!isset($this->cache['o'.$object_id]))
@@ -890,8 +879,9 @@ END;
 	return $ret;
 } /* pv_fetchPortList */
 
-function pv_getPortInfo ($port_id, $linktable = 'Link')
+function pv_getPortInfo ($port_id, $back = false)
 {
+	$linktable = ($back ? 'LinkBackend' : 'Link');
         $result = pv_fetchPortList ('Port.id = ?', array ($port_id), $linktable);
         return empty ($result) ? NULL : $result[0];
 } /* pv_getPortInfo */
