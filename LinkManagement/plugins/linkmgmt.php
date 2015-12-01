@@ -773,7 +773,7 @@ class pv_linkchain implements Iterator {
 	/* Iterator */
 	function rewind() {
 		$this->currentid = $this->first;
-		$this->back = !isset($this->ports[$this->currentid]['front']['remote_id']);
+		$this->back = isset($this->ports[$this->currentid]['back']['remote_id']);
 
 		if(!$this->linkcount)
 			$this->back = !$this->back;
