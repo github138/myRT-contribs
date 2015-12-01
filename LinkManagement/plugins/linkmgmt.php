@@ -227,6 +227,7 @@ class pv_linkchain implements Iterator {
 		$port[$linktype] = array(
 					'cableid' => $prevport[$linktype]['cableid'],
 					'linked' => $prevport[$linktype]['linked'],
+					'portcount' => null, //$prevport[$linktype]['linked'],
 					'remote_id' => $prevport['id'],
 					'remote_name' => $prevport['name'],
 					'remote_object_id' => $prevport['object_id'],
@@ -241,6 +242,7 @@ class pv_linkchain implements Iterator {
 		$port[$linktype] = array(
 					'cableid' => $port['cableid'],
 					'linked' => $port['linked'],
+					'portcount' => $port['portcount'],
 					'remote_id' => $port['remote_id'],
 					'remote_name' => $port['remote_name'],
 					'remote_object_id' => $port['remote_object_id'],
@@ -249,6 +251,7 @@ class pv_linkchain implements Iterator {
 
 		unset($port['cableid']);
 		unset($port['linked']);
+		unset($port['portcount']);
 		unset($port['remote_id']);
 		unset($port['remote_name']);
 		unset($port['remote_object_id']);
@@ -282,7 +285,21 @@ class pv_linkchain implements Iterator {
 		//echo "START".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
 		$linktype = $this->getlinktype($back);
 
-		$port = pv_getPortInfo($port_id, $back);
+		$ports = pv_getPortInfo($port_id, $back);
+
+		if(!$back)
+		{
+			$mports = pv_getPortInfo($port_id, true);
+
+			if(count($mports) > 1)
+				echo "-AH";
+		}
+
+		$portcount = count($ports);
+
+		$port = $ports[0];
+		
+		$port['portcount'] = $portcount;
 
 		$object_id =  $port['object_id'];
 		if(!isset($this->cache['o'.$object_id]))
@@ -388,6 +405,21 @@ class pv_linkchain implements Iterator {
 		$this::var_dump_html($this->ports);
 		echo "$port_id-->$linktype ------------------ END -<br>";
 		}
+
+		if(!$back)
+		{
+			//if($prevport_id)
+			{
+				$mports = pv_getPortInfo($port_id, !$back);
+
+				$portcount = count($mports);
+
+				if($portcount > 1)
+					//$this->ports[$port_id][$this->getlinktype(!$back)] = $portcount;
+					echo "OH $port_id not $linktype $prevport_id";
+			}
+		}
+		//echo " - $linktype $prevport_id";
 
 		//echo "____".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
 		$remote_id = $this->ports[$port_id][$linktype]['remote_id'];
@@ -514,6 +546,11 @@ class pv_linkchain implements Iterator {
 			{
 			//	$arrow = ' ===> ';
 				$chain .= $port_text."<td><</td>".$object_text;
+			}
+
+			if($port['portcount'] > 1)
+			{
+				$chain .= "<td>Multi</td>";
 			}
 
 			$remote_id = $port['remote_id'];
@@ -883,7 +920,8 @@ function pv_getPortInfo ($port_id, $back = false)
 {
 	$linktable = ($back ? 'LinkBackend' : 'Link');
         $result = pv_fetchPortList ('Port.id = ?', array ($port_id), $linktable);
-        return empty ($result) ? NULL : $result[0];
+        //return empty ($result) ? NULL : $result[0];
+        return $result;
 } /* pv_getPortInfo */
 
 function pv_getObjectPortsAndLinks ($object_id)
