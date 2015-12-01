@@ -287,7 +287,7 @@ class pv_linkchain implements Iterator {
 
 		$ports = pv_getPortInfo($port_id, $back);
 
-		if(!$back)
+		if(!$back && $prevport_id)
 		{
 			$mports = pv_getPortInfo($port_id, true);
 
@@ -408,15 +408,15 @@ class pv_linkchain implements Iterator {
 
 		if(!$back)
 		{
-			//if($prevport_id)
+			if($prevport_id)
 			{
 				$mports = pv_getPortInfo($port_id, !$back);
 
 				$portcount = count($mports);
 
 				if($portcount > 1)
-					//$this->ports[$port_id][$this->getlinktype(!$back)] = $portcount;
-					echo "OH $port_id not $linktype $prevport_id";
+					$this->ports[$port_id][$this->getlinktype(!$back)]['portcount'] = $portcount;
+					//echo "OH $port_id not $linktype $prevport_id";
 			}
 		}
 		//echo " - $linktype $prevport_id";
@@ -521,6 +521,11 @@ class pv_linkchain implements Iterator {
 
 			$linktype = $port['linktype']; //$this->getlinktype();
 			$prevlinktype = ($linktype == 'front' ? 'back' : 'front');
+
+			if($port[$prevlinktype]['portcount'] > 1)
+			{
+				$chain .= "<td>MultI</td>";
+			}
 
 			if($id == $this->first)
 			{
