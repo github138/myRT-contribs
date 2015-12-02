@@ -200,10 +200,11 @@ class pv_linkchain implements Iterator {
 			$this->last = $this->_getlinks($port_id, $back);
 
 			// TODO set previous port ..and linktype, cableid ...
-			$this->ports[$port_id][$this->getlinktype(!$back)]['portcount'] = 0;
-			$this->ports[$port_id][$this->getlinktype(!$back)]['linked'] = 0;
-			$this->ports[$port_id][$this->getlinktype(!$back)]['remote_id'] = null;
-			$this->ports[$port_id][$this->getlinktype(!$back)]['remote_object_id'] = null;
+			$this->ports[$port_id][$this->getlinktype(!$back)]['portcount'] = 1;
+			$this->ports[$port_id][$this->getlinktype(!$back)]['linked'] = 1;
+			$this->ports[$port_id][$this->getlinktype(!$back)]['remote_id'] = $prevport['id'];
+			$this->ports[$port_id][$this->getlinktype(!$back)]['remote_object_id'] = $prevport['object_id'];
+			$this->ports[$port_id][$this->getlinktype(!$back)]['cableid'] = $prevport['cableid'];
 
 			$prevport_id = $prevport['id'];
 
@@ -216,6 +217,7 @@ class pv_linkchain implements Iterator {
 			$this->first = $prevport_id;
 			$this->linkcount++;
 
+		//	self::var_dump_html($this->ports[$port_id], "PORT");
 		//	self::var_dump_html($prevport, "PREVPORT");
 		}
 		else
@@ -446,6 +448,18 @@ class pv_linkchain implements Iterator {
 					$this->ports[$port_id][$this->getlinktype(!$back)]['portcount'] = $prevportcount;
 					$this->ports[$port_id][$this->getlinktype(!$back)]['ports'] = $prevports;
 					//echo "-OH $port_id not $linktype $prevport_id";
+
+					$lcs = array();
+					foreach($prevports as $mport)
+					{
+						if($remote_id != $mport['remote_id'])
+						{
+							$mport['portcount'] = 1;
+							$lcs[$mport['remote_id']] = new pv_linkchain($mport['remote_id'], !$back, $mport);
+						}
+					}
+
+					$this->ports[$port_id][$this->getlinktype(!$back)]['chains'] = $lcs;
 				}
 			}
 		}
@@ -520,13 +534,21 @@ class pv_linkchain implements Iterator {
 		return $chain;
 	}
 
-	function getchainrow($allback = false, $rowbgcolor = '#ffffff')
+	function getchainrow($allback = false, $rowbgcolor = '#ffffff', $right = true)
 	{
 		//$this::var_dump_html($this->ports);
 		$port_id = $this->init;
 
 		$initport = $this->ports[$port_id];
 		$multi = false;
+
+		if(1)
+		if(!$right)
+		{
+			$tmp = $this->last;
+			$this->last = $this->first;
+			$this->first = $tmp;
+		}
 
 		$urlparams = array(
 				'module' => 'redirect',
@@ -586,7 +608,13 @@ class pv_linkchain implements Iterator {
 
 				$chain = "<table frame=box><tr><td>tableH</td><td>".$chain;
 
+				foreach($port[$prevlinktype]['chains'] as $mlc)
+				{
+						$chain .= "<tr><td>x</td><td><table frame=box><tr><td>A</td><td>".$mlc->getchainrow($allback,$rowbgcolor,false)."</td><td>END A</TD></tr></table></td></tr>";
+				}
+
 				// print from right to left !!
+				if(0)
 				foreach($port[$prevlinktype]['ports'] as $mport)
 				{
 					if($port[$prevlinktype]['remote_id'] != $mport['remote_id'])
@@ -640,6 +668,7 @@ class pv_linkchain implements Iterator {
 					$chain .= "<tr><td>x</td><td><table frame=box><tr><td>A</td><td>".$mlc->getchainrow()."</td><td>END A</TD></tr></table></td></tr>";
 				}
 
+				if(0)
 				foreach($port['ports'] as $mport)
 				{
 					if($port['remote_id'] != $mport['remote_id'])
