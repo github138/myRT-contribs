@@ -473,6 +473,7 @@ class pv_linkchain implements Iterator {
 		$port_id = $this->init;
 
 		$initport = $this->ports[$port_id];
+		$multi = false;
 
 		$urlparams = array(
 				'module' => 'redirect',
@@ -564,7 +565,27 @@ class pv_linkchain implements Iterator {
 
 			if($port['portcount'] > 1)
 			{
+				$multi = true;
 				$chain .= "<td>Multi</td>";
+				$chain .= "</td><td>End</td></tr></table></td><td><table frame=box><tr><td>tableD</td>";//<table frame=box><tr><td><td>tableE</td>";
+	
+				for($i=1;$i<$port['portcount'];$i++)
+					$chain .= "<tr><td>x</td><td><table frame=box><tr><td>A</td><td>$i ---</td><td>END A</TD></tr></table></td></tr>";
+					//$chain .= "<td>$i ---</td>";
+
+				$chain .= "<tr><td>y</td><td><table frame=box><td>tableF</td><td>"; //<td>E</td>";
+				//$chain .= "</td><td>ENDF</td></tr></table></td>"; //<td>E</td>";
+
+				if(0)
+				{
+				$chain = "<table frame=box><tr><td>TableA</td><td>".$chain."</td></tr></table></td></tr>";
+
+				for($i=1;$i<$port['portcount'];$i++)
+					$chain .= "<tr><td>x</td><td><table frame=box><tr><td>A</td><td>$i ---</td></tr></table></td></tr>";
+
+				$chain .= "</table></td>"; //<td>E</td>";
+				$chain .= "<td><table frame=box><tr><td>tableC</td><td>";
+				}
 			}
 
 			$remote_id = $port['remote_id'];
@@ -591,7 +612,10 @@ class pv_linkchain implements Iterator {
 
 			$i++;
 		}
-		return $chainlabel.$chain."</tr></table></tr>";
+		if($multi)
+			$chain .= "</table>";
+
+		return $chainlabel.$chain."</tr></table><td>g</td>"; //</table></tr>";
 	}
 
 	/*
