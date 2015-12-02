@@ -501,12 +501,13 @@ class pv_linkchain implements Iterator {
 			$hlbgcolor = "bgcolor=$rowbgcolor";
 
 		/* Current Port */
-		$chain = '<tr '.$hlbgcolor.'><td nowrap="nowrap" bgcolor='.($this->loop ? '#ff9966' : self::CURRENT_PORT_BGCOLOR).' title="'.$title.
+		$chainlabel = '<tr '.$hlbgcolor.'><td nowrap="nowrap" bgcolor='.($this->loop ? '#ff9966' : self::CURRENT_PORT_BGCOLOR).' title="'.$title.
 			'"><a '.$onclick.'>'.
 			$initport['name'].': </a></td>';
 
-		$chain .= "<td><table align=right><tr>";
+		$chainlabel .= "<td>";
 
+		$chain = "<table frame=box align=right><tr><td>Table1</td>";
 
 		$i=0;
 		foreach($this as $id => $port)
@@ -517,7 +518,7 @@ class pv_linkchain implements Iterator {
 
 			$port_text = $this->getprintport($port);
 			if($id == $port_id)
-				$port_text = "</tr></table></td><td><table><tr><td>".$port_text;
+				$port_text = "</tr></table></td><td><table frame=box><tr><td>tableB</td><td>".$port_text;
 
 			$linktype = $port['linktype']; //$this->getlinktype();
 			$prevlinktype = ($linktype == 'front' ? 'back' : 'front');
@@ -525,6 +526,14 @@ class pv_linkchain implements Iterator {
 			if($port[$prevlinktype]['portcount'] > 1)
 			{
 				$chain .= "<td>MultI</td>";
+
+				$chain = "<table frame=box><tr><td>TableA</td><td>".$chain."</td></tr></table></td></tr>";
+
+				for($i=1;$i<$port[$prevlinktype]['portcount'];$i++)
+					$chain .= "<tr><td>x</td><td><table frame=box><tr><td>A</td><td>$i ---</td></tr></table></td></tr>";
+
+				$chain .= "</table></td>"; //<td>E</td>";
+				$chain .= "<td><table frame=box><tr><td>tableC</td><td>";
 			}
 
 			if($id == $this->first)
@@ -582,7 +591,7 @@ class pv_linkchain implements Iterator {
 
 			$i++;
 		}
-		return $chain."</tr></table></tr>";
+		return $chainlabel.$chain."</tr></table></tr>";
 	}
 
 	/*
@@ -608,7 +617,7 @@ class pv_linkchain implements Iterator {
                                 .$rack['name'].'</a>';
 		}
 
-                return '<td><table align=center cellpadding=5 cellspacing=0 border=1><tr><td align=center><a style="font-weight:bold;'
+                return '<td><table frame=box align=center cellpadding=5 cellspacing=0><tr><td align=center><a style="font-weight:bold;'
                         .$color.'" href="'.makeHref(array('page'=>'object', 'tab' => 'linkmgmt', 'object_id' => $object_id))
                         .'"><pre>'.$port['object_name'].'</pre></a><pre>'.$rackinfo
                         .'</pre></td></tr></table></td>';
@@ -3941,7 +3950,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 	echo '</tr></table>';
 
 
-	echo '<br><br><table id=renderobjectlinks0>';
+	echo '<br><br><table frame=box id=renderobjectlinks0>';
 
 	/*  switch display order depending on backend links */
 	$first = portlist::hasbackend($object_id);
@@ -3954,7 +3963,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 		$lc = new pv_linkchain($port['id']);
 
 		if($allports || $lc->linkcount > 0)
-			echo "<tr><td>".$lc->getchainrow($allback, ($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."</td></tr>";
+			echo "<tr><td>".$lc->Getchainrow($allback, ($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."</td></tr>";
 
 		$rowcount++;
 
