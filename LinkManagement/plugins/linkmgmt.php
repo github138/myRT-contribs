@@ -182,7 +182,12 @@ class pv_linkchain implements Iterator {
 
 	public $cache = null;
 
-	function __construct($port_id)
+	/* $back = null follow front and back
+	 * 		true follow back only
+	 *		false follow front only
+	 * $prevport first port
+	 */
+	function __construct($port_id, $back = null, $prevport = null)
 	{
 		global $linkchain_cache;
 
@@ -190,12 +195,39 @@ class pv_linkchain implements Iterator {
 
 		$this->cache = &$linkchain_cache;
 
-		// Link
-		$this->last = $this->_getlinks($port_id, false);
+		if($back !== null)
+		{
+			$this->last = $this->_getlinks($port_id, $back);
 
-		if(!$this->loop)
-			$this->first = $this->_getlinks($port_id, true);
+			// TODO set previous port ..and linktype, cableid ...
+			$this->ports[$port_id][$this->getlinktype(!$back)]['portcount'] = 0;
+			$this->ports[$port_id][$this->getlinktype(!$back)]['linked'] = 0;
+			$this->ports[$port_id][$this->getlinktype(!$back)]['remote_id'] = null;
+			$this->ports[$port_id][$this->getlinktype(!$back)]['remote_object_id'] = null;
+
+			$prevport_id = $prevport['id'];
+
+			$prevport = $this->_setportlink($prevport, $this->getlinktype(!$back));
+			$prevport[$this->getlinktype($back)]['portcount'] = null; 
+			$prevport[$this->getlinktype($back)]['remote_id'] = null; 
+			$prevport[$this->getlinktype($back)]['remote_object_id'] = null; 
+
+			$this->ports[$prevport_id] = $prevport;
+			$this->first = $prevport_id;
+			$this->linkcount++;
+
+		//	self::var_dump_html($prevport, "PREVPORT");
+		}
 		else
+		{
+			// Link
+			$this->last = $this->_getlinks($port_id, false);
+
+			if(!$this->loop)
+				$this->first = $this->_getlinks($port_id, true);
+		}
+
+		if($this->loop)
 		{
 			$linktype = $this->getlinktype(true);
 
@@ -291,6 +323,8 @@ class pv_linkchain implements Iterator {
 
 		$port = $ports[0];
 		
+		$remote_id = $port['remote_id'];
+
 		$port['portcount'] = $portcount;
 
 		$object_id =  $port['object_id'];
@@ -416,17 +450,32 @@ class pv_linkchain implements Iterator {
 			}
 		}
 
+		//$remote_id = $this->ports[$port_id][$linktype]['remote_id'];
+
 		if($portcount > 1)
 		{
 			/* mutlilink: multiple links */
 			//echo "-UH";
 
 			$this->ports[$port_id][$linktype]['ports'] = $ports;
+
+			$lcs = array();
+			foreach($ports as $mport)
+			{
+				if($remote_id != $mport['remote_id'])
+				{
+					$mport['portcount'] = 1;
+					$lcs[$mport['remote_id']] = new pv_linkchain($mport['remote_id'], !$back, $mport);
+				}
+			}
+
+			$this->ports[$port_id][$linktype]['chains'] = $lcs;
+
+			//self::var_dump_html($lcs, "LCS");
 		}
 		//echo " - $linktype $prevport_id";
 
 		//echo "____".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
-		$remote_id = $this->ports[$port_id][$linktype]['remote_id'];
 
 		if($remote_id)
 		{
@@ -586,6 +635,11 @@ class pv_linkchain implements Iterator {
 				$chain .= "<td>Multi</td>";
 				$chain .= "</td><td>End</td></tr></table></td><td><table frame=box><tr><td>tableD</td>";//<table frame=box><tr><td><td>tableE</td>";
 	
+				foreach($port['chains'] as $mlc)
+				{
+					$chain .= "<tr><td>x</td><td><table frame=box><tr><td>A</td><td>".$mlc->getchainrow()."</td><td>END A</TD></tr></table></td></tr>";
+				}
+
 				foreach($port['ports'] as $mport)
 				{
 					if($port['remote_id'] != $mport['remote_id'])
@@ -904,10 +958,10 @@ class pv_linkchain implements Iterator {
 	}
 
 	/* for debugging only */
-	function var_dump_html(&$var) {
-		echo "<pre>------------------Start Var Dump -------------------------\n";
+	function var_dump_html(&$var, $msg = "") {
+		echo "<pre>------------------Start Var Dump -------------$msg------------\n";
 		var_dump($var);
-		echo "\n---------------------END Var Dump ------------------------</pre>";
+		echo "\n---------------------END Var Dump -----------$msg-------------</pre>";
 	}
 } // pv_linkchain
 
