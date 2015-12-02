@@ -528,13 +528,16 @@ class pv_linkchain implements Iterator {
 			{
 				$chain .= "<td>MultI</td>";
 
-				$chain = "<table frame=box><tr><td>TableA</td><td>".$chain."</td></tr></table></td></tr>";
+				$chain = "<table frame=box><tr><td>TableA</td><td>".$chain."</td><td>end1</td></tr></table></td></tr>";
+
+				$chain = "<table frame=box><tr><td>tableH</td><td>".$chain;
 
 				for($i=1;$i<$port[$prevlinktype]['portcount'];$i++)
 					$chain .= "<tr><td>x</td><td><table frame=box><tr><td>A</td><td>$i ---</td></tr></table></td></tr>";
 
-				$chain .= "</table></td>"; //<td>E</td>";
-				$chain .= "<td><table frame=box><tr><td>tableC</td><td>";
+				$chain .= "</table></td><td>End A</td>";
+			//	$chain .= "<td><table frame=box><tr><td>TODO tableC</td><td>";
+			//	$chain .= "</td></tr></table></td><td><tr>";
 			}
 
 			if($id == $this->first)
