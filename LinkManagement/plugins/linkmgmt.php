@@ -2845,9 +2845,7 @@ class linkmgmt_gvmap {
 							$edgeattr['arrowtail'] = 'dot';
 						}
 
-						// TODO
-						if(0)
-						if(in_array($port['remote_oif_id'], $lm_multilink_port_types))
+						if(in_array($linkchain->ports[$remote_id]['oif_id'], $lm_multilink_port_types))
 						{
 							$edgeattr['dir'] = 'both';
 							$edgeattr['arrowhead'] = 'dot';
