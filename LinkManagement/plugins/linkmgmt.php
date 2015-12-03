@@ -579,7 +579,7 @@ class pv_linkchain implements Iterator {
 			$hlbgcolor = "bgcolor=$rowbgcolor";
 
 		/* Current Port */
-		$chainlabel = '<tr '.$hlbgcolor.'><td nowrap="nowrap" bgcolor='.($this->loop ? '#ff9966' : self::CURRENT_PORT_BGCOLOR).' title="'.$title.
+		$chainlabel = '<tr '.$hlbgcolor.' style="outline: thin solid black;"><td nowrap="nowrap" bgcolor='.($this->loop ? '#ff9966' : self::CURRENT_PORT_BGCOLOR).' title="'.$title.
 			'"><a '.$onclick.'>'.
 			$initport['name'].': </a></td>';
 
@@ -602,7 +602,7 @@ class pv_linkchain implements Iterator {
 			$this->last = $this->first;
 			$this->first = $tmp;
 		}
-		$chain = "<table frame=box align=right><tr><td>Table1</td>";
+		$chain = "<table align=right><tr>";
 
 		$i=0;
 		foreach($this as $id => $port)
@@ -620,7 +620,7 @@ class pv_linkchain implements Iterator {
 
 
 			if(!$multi && $this->initback === null && $id == $port_id)
-				$port_text = "</tr></table></td><td><table frame=box><tr><td>tableB</td><td>".$port_text;
+				$port_text = "</tr></table></td><td><table><tr><td>".$port_text;
 
 			$linktype = $port['linktype']; //$this->getlinktype();
 			$prevlinktype = ($linktype == 'front' ? 'back' : 'front');
@@ -628,32 +628,16 @@ class pv_linkchain implements Iterator {
 			if($port[$prevlinktype]['portcount'] > 1)
 			{
 				/* mutlilink: multiple previous links */
-				$chain .= "<td>MultI</td>";
+				$chain = "<table><tr><td>".$chain."</td></tr></table></td></tr>";
 
-				$chain = "<table frame=box><tr><td>TableA</td><td>".$chain."</td><td>end1</td></tr></table></td></tr>";
-
-				$chain = "<table frame=box><tr><td>tableH</td><td>".$chain;
+				$chain = "<table><tr><td>".$chain;
 
 				foreach($port[$prevlinktype]['chains'] as $mlc)
 				{
-						$chain .= "<tr><td>x</td><td><table frame=box><tr><td>A</td><td>".$mlc->getchainrow($allback,$rowbgcolor,false)."</td><td>END A</TD></tr></table></td></tr>";
+						$chain .= "<tr><td><table><tr><td>".$mlc->getchainrow($allback,$rowbgcolor,false)."</td></tr></table></td></tr>";
 				}
 
-				// print from right to left !!
-				if(0)
-				foreach($port[$prevlinktype]['ports'] as $mport)
-				{
-					if($port[$prevlinktype]['remote_id'] != $mport['remote_id'])
-						$chain .= "<tr><td>x</td><td><table frame=box><tr><td>A</td><td>".$mport['remote_name']."< ".$mport['remote_object_name']."</td><td>END A</TD></tr></table></td></tr>";
-				}
-
-				if(0)
-				for($i=1;$i<$port[$prevlinktype]['portcount'];$i++)
-					$chain .= "<tr><td>x</td><td><table frame=box><tr><td>A</td><td>$i ---</td></tr></table></td></tr>";
-
-				$chain .= "</table></td><td>End A</td>";
-			//	$chain .= "<td><table frame=box><tr><td>TODO tableC</td><td>";
-			//	$chain .= "</td></tr></table></td><td><tr>";
+				$chain .= "</table></td>";
 			}
 
 			if($port_text && $id == $this->first)
@@ -672,10 +656,10 @@ class pv_linkchain implements Iterator {
 			//	$arrow = ' ---> ';
 				if($object_text)
 				{
-				if($prevobject_id != $object_id || $allback)
-					$chain .= $object_text."<td>></td>";
+					if($prevobject_id != $object_id || $allback)
+						$chain .= $object_text."<td>></td>";
 
-				$chain .= $port_text;
+					$chain .= $port_text;
 				}
 
 			}
@@ -683,46 +667,21 @@ class pv_linkchain implements Iterator {
 			{
 			//	$arrow = ' ===> ';
 				if($object_text)
-				$chain .= $port_text."<td><</td>".$object_text;
+					$chain .= $port_text."<td><</td>".$object_text;
 			}
 
 			if($port['portcount'] > 1)
 			{
 				/* mutlilink: multiple links */
 				$multi = true;
-				$chain .= "<td>Multi</td>";
-				$chain .= "</td><td>End</td></tr></table></td><td><table frame=box><tr><td>tableD</td>";//<table frame=box><tr><td><td>tableE</td>";
+				$chain .= "</td></tr></table></td><td><table><tr>";
 	
 				foreach($port['chains'] as $mlc)
 				{
-					$chain .= "<tr><td>x</td><td><table frame=box><tr><td>A</td><td>".$mlc->getchainrow()."</td><td>END A</TD></tr></table></td></tr>";
+					$chain .= "<tr><td><table><tr><td>".$mlc->getchainrow()."</td></tr></table></td></tr>";
 				}
 
-				if(0)
-				foreach($port['ports'] as $mport)
-				{
-					if($port['remote_id'] != $mport['remote_id'])
-						$chain .= "<tr><td>x</td><td><table frame=box><tr><td>A</td><td>".$mport['remote_object_name'].">".$mport['remote_name']."</td><td>END A</TD></tr></table></td></tr>";
-				}
-
-				if(0)
-				for($i=1;$i<$port['portcount'];$i++)
-					$chain .= "<tr><td>x</td><td><table frame=box><tr><td>A</td><td>$i ---</td><td>END A</TD></tr></table></td></tr>";
-					//$chain .= "<td>$i ---</td>";
-
-				$chain .= "<tr><td>y</td><td><table frame=box><td>tableF</td><td>"; //<td>E</td>";
-				//$chain .= "</td><td>ENDF</td></tr></table></td>"; //<td>E</td>";
-
-				if(0)
-				{
-				$chain = "<table frame=box><tr><td>TableA</td><td>".$chain."</td></tr></table></td></tr>";
-
-				for($i=1;$i<$port['portcount'];$i++)
-					$chain .= "<tr><td>x</td><td><table frame=box><tr><td>A</td><td>$i ---</td></tr></table></td></tr>";
-
-				$chain .= "</table></td>"; //<td>E</td>";
-				$chain .= "<td><table frame=box><tr><td>tableC</td><td>";
-				}
+				$chain .= "<tr><td><table><td>";
 			}
 
 			$remote_id = $port['remote_id'];
@@ -752,7 +711,7 @@ class pv_linkchain implements Iterator {
 		if($multi)
 			$chain .= "</table>";
 
-		return $chain."</tr></table><td>g</td>"; //</table></tr>";
+		return $chain."</tr></table>";
 	}
 
 	/*
@@ -4171,7 +4130,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 	echo '</tr></table>';
 
 
-	echo '<br><br><table frame=box id=renderobjectlinks0>';
+	echo '<br><br><table id=renderobjectlinks0>';
 
 	/*  switch display order depending on backend links */
 	$first = portlist::hasbackend($object_id);
