@@ -1927,6 +1927,27 @@ class cytoscapedata
 
 			//$this->addnode('l_'.$port['id'], array( 'label' => $port['name'], 'parent' => 'p'.$port['id'], 'text' => $text ));
 
+			if($port['portcount'] > 1)
+				foreach($port['chains'] as $mlc)
+				{
+					$tmp = $mlc->first;
+					$mlc->first = $mlc->last;
+					$mlc->last = $tmp;
+					$this->addlinkchain($mlc, 0); // TODO index
+				}
+
+			$prevlinktype = ($port['linktype'] == 'front' ? 'back' : 'front');
+			if($port[$prevlinktype]['portcount'] > 1)
+			{
+				foreach($port[$prevlinktype]['chains'] as $mlc)
+				{
+					$tmp = $mlc->first;
+					$mlc->first = $mlc->last;
+					$mlc->last = $tmp;
+					$this->addlinkchain($mlc, 0); // TODO index
+				}
+			}
+
 
 			if($port['remote_id'])
 			{
