@@ -617,7 +617,7 @@ class pv_linkchain implements Iterator {
 			}
 
 
-			if($this->initback === null && $id == $port_id)
+			if(!$multi && $this->initback === null && $id == $port_id)
 				$port_text = "</tr></table></td><td><table frame=box><tr><td>tableB</td><td>".$port_text;
 
 			$linktype = $port['linktype']; //$this->getlinktype();
