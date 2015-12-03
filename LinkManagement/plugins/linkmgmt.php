@@ -453,12 +453,13 @@ class pv_linkchain implements Iterator {
 				{
 					$this->ports[$port_id][$this->getlinktype(!$back)]['portcount'] = $prevportcount;
 					$this->ports[$port_id][$this->getlinktype(!$back)]['ports'] = $prevports;
-					//echo "-OH $port_id not $linktype $prevport_id";
+					//echo "-OH $port_id not $linktype $prevport_id<br>";
 
 					$lcs = array();
 					foreach($prevports as $mport)
 					{
-						if($remote_id != $mport['remote_id'])
+						//echo $mport['id']." $remote_id $prevport_id ".$mport['remote_id']."<br>";
+						if($prevport_id != $mport['remote_id'])
 						{
 							$mport['portcount'] = 1;
 							$lcs[$mport['remote_id']] = new pv_linkchain($mport['remote_id'], $back, $mport);
