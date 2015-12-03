@@ -632,9 +632,24 @@ class pv_linkchain implements Iterator {
 
 				$chain = "<table><tr><td>".$chain;
 
+				$notrowbgcolor = ($rowbgcolor == pv_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : pv_linkchain::ALTERNATE_ROW_BGCOLOR );
+				if($port[$prevlinktype]['portcount'] % 2)
+				{
+					$oddbgcolor = $rowbgcolor;
+					$evenbgcolor = $notrowbgcolor;
+				}
+				else
+				{
+					$oddbgcolor = $notrowbgcolor;
+					$evenbgcolor = $rowbgcolor;
+				}
+
+				$mi = 0;
 				foreach($port[$prevlinktype]['chains'] as $mlc)
 				{
-						$chain .= "<tr><td><table><tr><td>".$mlc->getchainrow($allback,$rowbgcolor,false)."</td></tr></table></td></tr>";
+					$mbgcolor = ($mi % 2 ? $oddbgcolor : $evenbgcolor);
+					$chain .= "<tr bgcolor=$mbgcolor align=right><td><table><tr><td>".$mlc->getchainrow($allback,$mbgcolor,false)."</td></tr></table></td></tr>";
+					$mi++;
 				}
 
 				$chain .= "</table></td>";
@@ -675,10 +690,26 @@ class pv_linkchain implements Iterator {
 				/* mutlilink: multiple links */
 				$multi = true;
 				$chain .= "</td></tr></table></td><td><table><tr>";
+
+				$notrowbgcolor = ($rowbgcolor == pv_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : pv_linkchain::ALTERNATE_ROW_BGCOLOR );
+				if($port['portcount'] % 2)
+				{
+					$oddbgcolor = $rowbgcolor;
+					$evenbgcolor = $notrowbgcolor;
+				}
+				else
+				{
+					$oddbgcolor = $notrowbgcolor;
+					$evenbgcolor = $rowbgcolor;
+				}
 	
+				$mi = 0;
 				foreach($port['chains'] as $mlc)
 				{
-					$chain .= "<tr><td><table><tr><td>".$mlc->getchainrow()."</td></tr></table></td></tr>";
+
+					$mbgcolor = ($mi % 2 ? $evenbgcolor : $oddbgcolor);
+					$chain .= "<tr bgcolor=$mbgcolor><td><table><tr><td>".$mlc->getchainrow(false, $mbgcolor)."</td></tr></table></td></tr>";
+					$mi++;
 				}
 
 				$chain .= "<tr><td><table><td>";
