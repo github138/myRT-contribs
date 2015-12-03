@@ -658,7 +658,9 @@ class pv_linkchain implements Iterator {
 			if($port_text && $id == $this->first)
 			{
 				$chain .= $this->_printlinkportsymbol($id, $prevlinktype);
-				$chain .= $this->printcomment($port);
+
+				if($prevlinktype == 'front')
+					$chain .= $this->printcomment($port);
 			}
 
 			$object_id = $port['object_id'];
@@ -727,7 +729,9 @@ class pv_linkchain implements Iterator {
 			if($port_text && $id == $this->last && !$this->loop)
 			{
 				$chain .= $this->_printlinkportsymbol($id, $linktype);
-				$chain .= $this->printcomment($port);
+
+				if($linktype == 'front')
+					$chain .= $this->printcomment($port);
 			}
 
 			if($this->loop && $remote_id == $this->first)
