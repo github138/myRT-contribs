@@ -179,7 +179,7 @@ class pv_linkchain implements Iterator {
 
 	private $currentid = null;
 	private $back = null;
-	private $initback = null;
+	public $initback = null;
 
 	public $cache = null;
 	private $object_id = null;
@@ -1900,15 +1900,25 @@ class cytoscapedata
 		//$this->edges[] = array('group' => 'edges') + $edge;
 	}
 
-	function addlinkchain($linkchain, $index) {
+	function addlinkchain($linkchain, $index, $right = true) {
 		//addnodes
 		//addedge
+		if(0)
+		if($linkchain->initback !== null)
+			echo "AHH";
 
+		if(!$right)
+		{
+			$tmp = $linkchain->first;
+			$linkchain->first = $linkchain->last;
+			$linkchain->last = $tmp;
+		}
 		//	portlist::var_dump_html($linkchain);
 		//	echo "<br>LOOP-".$linkchain->loop."-".$linkchain->linked."-".true."-".false."<br>";
 		foreach($linkchain as $id => $port)
 		{
 
+			if(0)
 			if(isset($this->ids['p'.$id]))
 				continue;
 
@@ -1916,6 +1926,10 @@ class cytoscapedata
 			if(!$linkchain->linked)
 				continue;
 		//	echo $id;
+
+			if(0)
+			if($id == '7472')
+				$linkchain->var_dump_html($port);
 
 			if(!isset($this->parents['o'.$port['object_id']]))
 			{
@@ -1933,9 +1947,10 @@ class cytoscapedata
 			if($port['portcount'] > 1)
 				foreach($port['chains'] as $mlc)
 				{
-					$tmp = $mlc->first;
-					$mlc->first = $mlc->last;
-					$mlc->last = $tmp;
+				//	$tmp = $mlc->first;
+				//	$mlc->first = $mlc->last;
+				//	$mlc->last = $tmp;
+				//	echo $mlc->init." ".$mlc->first." ".$mlc->last."<br>";
 					$this->addlinkchain($mlc, 0); // TODO index
 				}
 
@@ -1944,13 +1959,9 @@ class cytoscapedata
 			{
 				foreach($port[$prevlinktype]['chains'] as $mlc)
 				{
-					$tmp = $mlc->first;
-					$mlc->first = $mlc->last;
-					$mlc->last = $tmp;
-					$this->addlinkchain($mlc, 0); // TODO index
+					$this->addlinkchain($mlc, 0, false); // TODO index
 				}
 			}
-
 
 			if($port['remote_id'])
 			{
@@ -1963,6 +1974,10 @@ class cytoscapedata
 				}
 				else
 				{
+		if(0)
+		if($linkchain->initback !== null)
+			echo 'e'.$port['id']."_".$port['remote_id']."<br>";
+
 					$this->addedge('e'.$port['id']."_".$port['remote_id'], 'p'.$port['id'], 'p'.$port['remote_id'], $edgedata);
 					$this->addedge('e'.$port['id']."_".$port['remote_id'], 'p'.$port['id'], 'p'.$port['remote_id'], $edgedata, $this->edges['nodes']);
 					$id1 = $port['object_id'];
