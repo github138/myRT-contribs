@@ -805,8 +805,13 @@ class pv_linkchain implements Iterator {
 	 */
 	function printlink($port, $linktype) {
 
+		$link_id = $port['id']."_".$port['remote_id'];
+
 		if($linktype == 'back')
+		{
 			$arrow = '====>';
+			$link_id .= '_back';
+		}
 		else
 			$arrow = '---->';
 
@@ -814,7 +819,7 @@ class pv_linkchain implements Iterator {
 
 		/* link */
 		return '<td align=center>'
-			.'<pre><a class="editcable" id='.$port_id.'>'.$port['cableid']
+			.'<pre><a class="editcable" id='.$link_id.'>'.$port['cableid']
 			."</a></pre><pre>$arrow</pre>"
 			.$this->_printUnLinkPort($port, $linktype)
 			.'</td>';
