@@ -203,7 +203,7 @@ class pv_linkchain implements Iterator {
 		{
 			$this->last = $this->_getlinks($port_id, $back);
 
-			// TODO set previous port ..and linktype, cableid ...
+			// TODO set previous port ..use _set... function()
 			$this->ports[$port_id][$this->getlinktype(!$back)]['portcount'] = 1;
 			$this->ports[$port_id][$this->getlinktype(!$back)]['linked'] = 1;
 			$this->ports[$port_id][$this->getlinktype(!$back)]['remote_id'] = $prevport['id'];
@@ -225,6 +225,7 @@ class pv_linkchain implements Iterator {
 
 		//	self::var_dump_html($this->ports[$port_id], "PORT");
 		//	self::var_dump_html($prevport, "PREVPORT");
+			$this->object_id = $_GET['object_id'];
 		}
 		else
 		{
@@ -234,6 +235,7 @@ class pv_linkchain implements Iterator {
 			if(!$this->loop)
 				$this->first = $this->_getlinks($port_id, true);
 
+			$this->object_id = $this->ports[$this->init]['object_id'];
 
 		}
 
@@ -255,8 +257,8 @@ class pv_linkchain implements Iterator {
 		}
 
 		$this->linked = ($this->linkcount > 0);
-		$this->object_id = $this->ports[$this->init]['object_id'];
 
+	//	$this->object_id = $this->ports[$this->init]['object_id'];
 
 		//echo "END ".$this->init." - ".$this->first." - ".$this->last."-".$this->loop."<br>";
 		//echo "PORTS: $port_id";
@@ -630,7 +632,7 @@ class pv_linkchain implements Iterator {
 				/* mutlilink: multiple previous links */
 				$chain = "<table><tr><td>".$chain."</td></tr></table></td></tr>";
 
-				$chain = "<table><tr><td>".$chain;
+				$chain = "<table align=right><tr><td>".$chain;
 
 				$notrowbgcolor = ($rowbgcolor == pv_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : pv_linkchain::ALTERNATE_ROW_BGCOLOR );
 				if($port[$prevlinktype]['portcount'] % 2)
@@ -652,7 +654,7 @@ class pv_linkchain implements Iterator {
 					$mi++;
 				}
 
-				$chain .= "</table></td>";
+				$chain .= "</td></tr></table><td bgcolor=#ff3344></td>";
 			}
 
 			if($port_text && $id == $this->first)
@@ -691,7 +693,7 @@ class pv_linkchain implements Iterator {
 			{
 				/* mutlilink: multiple links */
 				$multi = true;
-				$chain .= "</td></tr></table></td><td><table><tr>";
+				$chain .= "</td></tr></table></td><td><table><tr><td><td bgcolor=#ff3344></td><td><table></td>";
 
 				$notrowbgcolor = ($rowbgcolor == pv_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : pv_linkchain::ALTERNATE_ROW_BGCOLOR );
 				if($port['portcount'] % 2)
@@ -714,7 +716,7 @@ class pv_linkchain implements Iterator {
 					$mi++;
 				}
 
-				$chain .= "<tr><td><table><td>";
+				$chain .= "<td><table><td>";
 			}
 
 			$remote_id = $port['remote_id'];
@@ -744,7 +746,7 @@ class pv_linkchain implements Iterator {
 			$i++;
 		}
 		if($multi)
-			$chain .= "</table>";
+			$chain .= "</td></table></tr></td></table>";
 
 		return $chain."</tr></table>";
 	}
@@ -754,7 +756,7 @@ class pv_linkchain implements Iterator {
 	function getprintobject($port) {
 		$object_id = $port['object_id'];
 
-		if($this->initback === null && $object_id == $this->object_id) {
+		if($object_id == $this->object_id) {
                         $color='color: '.self::CURRENT_OBJECT_BGCOLOR;
                 } else {
                         $color='';
