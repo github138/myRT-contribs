@@ -2663,9 +2663,16 @@ class linkmgmt_gvmap {
 		error_reporting($this->errorlevel);
 	}
 
-	function addlinkchain($linkchain, $index)
+	function addlinkchain($linkchain, $index, $right = true)
 	{
 		global $lm_multilink_port_types;
+
+		if(!$right)
+		{
+			$tmp = $linkchain->first;
+			$linkchain->first = $linkchain->last;
+			$linkchain->last = $tmp;
+		}
 
 		foreach($linkchain as $id => $port)
 		{
@@ -2788,9 +2795,6 @@ class linkmgmt_gvmap {
 			if($port['portcount'] > 1)
 				foreach($port['chains'] as $mlc)
 				{
-					$tmp = $mlc->first;
-					$mlc->first = $mlc->last;
-					$mlc->last = $tmp;
 					$this->addlinkchain($mlc, 0); // TODO index
 				}
 
@@ -2799,10 +2803,7 @@ class linkmgmt_gvmap {
 			{
 				foreach($port[$prevlinktype]['chains'] as $mlc)
 				{
-					$tmp = $mlc->first;
-					$mlc->first = $mlc->last;
-					$mlc->last = $tmp;
-					$this->addlinkchain($mlc, 0); // TODO index
+					$this->addlinkchain($mlc, 0, false); // TODO index
 				}
 			}
 
