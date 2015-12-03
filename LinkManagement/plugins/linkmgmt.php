@@ -4174,9 +4174,11 @@ function linkmgmt_renderObjectLinks($object_id) {
 		$lc = new pv_linkchain($port['id']);
 
 		if($allports || $lc->linkcount > 0)
+		{
 			echo $lc->getchainlabeltrstart(($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."<td>".$lc->getchainrow($allback, ($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."</td></tr>";
+			$rowcount++;
+		}
 
-		$rowcount++;
 
 		}
 		else
