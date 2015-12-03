@@ -179,8 +179,10 @@ class pv_linkchain implements Iterator {
 
 	private $currentid = null;
 	private $back = null;
+	private $initback = null;
 
 	public $cache = null;
+	private $object_id = null;
 
 	/* $back = null follow front and back
 	 * 		true follow back only
@@ -192,6 +194,8 @@ class pv_linkchain implements Iterator {
 		global $linkchain_cache;
 
 		$this->init = $port_id;
+
+		$this->initback = $back;
 
 		$this->cache = &$linkchain_cache;
 
@@ -227,6 +231,8 @@ class pv_linkchain implements Iterator {
 
 			if(!$this->loop)
 				$this->first = $this->_getlinks($port_id, true);
+
+
 		}
 
 		if($this->loop)
@@ -247,8 +253,8 @@ class pv_linkchain implements Iterator {
 		}
 
 		$this->linked = ($this->linkcount > 0);
-
 		$this->object_id = $this->ports[$this->init]['object_id'];
+
 
 		//echo "END ".$this->init." - ".$this->first." - ".$this->last."-".$this->loop."<br>";
 		//echo "PORTS: $port_id";
@@ -536,21 +542,12 @@ class pv_linkchain implements Iterator {
 		return $chain;
 	}
 
-	function getchainrow($allback = false, $rowbgcolor = '#ffffff', $right = true)
+	function getchainlabeltrstart($rowbgcolor = '#ffffff')
 	{
-		//$this::var_dump_html($this->ports);
+
 		$port_id = $this->init;
 
 		$initport = $this->ports[$port_id];
-		$multi = false;
-
-		if(1)
-		if(!$right)
-		{
-			$tmp = $this->last;
-			$this->last = $this->first;
-			$this->first = $tmp;
-		}
 
 		$urlparams = array(
 				'module' => 'redirect',
@@ -583,8 +580,25 @@ class pv_linkchain implements Iterator {
 			'"><a '.$onclick.'>'.
 			$initport['name'].': </a></td>';
 
-		$chainlabel .= "<td>";
+		return $chainlabel;
+	}
 
+	function getchainrow($allback = false, $rowbgcolor = '#ffffff', $right = true)
+	{
+		//$this::var_dump_html($this->ports);
+		$port_id = $this->init;
+
+		$initport = $this->ports[$port_id];
+		$multi = false;
+
+		$initfirst = $this->first;
+
+		if(!$right)
+		{
+			$tmp = $this->last;
+			$this->last = $this->first;
+			$this->first = $tmp;
+		}
 		$chain = "<table frame=box align=right><tr><td>Table1</td>";
 
 		$i=0;
@@ -593,9 +607,16 @@ class pv_linkchain implements Iterator {
 			//self::var_dump_html($port);
 
 			$object_text = $this->getprintobject($port);
-
 			$port_text = $this->getprintport($port);
-			if($id == $port_id)
+
+			if($this->initback !== null && $id == $initfirst)
+			{
+				$object_text = "";
+				$port_text = "";
+			}
+
+
+			if($this->initback === null && $id == $port_id)
 				$port_text = "</tr></table></td><td><table frame=box><tr><td>tableB</td><td>".$port_text;
 
 			$linktype = $port['linktype']; //$this->getlinktype();
@@ -632,7 +653,7 @@ class pv_linkchain implements Iterator {
 			//	$chain .= "</td></tr></table></td><td><tr>";
 			}
 
-			if($id == $this->first)
+			if($port_text && $id == $this->first)
 			{
 				$chain .= $this->_printlinkportsymbol($id, $prevlinktype);
 				$chain .= $this->printcomment($port);
@@ -646,15 +667,19 @@ class pv_linkchain implements Iterator {
 			if($linktype == 'front')
 			{
 			//	$arrow = ' ---> ';
+				if($object_text)
+				{
 				if($prevobject_id != $object_id || $allback)
 					$chain .= $object_text."<td>></td>";
 
 				$chain .= $port_text;
+				}
 
 			}
 			else
 			{
 			//	$arrow = ' ===> ';
+				if($object_text)
 				$chain .= $port_text."<td><</td>".$object_text;
 			}
 
@@ -706,7 +731,7 @@ class pv_linkchain implements Iterator {
 					$chain .= "<td>></td>";
 				//$chain .= "<td>$arrow</td>";
 
-			if($id == $this->last && !$this->loop)
+			if($port_text && $id == $this->last && !$this->loop)
 			{
 				$chain .= $this->_printlinkportsymbol($id, $linktype);
 				$chain .= $this->printcomment($port);
@@ -724,7 +749,7 @@ class pv_linkchain implements Iterator {
 		if($multi)
 			$chain .= "</table>";
 
-		return $chainlabel.$chain."</tr></table><td>g</td>"; //</table></tr>";
+		return $chain."</tr></table><td>g</td>"; //</table></tr>";
 	}
 
 	/*
@@ -732,7 +757,7 @@ class pv_linkchain implements Iterator {
 	function getprintobject($port) {
 		$object_id = $port['object_id'];
 
-		if($object_id == $this->object_id) {
+		if($this->initback === null && $object_id == $this->object_id) {
                         $color='color: '.self::CURRENT_OBJECT_BGCOLOR;
                 } else {
                         $color='';
@@ -764,7 +789,7 @@ class pv_linkchain implements Iterator {
 		$multilink = in_array($port['oif_id'], $lm_multilink_port_types);
 
 		/* set bgcolor for current port */
-		if($port['id'] == $this->init) {
+		if($this->initback === null && $port['id'] == $this->init) {
 			$bgcolor = 'bgcolor='.self::CURRENT_PORT_BGCOLOR;
 			$idtag = ' id='.$port['id'];
 		} else {
@@ -4096,7 +4121,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 		$lc = new pv_linkchain($port['id']);
 
 		if($allports || $lc->linkcount > 0)
-			echo "<tr><td>".$lc->Getchainrow($allback, ($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."</td></tr>";
+			echo $lc->getchainlabeltrstart(($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."<td>".$lc->getchainrow($allback, ($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."</td></tr>";
 
 		$rowcount++;
 
