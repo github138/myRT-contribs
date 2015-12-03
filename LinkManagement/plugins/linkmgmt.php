@@ -208,6 +208,8 @@ class pv_linkchain implements Iterator {
 			$this->ports[$port_id][$this->getlinktype(!$back)]['linked'] = 1;
 			$this->ports[$port_id][$this->getlinktype(!$back)]['remote_id'] = $prevport['id'];
 			$this->ports[$port_id][$this->getlinktype(!$back)]['remote_object_id'] = $prevport['object_id'];
+			$this->ports[$port_id][$this->getlinktype(!$back)]['remote_name'] = $prevport['name'];
+			$this->ports[$port_id][$this->getlinktype(!$back)]['remote_object_name'] = $prevport['object_name'];
 			$this->ports[$port_id][$this->getlinktype(!$back)]['cableid'] = $prevport['cableid'];
 
 			$prevport_id = $prevport['id'];
@@ -1927,6 +1929,7 @@ class cytoscapedata
 
 			//$this->addnode('l_'.$port['id'], array( 'label' => $port['name'], 'parent' => 'p'.$port['id'], 'text' => $text ));
 
+			// TODO ignore first object/port on multilinks
 			if($port['portcount'] > 1)
 				foreach($port['chains'] as $mlc)
 				{
@@ -2765,6 +2768,28 @@ class linkmgmt_gvmap {
 						"c${port['object_id']}"); /* see cluster_id */
 
 			$remote_id = $port['remote_id'];
+
+			// TODO ignore first object/port on multilinks
+			if($port['portcount'] > 1)
+				foreach($port['chains'] as $mlc)
+				{
+					$tmp = $mlc->first;
+					$mlc->first = $mlc->last;
+					$mlc->last = $tmp;
+					$this->addlinkchain($mlc, 0); // TODO index
+				}
+
+			$prevlinktype = ($port['linktype'] == 'front' ? 'back' : 'front');
+			if($port[$prevlinktype]['portcount'] > 1)
+			{
+				foreach($port[$prevlinktype]['chains'] as $mlc)
+				{
+					$tmp = $mlc->first;
+					$mlc->first = $mlc->last;
+					$mlc->last = $tmp;
+					$this->addlinkchain($mlc, 0); // TODO index
+				}
+			}
 
 			if($remote_id)
 			{
