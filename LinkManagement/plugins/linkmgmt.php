@@ -1,8 +1,6 @@
 <?php
 // TODO linkchain cytoscape create libs?
 //	linkchain all objects graph cytoscape takes ages
-//	multilink
-//	mutlilink loop detection!!
 /*
  * Link Management for RT >= 0.20.9
  *
@@ -615,12 +613,19 @@ class pv_linkchain implements Iterator {
 		$onclick = 'onclick=window.open("'.makeHrefProcess(array_merge($_GET, $urlparams)).'","Map","height=500,width=800,scrollbars=yes");';
 
 		if($hl_port_id == $port_id)
+		{
 			$hlbgcolor = "bgcolor=".self::HL_PORT_BGCOLOR;
+		}
 		else
 			$hlbgcolor = "bgcolor=$rowbgcolor";
 
+		if($rowbgcolor == '#ffffff')
+			$troutlinecolor = 'grey';
+		else
+			$troutlinecolor = 'white';
+
 		/* Current Port */
-		$chainlabel = '<tr '.$hlbgcolor.' style="outline: thin solid black;"><td nowrap="nowrap" bgcolor='.($this->loop ? '#ff9966' : self::CURRENT_PORT_BGCOLOR).' title="'.$title.
+		$chainlabel = '<tr '.$hlbgcolor.' style="outline: thin solid '.$troutlinecolor.';"><td nowrap="nowrap" bgcolor='.($this->loop ? '#ff9966' : self::CURRENT_PORT_BGCOLOR).' title="'.$title.
 			'"><a '.$onclick.'>'.
 			$initport['name'].': </a></td>';
 
