@@ -676,7 +676,7 @@ class pv_linkchain implements Iterator {
 			if($port[$prevlinktype]['portcount'] > 1)
 			{
 				/* mutlilink: multiple previous links */
-				$chain = "<table id=t3><tr><td><table id=t4 align=right><tr><td>".$chain."</td></tr></table></td></tr></table></td></tr>";
+				$chain = "<table id=t3 frame=box><tr><td><table id=t4 align=right><tr><td>".$chain."</td></tr></table></td></tr></table></td></tr>";
 
 				$chain = "<table id=t5 align=right><tr><td>".$chain;
 
@@ -739,7 +739,7 @@ class pv_linkchain implements Iterator {
 			{
 				/* mutlilink: multiple links */
 				$multi = true;
-				$chain .= "</td></tr></table></td><td><table id=t7><tr><td><td bgcolor=#ff3344></td><td><table id=t8></td>";
+				$chain .= "</td></tr></table></td><td><table id=t7 frame=box><tr><td><td bgcolor=#ff3344></td><td><table id=t8></td>";
 
 				$notrowbgcolor = ($rowbgcolor == pv_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : pv_linkchain::ALTERNATE_ROW_BGCOLOR );
 				if($port['portcount'] % 2)
