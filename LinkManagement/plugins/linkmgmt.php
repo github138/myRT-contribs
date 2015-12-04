@@ -185,6 +185,9 @@ class pv_linkchain implements Iterator {
 	public $cache = null;
 	private $object_id = null;
 
+	private $icount = 0;
+	public $exceed = false;
+
 	/* $back = null follow front and back
 	 * 		true follow back only
 	 *		false follow front only
@@ -786,16 +789,16 @@ class pv_linkchain implements Iterator {
 				break;
 			}
 
-
-			if($this->loop && $i > $this->linkcount)
-			{
-				$chain .= '<td bgcolor=#ff9966>LINKCOUNT EXCEEDED</td>';
-				showWarning("Possible Loop linkcount(".$this->linkcount.") exceeded on Port ($linktype) ".$initport['name']);
-				break;
-			}
-
 			$i++;
 		}
+
+		if($this->exceed)
+		{
+			$chain .= '<td bgcolor=#ff9966>LINKCOUNT EXCEEDED</td>';
+			$linktype = $this->getlinktype($this->back);
+			showWarning("Possible Loop linkcount(".$this->linkcount.") exceeded on Port ($linktype) ".$initport['name']);
+		}
+
 		if($multi)
 			$chain .= "</td></table></tr></td></table>";
 
@@ -1041,6 +1044,8 @@ class pv_linkchain implements Iterator {
 
 		if(!$this->linkcount)
 			$this->back = !$this->back;
+
+		$this->icount = 0;
 	}
 
 	function current() {
@@ -1052,9 +1057,10 @@ class pv_linkchain implements Iterator {
 	}
 
 	function next() {
-		$linktype = $this->getlinktype($this->back);
+		//$linktype = $this->getlinktype($this->back);
+		//$remote_id = $this->ports[$this->currentid][$linktype]['remote_id'];
 
-		$remote_id = $this->ports[$this->currentid][$linktype]['remote_id'];
+		$remote_id = $this->current()['remote_id'];
 	
 		if($this->loop && $remote_id == $this->first)
 			$this->currentid = false;
@@ -1062,9 +1068,19 @@ class pv_linkchain implements Iterator {
 			$this->currentid = $remote_id;
 
 		$this->back = !$this->back;
+
+		$this->icount++;
 	}
 
 	function valid() {
+
+		/* linkcout exceeded */
+		if($this->icount > $this->linkcount+1)
+		{
+			$this->exceed = true;
+			return false;
+		}
+
 		return $this->currentid;
 	}
 
