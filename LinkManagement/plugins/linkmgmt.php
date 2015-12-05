@@ -638,7 +638,7 @@ class pv_linkchain implements Iterator {
 		$port_id = $this->init;
 
 		$initport = $this->ports[$port_id];
-		$multi = false;
+		$chainmulti = 0;
 
 		$initfirst = $this->first;
 
@@ -654,6 +654,7 @@ class pv_linkchain implements Iterator {
 		foreach($this as $id => $port)
 		{
 			//self::var_dump_html($port);
+			$multi = false;
 
 			$object_text = $this->getprintobject($port);
 			$port_text = $this->getprintport($port);
@@ -666,7 +667,7 @@ class pv_linkchain implements Iterator {
 
 
 			if(!$multi && $this->initback === null && $id == $port_id)
-				$port_text = "</tr></table></td><td><table id=t2><tr><td>".$port_text;
+				$port_text = "</tr></table><!-- current object --></td><td><table id=t2><tr>".$port_text;
 
 			$linktype = $port['linktype']; //$this->getlinktype();
 			$prevlinktype = ($linktype == 'front' ? 'back' : 'front');
@@ -700,7 +701,7 @@ class pv_linkchain implements Iterator {
 					$mi++;
 				}
 
-				$chain .= "</td></tr></table><td bgcolor=#ff3344></td>";
+				$chain .= "</table><!--multi link end--></td><td bgcolor=#ff3344></td>";
 			}
 
 			if($port_text && $id == $this->first)
@@ -737,9 +738,13 @@ class pv_linkchain implements Iterator {
 
 			if($port['portcount'] > 1)
 			{
+				
+
 				/* mutlilink: multiple links */
 				$multi = true;
-				$chain .= "</td></tr></table></td><td><table id=t7 frame=box><tr><td><td bgcolor=#ff3344></td><td><table id=t8></td>";
+
+				$chainmulti++;
+				$chain .= "</td></tr></table></td><td><table id=t7 frame=box><tr><td bgcolor=#ff3344></td><td><table id=t8>";
 
 				$notrowbgcolor = ($rowbgcolor == pv_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : pv_linkchain::ALTERNATE_ROW_BGCOLOR );
 				if($port['portcount'] % 2)
@@ -762,7 +767,10 @@ class pv_linkchain implements Iterator {
 					$mi++;
 				}
 
-				$chain .= "<td><table id=t10><td>";
+				// main chain
+				$chain .= "<tr><td><table id=10><tr><td><table id=11><tr>";
+				// TODO close tables!!!!!
+				//</table><!--end t8--></td></tr></table><!-- end t7--></td><td><table id=t10><tr><td>";
 			}
 
 			$remote_id = $port['remote_id'];
@@ -794,8 +802,11 @@ class pv_linkchain implements Iterator {
 				break;
 			}
 
+			//if($multi)
+				//$chain .= "<td>MULTI</td>";
+				//$chain .= "</td></tr></table><!-- chain multi --></td></tr></table></td></tr></table>";
 			$i++;
-		}
+		} // foreach port
 
 		if($this->exceed)
 		{
@@ -804,10 +815,14 @@ class pv_linkchain implements Iterator {
 			showWarning("Possible Loop linkcount(".$this->linkcount.") exceeded on Port ($linktype) ".$initport['name']);
 		}
 
-		if($multi)
-			$chain .= "</td></table></tr></td></table>";
+		//$chain .= "</tr></tabel><!-- end t10?-->";
 
-		return $chain."</tr></table>";
+		// close 3 tables per multilink port
+		if($chainmulti)
+			$chain .= str_repeat("</td></tr></table></td></tr></table></td></tr></table>", $chainmulti);
+			//$chain .= "</td><td>CMULTI</td></tr></table><!--multi end 1--></td></tr></table><!-- me t2 --></td></tr></table><!-- me t3 --></td></tr></table><!-- me t4 --></td></tr></table><!-- me t5 --></td></tr></table><!-- me t6 --></td></tr></table><!-- end ta --></td></tr></table><!-- end tb --></td></tr></table><!-- end tc -->";
+
+		return $chain."</tr></table><!--getchainrow end-->";
 	}
 
 	/*
