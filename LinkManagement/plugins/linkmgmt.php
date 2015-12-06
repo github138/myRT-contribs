@@ -157,6 +157,7 @@ $lm_cache = array(
 
 $linkchain_cache = array();
 
+/* recursive class */
 class pv_linkchain implements Iterator {
 
 	const B2B_LINK_BGCOLOR = '#d8d8d8';
@@ -185,6 +186,8 @@ class pv_linkchain implements Iterator {
 
 	private $icount = 0;
 	public $exceed = false;
+
+	public $multi = 0;
 
 	/* $back = null follow front and back
 	 * 		true follow back only
@@ -490,8 +493,9 @@ class pv_linkchain implements Iterator {
 				if($prevportcount > 1)
 				{
 					$this->ports[$port_id][$this->getlinktype(!$back)]['portcount'] = $prevportcount;
-					$this->ports[$port_id][$this->getlinktype(!$back)]['ports'] = $prevports;
+				//	$this->ports[$port_id][$this->getlinktype(!$back)]['ports'] = $prevports;
 					//echo "-OH $port_id not $linktype $prevport_id<br>";
+					$this->multi++;
 
 					$lcs = array();
 					foreach($prevports as $mport)
@@ -519,7 +523,8 @@ class pv_linkchain implements Iterator {
 			/* mutlilink: multiple links */
 			//echo "-UH";
 
-			$this->ports[$port_id][$linktype]['ports'] = $ports;
+			//$this->ports[$port_id][$linktype]['ports'] = $ports;
+			$this->multi++;
 
 			$lcs = array();
 			foreach($ports as $mport)
@@ -650,12 +655,13 @@ class pv_linkchain implements Iterator {
 			$this->first = $tmp;
 		}
 		$chain = "<table id=t1 align=right><tr>";
+		//$chain .= "<td><table id=t1a align=right><tr>";
 
 		$i=0;
 		foreach($this as $id => $port)
 		{
 			//self::var_dump_html($port);
-			$multi = false;
+			//$multi = false;
 
 			$object_text = $this->getprintobject($port);
 			$port_text = $this->getprintport($port);
@@ -666,8 +672,7 @@ class pv_linkchain implements Iterator {
 				$port_text = "";
 			}
 
-
-			if(!$multi && $this->initback === null && $id == $port_id)
+			if(!$chainmulti && $this->initback === null && $id == $port_id)
 				$port_text = "</tr></table><!-- current object --></td><td><table id=t2><tr>".$port_text;
 
 			$linktype = $port['linktype']; //$this->getlinktype();
@@ -678,9 +683,9 @@ class pv_linkchain implements Iterator {
 			if($port[$prevlinktype]['portcount'] > 1)
 			{
 				/* mutlilink: multiple previous links */
-				$chain = "<table id=t3 frame=box><tr><td><table id=t4 align=right><tr><td>".$chain."</td></tr></table></td></tr></table></td></tr>";
+				$chain = "<table id=5 align=right><tr><td><table id=t3 frame=box><tr><td><table id=t4 align=right><tr><td>".$chain."</td></tr></table></td></tr></table></td></tr>";
 
-				$chain = "<table id=t5 align=right><tr><td>".$chain;
+				//$chain = "<table id=t5 align=right><tr><td>".$chain;
 
 				$notrowbgcolor = ($rowbgcolor == pv_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : pv_linkchain::ALTERNATE_ROW_BGCOLOR );
 				if($port[$prevlinktype]['portcount'] % 2)
@@ -698,7 +703,7 @@ class pv_linkchain implements Iterator {
 				foreach($port[$prevlinktype]['chains'] as $mlc)
 				{
 					$mbgcolor = ($mi % 2 ? $oddbgcolor : $evenbgcolor);
-					$chain .= "<tr bgcolor=$mbgcolor align=right><td><table id=t6><tr><td>".$mlc->getchainrow($allback,$mbgcolor,false)."</td></tr></table></td></tr>";
+					$chain .= "<tr bgcolor=$mbgcolor align=right><td><table id=t6><tr>".$mlc->getchainrow($allback,$mbgcolor,false)."</tr></table></td></tr>";
 					$mi++;
 				}
 
@@ -742,7 +747,7 @@ class pv_linkchain implements Iterator {
 				
 
 				/* mutlilink: multiple links */
-				$multi = true;
+				//$multi = true;
 
 				$chainmulti++;
 				$chain .= "</td></tr></table></td><td><table id=t7 frame=box><tr><td bgcolor=#ff3344></td><td><table id=t8>";
@@ -764,7 +769,7 @@ class pv_linkchain implements Iterator {
 				{
 
 					$mbgcolor = ($mi % 2 ? $evenbgcolor : $oddbgcolor);
-					$chain .= "<tr bgcolor=$mbgcolor><td><table id=t9><tr><td>".$mlc->getchainrow(false, $mbgcolor)."</td></tr></table></td></tr>";
+					$chain .= "<tr bgcolor=$mbgcolor><td><table id=t9><tr>".$mlc->getchainrow(false, $mbgcolor)."</tr></table></td></tr>";
 					$mi++;
 				}
 
@@ -823,7 +828,7 @@ class pv_linkchain implements Iterator {
 			$chain .= str_repeat("</td></tr></table></td></tr></table></td></tr></table>", $chainmulti);
 			//$chain .= "</td><td>CMULTI</td></tr></table><!--multi end 1--></td></tr></table><!-- me t2 --></td></tr></table><!-- me t3 --></td></tr></table><!-- me t4 --></td></tr></table><!-- me t5 --></td></tr></table><!-- me t6 --></td></tr></table><!-- end ta --></td></tr></table><!-- end tb --></td></tr></table><!-- end tc -->";
 
-		return $chain."</tr></table><!--getchainrow end-->";
+		return "<td>".$chain."</tr></table><!--getchainrow end--></td>"; //</td></tr></table>";
 	}
 
 	/*
@@ -4283,7 +4288,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 
 		if($allports || $lc->linkcount > 0)
 		{
-			echo $lc->getchainlabeltrstart(($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."<td>".$lc->getchainrow($allback, ($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."</td></tr>";
+			echo $lc->getchainlabeltrstart(($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff")).$lc->getchainrow($allback, ($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."</tr>";
 			$rowcount++;
 		}
 
