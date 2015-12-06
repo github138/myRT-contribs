@@ -180,7 +180,7 @@ class pv_linkchain implements Iterator {
 	private $back = null;
 	public $initback = null;
 
-	public $cache = null;
+	//public $cache = null;
 	private $object_id = null;
 
 	private $icount = 0;
@@ -199,7 +199,7 @@ class pv_linkchain implements Iterator {
 
 		$this->initback = $back;
 
-		$this->cache = &$linkchain_cache;
+		//$this->cache = &$linkchain_cache;
 
 		if($back !== null)
 		{
@@ -248,7 +248,7 @@ class pv_linkchain implements Iterator {
 
 			/* set first object */
 			$object_id = $this->ports[$port_id]['object_id'];
-			$object = $this->cache['o'.$object_id];
+			$object = $linkchain_cache['o'.$object_id];
 
 			if($object['IPV4OBJ'])
 				$this->lastipobjport = $port_id;
@@ -329,6 +329,7 @@ class pv_linkchain implements Iterator {
 	//recursive
 	function _getlinks($port_id, $back = false, $prevport_id = null)
 	{
+		global $linkchain_cache;
 		//echo "START".$this->init."-$port_id -> ".$this->first." -- ".$this->last."<br>";
 		$linktype = $this->getlinktype($back);
 
@@ -345,7 +346,7 @@ class pv_linkchain implements Iterator {
 		//echo "--_getlinks port_id: $port_id remote_id: $remote_id portcount: $portcount $linktype<br>";
 
 		$object_id =  $port['object_id'];
-		if(!isset($this->cache['o'.$object_id]))
+		if(!isset($linkchain_cache['o'.$object_id]))
 		{
 			$object = spotEntity('object', $object_id);
 			$object['IPV4OBJ'] = considerConfiguredConstraint ($object, 'IPV4OBJ_LISTSRC');
@@ -368,13 +369,13 @@ class pv_linkchain implements Iterator {
 			if(1)
 			if($object['rack_id'])
 			{
-				if(!isset($this->cache['r'.$object['rack_id']]))
+				if(!isset($linkchain_cache['r'.$object['rack_id']]))
 				{
 					$rack = spotEntity('rack', $object['rack_id']);
-					$this->cache['r'.$object['rack_id']] = $rack;
+					$linkchain_cache['r'.$object['rack_id']] = $rack;
 				}
 				else
-					$rack = $this->cache['r'.$object['rack_id']];
+					$rack = $linkchain_cache['r'.$object['rack_id']];
 
 				if(!empty($rack['row_name']) || !empty($rack['name']))
 				{
@@ -382,15 +383,15 @@ class pv_linkchain implements Iterator {
 				}
 			}
 
-			$this->cache['o'.$object_id] = $object;
+			$linkchain_cache['o'.$object_id] = $object;
 
 		}
 		else
 		{
-			$object = $this->cache['o'.$object_id];
+			$object = $linkchain_cache['o'.$object_id];
 
 			if(isset($object['rack_id']))
-				$rack = $this->cache['r'.$object['rack_id']];
+				$rack = $linkchain_cache['r'.$object['rack_id']];
 			else
 				$rack = null;
 		}
@@ -828,6 +829,7 @@ class pv_linkchain implements Iterator {
 	/*
 	 */
 	function getprintobject($port) {
+		global $linkchain_cache;
 		$object_id = $port['object_id'];
 
 		if($object_id == $this->object_id) {
@@ -842,7 +844,7 @@ class pv_linkchain implements Iterator {
 			$rackinfo = '<span style="'.$style.'">Unmounted</span>';
                 else
 		{
-			$rack = $this->cache['r'.$port['rack_id']];
+			$rack = $linkchain_cache['r'.$port['rack_id']];
                         $rackinfo = '<a style="'.$style.'" href='.makeHref(array('page'=>'row', 'row_id'=>$rack['row_id'])).'>'.$rack['row_name']
                                 .'</a>/<a style="'.$style.'" href='.makeHref(array('page'=>'rack', 'rack_id'=>$rack['id'])).'>'
                                 .$rack['name'].'</a>';
