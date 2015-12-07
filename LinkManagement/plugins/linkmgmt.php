@@ -677,6 +677,8 @@ class pv_linkchain implements Iterator {
 			if(!$portmulti && $this->initback === null && $id == $port_id)
 			{
 				$currentbreak = true;
+				// TODO no break within multiport ...even main chain
+				//echo "BREAK $id ".$port['name'];
 				$port_text = "</tr></table><!-- current object --></td><td><table id=t2><tr>".$port_text;
 			}
 
@@ -687,6 +689,10 @@ class pv_linkchain implements Iterator {
 
 			if($port[$prevlinktype]['portcount'] > 1)
 			{
+				/* if within multilink */
+				if($prevportmulti && $linktype == 'front')
+					$currentbreak = false;
+
 				$prevportmulti++;
 				/* mutlilink: multiple previous links */
 				$chain = "<table id=5 align=right><tr><td><table id=t3 frame=box><tr><td><table id=t4 align=right><tr><td>".$chain."</td></tr></table><!-- te 5? --></td></tr></table><!-- te4 --></td></tr>";
@@ -751,7 +757,6 @@ class pv_linkchain implements Iterator {
 			if($port['portcount'] > 1)
 			{
 				
-
 				/* mutlilink: multiple links */
 				//$multi = true;
 				$chain .= "<td><table id=t7 frame=box><tr><td bgcolor=#ff3344></td><td><table id=t8>";
@@ -845,7 +850,7 @@ class pv_linkchain implements Iterator {
 			$chain .= str_repeat("</td></tr></table><!-- end t11? --></td></tr></table><!-- t10 portmulti --></td></tr></table><!-- te 8 --></td></tr></table><!-- te7 -->", $portmulti);
 			//$chain .= "</td><td>CMULTI</td></tr></table><!--multi end 1--></td></tr></table><!-- me t2 --></td></tr></table><!-- me t3 --></td></tr></table><!-- me t4 --></td></tr></table><!-- me t5 --></td></tr></table><!-- me t6 --></td></tr></table><!-- end ta --></td></tr></table><!-- end tb --></td></tr></table><!-- end tc -->";
 
-		return "<td>".$chain."</tr></table><!--getchainrow end--></td>"; //</td></tr></table>";
+		return "<td".(!$currentbreak ? " colspan=2" : "").">".$chain."</tr></table><!--getchainrow end--></td>"; //</td></tr></table>";
 	}
 
 	/*
