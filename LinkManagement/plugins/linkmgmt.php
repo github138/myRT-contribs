@@ -646,6 +646,7 @@ class pv_linkchain implements Iterator {
 		$initport = $this->ports[$port_id];
 		$portmulti = 0;
 		$prevportmulti = 0;
+		$currentbreak = false;
 
 		$initfirst = $this->first;
 
@@ -674,7 +675,10 @@ class pv_linkchain implements Iterator {
 			}
 
 			if(!$portmulti && $this->initback === null && $id == $port_id)
+			{
+				$currentbreak = true;
 				$port_text = "</tr></table><!-- current object --></td><td><table id=t2><tr>".$port_text;
+			}
 
 			$linktype = $port['linktype']; //$this->getlinktype();
 			$prevlinktype = ($linktype == 'front' ? 'back' : 'front');
@@ -750,9 +754,7 @@ class pv_linkchain implements Iterator {
 
 				/* mutlilink: multiple links */
 				//$multi = true;
-
-				$portmulti++;
-				$chain .= "</td><td><table id=t7 frame=box><tr><td bgcolor=#ff3344></td><td><table id=t8>";
+				$chain .= "<td><table id=t7 frame=box><tr><td bgcolor=#ff3344></td><td><table id=t8>";
 
 				$notrowbgcolor = ($rowbgcolor == pv_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : pv_linkchain::ALTERNATE_ROW_BGCOLOR );
 				if($port['portcount'] % 2)
@@ -775,8 +777,21 @@ class pv_linkchain implements Iterator {
 					$mi++;
 				}
 
+				if(0)
+				if(!$currentbreak && !$portmulti)
+					$chain = "<tabel><tr><td>$chain</td></tr></table>";
+
 				// main chain
-				$chain .= "<tr><td><table id=10><tr><td><table id=11><tr>";
+				$chain .= "</td><td><table id=10><tr><td><table id=11><tr>";
+
+				//	$chain .= "<td>TEST</td>";
+
+				//$chain = "<td>$chain</td><td>TEST END</td>";
+
+
+				$portmulti++;
+
+				//$chain = "</td>$chain";
 				// TODO close tables!!!!!
 				//</table><!--end t8--></td></tr></table><!-- end t7--></td><td><table id=t10><tr><td>";
 			}
