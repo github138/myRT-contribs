@@ -644,7 +644,8 @@ class pv_linkchain implements Iterator {
 		$port_id = $this->init;
 
 		$initport = $this->ports[$port_id];
-		$chainmulti = 0;
+		$portmulti = 0;
+		$prevportmulti = 0;
 
 		$initfirst = $this->first;
 
@@ -672,7 +673,7 @@ class pv_linkchain implements Iterator {
 				$port_text = "";
 			}
 
-			if(!$chainmulti && $this->initback === null && $id == $port_id)
+			if(!$portmulti && $this->initback === null && $id == $port_id)
 				$port_text = "</tr></table><!-- current object --></td><td><table id=t2><tr>".$port_text;
 
 			$linktype = $port['linktype']; //$this->getlinktype();
@@ -682,8 +683,9 @@ class pv_linkchain implements Iterator {
 
 			if($port[$prevlinktype]['portcount'] > 1)
 			{
+				$prevportmulti++;
 				/* mutlilink: multiple previous links */
-				$chain = "<table id=5 align=right><tr><td><table id=t3 frame=box><tr><td><table id=t4 align=right><tr><td>".$chain."</td></tr></table></td></tr></table></td></tr>";
+				$chain = "<table id=5 align=right><tr><td><table id=t3 frame=box><tr><td><table id=t4 align=right><tr><td>".$chain."</td></tr></table><!-- te 5? --></td></tr></table><!-- te4 --></td></tr>";
 
 				//$chain = "<table id=t5 align=right><tr><td>".$chain;
 
@@ -707,7 +709,7 @@ class pv_linkchain implements Iterator {
 					$mi++;
 				}
 
-				$chain .= "</table><!--multi link end--></td><td bgcolor=#ff3344></td>";
+				$chain .= "</table><!--te3 multi link end--></td><td bgcolor=#ff3344></td>";
 			}
 
 			if($port_text && $id == $this->first)
@@ -749,8 +751,8 @@ class pv_linkchain implements Iterator {
 				/* mutlilink: multiple links */
 				//$multi = true;
 
-				$chainmulti++;
-				$chain .= "</td></tr></table></td><td><table id=t7 frame=box><tr><td bgcolor=#ff3344></td><td><table id=t8>";
+				$portmulti++;
+				$chain .= "</td><td><table id=t7 frame=box><tr><td bgcolor=#ff3344></td><td><table id=t8>";
 
 				$notrowbgcolor = ($rowbgcolor == pv_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : pv_linkchain::ALTERNATE_ROW_BGCOLOR );
 				if($port['portcount'] % 2)
@@ -823,9 +825,9 @@ class pv_linkchain implements Iterator {
 
 		//$chain .= "</tr></tabel><!-- end t10?-->";
 
-		// close 3 tables per multilink port
-		if($chainmulti)
-			$chain .= str_repeat("</td></tr></table></td></tr></table></td></tr></table>", $chainmulti);
+		// close 4 tables per multilink port
+		if($portmulti)
+			$chain .= str_repeat("</td></tr></table><!-- end t11? --></td></tr></table><!-- t10 portmulti --></td></tr></table><!-- te 8 --></td></tr></table><!-- te7 -->", $portmulti);
 			//$chain .= "</td><td>CMULTI</td></tr></table><!--multi end 1--></td></tr></table><!-- me t2 --></td></tr></table><!-- me t3 --></td></tr></table><!-- me t4 --></td></tr></table><!-- me t5 --></td></tr></table><!-- me t6 --></td></tr></table><!-- end ta --></td></tr></table><!-- end tb --></td></tr></table><!-- end tc -->";
 
 		return "<td>".$chain."</tr></table><!--getchainrow end--></td>"; //</td></tr></table>";
