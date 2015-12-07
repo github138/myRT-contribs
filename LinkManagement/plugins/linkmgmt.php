@@ -777,17 +777,17 @@ class pv_linkchain implements Iterator {
 					$mi++;
 				}
 
+				//TODO
 				if(0)
 				if(!$currentbreak && !$portmulti)
 					$chain = "<tabel><tr><td>$chain</td></tr></table>";
 
 				// main chain
-				$chain .= "</td><td><table id=10><tr><td><table id=11><tr>";
+				$chain .= "</tr><!-- TR END--><tr><td><table id=10><tr><td><table id=11><tr>";
 
 				//	$chain .= "<td>TEST</td>";
 
 				//$chain = "<td>$chain</td><td>TEST END</td>";
-
 
 				$portmulti++;
 
