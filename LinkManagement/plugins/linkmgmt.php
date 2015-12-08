@@ -850,7 +850,10 @@ class pv_linkchain implements Iterator {
 			$chain .= str_repeat("</td></tr></table><!-- end t11? --></td></tr></table><!-- t10 portmulti --></td></tr></table><!-- te 8 --></td></tr></table><!-- te7 -->", $portmulti);
 			//$chain .= "</td><td>CMULTI</td></tr></table><!--multi end 1--></td></tr></table><!-- me t2 --></td></tr></table><!-- me t3 --></td></tr></table><!-- me t4 --></td></tr></table><!-- me t5 --></td></tr></table><!-- me t6 --></td></tr></table><!-- end ta --></td></tr></table><!-- end tb --></td></tr></table><!-- end tc -->";
 
-		return "<td".(!$currentbreak ? " colspan=2" : "").">".$chain."</tr></table><!--getchainrow end--></td>"; //</td></tr></table>";
+		if(!$currentbreak)
+			$chain = "<table><tr><td>$chain</td></tr></table>";
+
+		return "<td".(!$currentbreak ? " colspan=2" : "").">".$chain."</td></tr></table><!--getchainrow end--></td>"; //</td></tr></table>";
 	}
 
 	/*
