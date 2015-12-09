@@ -782,13 +782,10 @@ class pv_linkchain implements Iterator {
 					$mi++;
 				}
 
-				//TODO
-				if(0)
-				if(!$currentbreak && !$portmulti)
-					$chain = "<tabel><tr><td>$chain</td></tr></table>";
+				$chain .= "</tr><!-- TR END-->";
 
 				// main chain
-				$chain .= "</tr><!-- TR END--><tr><td><table id=10><tr><td><table id=11><tr>";
+				$chain .= "<tr><td><table id=t10><tr>";
 
 				//	$chain .= "<td>TEST</td>";
 
@@ -847,7 +844,7 @@ class pv_linkchain implements Iterator {
 
 		// close 4 tables per multilink port
 		if($portmulti)
-			$chain .= str_repeat("</td></tr></table><!-- end t11? --></td></tr></table><!-- t10 portmulti --></td></tr></table><!-- te 8 --></td></tr></table><!-- te7 -->", $portmulti);
+			$chain .= str_repeat("</td></tr></table><!-- t10 portmulti --></td></tr></table><!-- te 8 --></td></tr></table><!-- te7 -->", $portmulti);
 			//$chain .= "</td><td>CMULTI</td></tr></table><!--multi end 1--></td></tr></table><!-- me t2 --></td></tr></table><!-- me t3 --></td></tr></table><!-- me t4 --></td></tr></table><!-- me t5 --></td></tr></table><!-- me t6 --></td></tr></table><!-- end ta --></td></tr></table><!-- end tb --></td></tr></table><!-- end tc -->";
 
 		if(!$currentbreak)
