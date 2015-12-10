@@ -638,6 +638,8 @@ class pv_linkchain implements Iterator {
 		return $chainlabel;
 	}
 
+	// TODO make return td
+	//	main chain always first ... not only prevportmulti
 	function getchainrow($allback = false, $rowbgcolor = '#ffffff', $right = true)
 	{
 		//$this::var_dump_html($this->ports, "Ports");
@@ -895,7 +897,7 @@ class pv_linkchain implements Iterator {
 			$bgcolor = 'bgcolor='.self::CURRENT_PORT_BGCOLOR;
 			$idtag = ' id='.$port['id'];
 		} else {
-			$bgcolor = '';
+			$bgcolor = 'bgcolor=#e0e0f8';
 			$idtag = '';
 		}
 
