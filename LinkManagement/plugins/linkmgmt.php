@@ -659,7 +659,7 @@ class pv_linkchain implements Iterator {
 			$this->first = $tmp;
 		}
 
-		$chain = "<td id=firsttd><table id=t1 align=right><tr>";
+		$chain = ""; // "<td id=firsttd><table id=t1 align=right><tr>";
 
 		$portmultis = array();
 		$i=0;
@@ -688,7 +688,6 @@ class pv_linkchain implements Iterator {
 			$linktype = $port['linktype']; //$this->getlinktype();
 			$prevlinktype = ($linktype == 'front' ? 'back' : 'front');
 
-			if(0)
 			if($port[$prevlinktype]['portcount'] > 1)
 			{
 				/* if within multilink */
@@ -710,13 +709,16 @@ class pv_linkchain implements Iterator {
 					$evenbgcolor = $rowbgcolor;
 				}
 
+				$chain = "<td><table id=prevmultiport frame=box><tr id=main><td><table id=prevmultimain align=right><tr>$chain</tr></table></td></tr><!-- end main tr--><tr><td><table id=prevmultis>";
+
 				$mi = 0;
 				foreach($port[$prevlinktype]['chains'] as $mlc)
 				{
 					$mbgcolor = ($mi % 2 ? $oddbgcolor : $evenbgcolor);
-					$chain .= "<tr bgcolor=$mbgcolor align=right><td><table id=t6><tr>".$mlc->getchainrow($allback,$mbgcolor,false)."</tr></table></td></tr>";
+					$chain .= "<tr bgcolor=$mbgcolor align=right><td><table id=t6><tr>".$mlc->getchainrow($allback,$mbgcolor,false)."</tr></table><!-- end t6 --></td></tr>";
 					$mi++;
 				}
+				$chain .= "</table><!--prevmultis--></td></tr></table><!--prevmultiport--></td><td bgcolor=#ff0000></td>";
 
 			}
 
@@ -822,6 +824,7 @@ class pv_linkchain implements Iterator {
 			showWarning("Possible Loop linkcount(".$this->linkcount.") exceeded on Port ($linktype) ".$initport['name']);
 		}
 
+		$chain = "<td id=firsttd><table id=t1 align=right><tr>$chain";
 		$chain .= "</tr></table><!-- end t1/t2 --></td><!--firsttd/secondtd-->";		
 
 		return $chain;
