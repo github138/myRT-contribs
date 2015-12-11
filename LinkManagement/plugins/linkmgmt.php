@@ -88,7 +88,7 @@ ALTER TABLE LinkBackend CONVERT to CHARACTER SET utf8 COLLATE utf8_unicode_ci;
 /**
  * The newest version of this plugin can be found at:
  *
- * https://github.com/github138/myRT-contribs/tree/develop-0.20.9
+ * https://github.com/github138/myRT-contribs/tree/develop-0.20.x
  *
  */
 
@@ -97,12 +97,6 @@ ALTER TABLE LinkBackend CONVERT to CHARACTER SET utf8 COLLATE utf8_unicode_ci;
  *
  * - code cleanups
  * - bug fixing
- *
- * - fix loopdectect for multiport
- *	MAX_LOOP_COUNT
- *	loop highlight gv map
- *
- * - fix column alignment with multilinks
  *
  * - put selected object/port top left of graph
  * - multlink count for Graphviz maps empty or full dot
@@ -2236,16 +2230,15 @@ body {
 <meta name="viewport" content="user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, minimal-ui">
 <title>Compound nodes</title>
 <!--<script src="js/jquery-1.4.4.min.js"></script>-->
+
 <script src="js/jquery-1.11.3.js"></script>
 <script src="js/cytoscape.js"></script>
-<script src="js/dagre.js"></script>
+<script src="js/dagre.min.js"></script>
 <script src="js/cytoscape-dagre.js"></script>
-<script src="js/cola.v3.min.js"></script>
-<script src="js/cytoscape-cola.js"></script>
-<!--<script src="js/cytoscape-spread.js"></script>-->
 <link rel="stylesheet" type="text/css" href="css/jquery.qtip.min.css">
 <script src="js/jquery.qtip.min.js"></script>
 <script src="js/cytoscape-qtip.js"></script>
+
 <!--<script src="js/cytoscape-css-renderer_mod.js"></script>-->
 <!--<script src="js/cytoscape.js-navigator.js_mod"></script>-->
 <script>
