@@ -781,19 +781,21 @@ class pv_linkchain implements Iterator {
 	
 				$chain .= "<td bgcolor=#ff0000></td><td><table id=multiport frame=box>";
 
-				$chain .= "<tr><td><table id=portmultis>";
+				$multichain = "<tr><td><table id=portmultis>";
 
 				$mi = 0;
 				foreach($port['chains'] as $mlc)
 				{
 
 					$mbgcolor = ($mi % 2 ? $evenbgcolor : $oddbgcolor);
-					$chain .= "<tr id=chain bgcolor=$mbgcolor><td><table id=t9><tr>".$mlc->getchainrow(false, $mbgcolor)."</tr></table></td></tr>";
-					$portmultis[] = "<tr bgcolor=$mbgcolor><td><table id=t9><tr>".$mlc->getchainrow(false, $mbgcolor)."</tr></table></td></tr>";
+				//	$chain .= "<tr id=chain bgcolor=$mbgcolor><td><table id=t9><tr>".$mlc->getchainrow(false, $mbgcolor)."</tr></table></td></tr>";
+					$multichain .= "<tr bgcolor=$mbgcolor><td><table id=t9><tr>".$mlc->getchainrow(false, $mbgcolor)."</tr></table></td></tr>";
 					$mi++;
 				}
 
-				$chain .= "</table><!-- portmultis --></td></tr>";
+				$multichain .= "</table><!-- portmultis --></td></tr>";
+
+				$portmultis[] = $multichain;
 				
 				// main
 				$chain .= "<tr id=multimain><td><table id=portmultimain><tr>";
@@ -836,9 +838,12 @@ class pv_linkchain implements Iterator {
 			showWarning("Possible Loop linkcount(".$this->linkcount.") exceeded on Port ($linktype) ".$initport['name']);
 		}
 
+		foreach(array_reverse($portmultis) as $multitr)
+		{
+			$chain .= "</tr></table><!-- portmultimain --></td></tr>$multitr</table><!-- multiport--></td>";
+		}	
 
-		
-		$chain .= str_repeat("</tr></table><!-- portmultimain --></td></tr></table><!-- multiport--></td>",$portmulti);
+	//	$chain .= str_repeat("</tr></table><!-- portmultimain --></td></tr></table><!-- multiport--></td>",$portmulti);
 	//	$chain .= "</tr></table><!-- portmultimain --></td></tr></table><!-- multiport--></td>";
 
 		if($this->initback === null)
