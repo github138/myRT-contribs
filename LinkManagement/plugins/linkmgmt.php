@@ -189,6 +189,9 @@ class pv_linkchain implements Iterator {
 
 	public $multi = 0;
 
+	public $portmulti = 0;
+	public $prevportmulti = 0;
+
 	/* $back = null follow front and back
 	 * 		true follow back only
 	 *		false follow front only
@@ -699,7 +702,7 @@ class pv_linkchain implements Iterator {
 				/* mutlilink: multiple previous links */
 
 				$notrowbgcolor = ($rowbgcolor == pv_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : pv_linkchain::ALTERNATE_ROW_BGCOLOR );
-				if($port[$prevlinktype]['portcount'] % 2)
+				if($this->prevportmulti % 2)
 				{
 					$oddbgcolor = $rowbgcolor;
 					$evenbgcolor = $notrowbgcolor;
@@ -715,7 +718,7 @@ class pv_linkchain implements Iterator {
 				$mi = 0;
 				foreach($port[$prevlinktype]['chains'] as $mlc)
 				{
-					$mbgcolor = ($mi % 2 ? $oddbgcolor : $evenbgcolor);
+					$mbgcolor = ($mi % 2 ? $evenbgcolor : $oddbgcolor);
 					$chain .= "<tr bgcolor=$mbgcolor align=right><td><table id=t6><tr>".$mlc->getchainrow($allback,$mbgcolor,false)."</tr></table><!-- end t6 --></td></tr>";
 					$mi++;
 				}
@@ -768,8 +771,9 @@ class pv_linkchain implements Iterator {
 				/* mutlilink: multiple links */
 				//$multi = true;
 
+
 				$notrowbgcolor = ($rowbgcolor == pv_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : pv_linkchain::ALTERNATE_ROW_BGCOLOR );
-				if($port['portcount'] % 2)
+				if($this->portmulti % 2)
 				{
 					$oddbgcolor = $rowbgcolor;
 					$evenbgcolor = $notrowbgcolor;
@@ -789,7 +793,6 @@ class pv_linkchain implements Iterator {
 				{
 
 					$mbgcolor = ($mi % 2 ? $evenbgcolor : $oddbgcolor);
-				//	$chain .= "<tr id=chain bgcolor=$mbgcolor><td><table id=t9><tr>".$mlc->getchainrow(false, $mbgcolor)."</tr></table></td></tr>";
 					$multichain .= "<tr bgcolor=$mbgcolor><td><table id=t9><tr>".$mlc->getchainrow(false, $mbgcolor)."</tr></table></td></tr>";
 					$mi++;
 				}
@@ -801,9 +804,8 @@ class pv_linkchain implements Iterator {
 				// main
 				$chain .= "<tr id=multimain><td><table id=portmultimain><tr>";
 
-				// "</tr></table><!-- portmultimain --></td></tr></table><!-- multiport--></td>";
-
 				$portmulti++;
+
 			}
 
 			$remote_id = $port['remote_id'];
@@ -852,6 +854,9 @@ class pv_linkchain implements Iterator {
 			$chain = "<td id=firsttd".(!$portalign ? " colspan=2" : " width=1%")."><table id=t1 align=right><tr>$chain";
 			$chain .= "</tr></table><!-- end t1/t2 --></td><!--firsttd/secondtd-->";		
 		}
+
+		$this->portmulti += $portmulti;
+		$this->prevportmulti += $prevportmulti;
 
 		return $chain;
 	}
