@@ -735,7 +735,7 @@ class pv_linkchain implements Iterator {
 			}
 
 			// current port align	
-			if($this->initback === null && $port_text && !$portmulti && $id == $port_id)
+			if($this->initback === null && $port_text && !$portmulti && !$prevportmulti && $id == $port_id)
 			{
 				$portalign = true;
 				$port_text = "</tr></table><!--t1 current--></td><!--end firsttd--><td id=secondtd><table id=t2><tr>$port_text";
