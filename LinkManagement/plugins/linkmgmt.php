@@ -38,7 +38,8 @@
  *
  * Changes:
  *	switch to new linkchain class
- *		- nicer looking grpahviz maps
+ *		- nicer looking graphviz maps
+ *		- better multilink support
  *
  *	add cytoscape.js maps
  *		- path higlighting
