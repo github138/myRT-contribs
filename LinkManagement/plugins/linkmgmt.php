@@ -730,6 +730,7 @@ class pv_linkchain implements Iterator {
 					$chain .= $this->printcomment($port);
 			}
 
+			if(0)
 			if($this->initback === null && $port_text && $id == $port_id)
 			{
 				$port_text = "</tr></table><!--t1 current--></td><!--end firsttd--><td id=secondtd><table id=t2><tr>$port_text";
@@ -759,7 +760,7 @@ class pv_linkchain implements Iterator {
 					$chain .= $port_text."<td><</td>".$object_text;
 			}
 
-			if(0)
+			if(1)
 			if($port['portcount'] > 1)
 			{
 				
@@ -778,6 +779,10 @@ class pv_linkchain implements Iterator {
 					$evenbgcolor = $rowbgcolor;
 				}
 	
+				$chain .= "<td bgcolor=#ff0000></td><td><table id=multiport frame=box>";
+
+				$chain .= "<tr><td><table id=portmultis>";
+
 				$mi = 0;
 				foreach($port['chains'] as $mlc)
 				{
@@ -787,6 +792,13 @@ class pv_linkchain implements Iterator {
 					$portmultis[] = "<tr bgcolor=$mbgcolor><td><table id=t9><tr>".$mlc->getchainrow(false, $mbgcolor)."</tr></table></td></tr>";
 					$mi++;
 				}
+
+				$chain .= "</table><!-- portmultis --></td></tr>";
+				
+				// main
+				$chain .= "<tr id=multimain><td><table id=portmultimain><tr>";
+
+				// "</tr></table><!-- portmultimain --></td></tr></table><!-- multiport--></td>";
 
 				$portmulti++;
 			}
@@ -824,8 +836,16 @@ class pv_linkchain implements Iterator {
 			showWarning("Possible Loop linkcount(".$this->linkcount.") exceeded on Port ($linktype) ".$initport['name']);
 		}
 
-		$chain = "<td id=firsttd><table id=t1 align=right><tr>$chain";
-		$chain .= "</tr></table><!-- end t1/t2 --></td><!--firsttd/secondtd-->";		
+
+		
+		$chain .= str_repeat("</tr></table><!-- portmultimain --></td></tr></table><!-- multiport--></td>",$portmulti);
+	//	$chain .= "</tr></table><!-- portmultimain --></td></tr></table><!-- multiport--></td>";
+
+		if($this->initback === null)
+		{
+			$chain = "<td id=firsttd><table id=t1 align=right><tr>$chain";
+			$chain .= "</tr></table><!-- end t1/t2 --></td><!--firsttd/secondtd-->";		
+		}
 
 		return $chain;
 	}
