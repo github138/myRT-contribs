@@ -36,10 +36,39 @@
  *		7. To get a Graphviz Map of a single port click the port name on the left
  *
  *
+ * Changes:
+ *	switch to new linkchain class
+ *		- nicer looking grpahviz maps
+ *
+ *	add cytoscape.js maps
+ *		- path higlighting
+ *		- zooming
+ *
  * Requirements:
  *	PHP 5 (http://php.net/)
  *	GraphViz_Image 1.3.0 or newer (http://pear.php.net/package/Image_GraphViz)
  *		GraphViz (http://www.graphviz.org/)
+ *
+ *	to user cytoscape js map the following is required:
+ *
+ *	Cytoscape.js (http://js.cytoscape.org/)
+ *		Racktables wwwroot/js directory:
+ *		https://cytoscape.github.io/cytoscape.js/api/cytoscape.js-latest/cytoscape.min.js
+ *	dagre.js
+ *		Racktables wwwroot/js directory:
+ *		https://raw.githubusercontent.com/cpettitt/dagre/master/dist/dagre.min.js
+ *		https://raw.githubusercontent.com/cytoscape/cytoscape.js-dagre/master/cytoscape-dagre.js
+ *	qtip
+ *		Racktables wwwroot/css directory:
+ *		https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.1/jquery.qtip.css
+ *
+ *		Racktables wwwroot/js directory:
+ *		https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.1/jquery.qtip.min.js
+ *		https://raw.githubusercontent.com/cytoscape/cytoscape.js-qtip/master/cytoscape-qtip.js
+ *
+ *	jquery >= 1.10.0 (qtip requirement)o
+ *		Racktables wwwroot/js directory:
+ *		https://code.jquery.com/jquery-1.11.3.min.js
  *
  * INSTALL:
  *
