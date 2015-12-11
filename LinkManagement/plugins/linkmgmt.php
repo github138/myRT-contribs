@@ -641,8 +641,6 @@ class pv_linkchain implements Iterator {
 		return $chainlabel;
 	}
 
-	// TODO make return td
-	//	main chain always first ... not only prevportmulti
 	function getchainrow($allback = false, $rowbgcolor = '#ffffff', $right = true)
 	{
 		//$this::var_dump_html($this->ports, "Ports");
@@ -669,8 +667,6 @@ class pv_linkchain implements Iterator {
 		$i=0;
 		foreach($this as $id => $port)
 		{
-			//self::var_dump_html($port);
-			//$multi = false;
 
 			$object_text = $this->getprintobject($port);
 			$port_text = $this->getprintport($port);
@@ -679,14 +675,6 @@ class pv_linkchain implements Iterator {
 			{
 				$object_text = "";
 				$port_text = "";
-			}
-
-			if(!$portmulti && $this->initback === null && $id == $port_id)
-			{
-				$currentbreak = true;
-				// TODO no break within multiport ...even main chain
-				//echo "BREAK $id ".$port['name'];
-			//	$port_text = "</tr></table><!-- current object --></td><td><table id=t2><tr>".$port_text;
 			}
 
 			$linktype = $port['linktype']; //$this->getlinktype();
@@ -769,8 +757,6 @@ class pv_linkchain implements Iterator {
 			{
 				
 				/* mutlilink: multiple links */
-				//$multi = true;
-
 
 				$notrowbgcolor = ($rowbgcolor == pv_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : pv_linkchain::ALTERNATE_ROW_BGCOLOR );
 				if($this->portmulti % 2)
@@ -845,9 +831,6 @@ class pv_linkchain implements Iterator {
 		{
 			$chain .= "</tr></table><!-- portmultimain --></td></tr>$multitr</table><!-- multiport--></td>";
 		}	
-
-	//	$chain .= str_repeat("</tr></table><!-- portmultimain --></td></tr></table><!-- multiport--></td>",$portmulti);
-	//	$chain .= "</tr></table><!-- portmultimain --></td></tr></table><!-- multiport--></td>";
 
 		if($this->initback === null)
 		{
