@@ -730,8 +730,8 @@ class pv_linkchain implements Iterator {
 					$chain .= $this->printcomment($port);
 			}
 
-			if(0)
-			if($this->initback === null && $port_text && $id == $port_id)
+			if(1)
+			if($this->initback === null && $port_text && !$portmulti && $id == $port_id)
 			{
 				$port_text = "</tr></table><!--t1 current--></td><!--end firsttd--><td id=secondtd><table id=t2><tr>$port_text";
 			}
