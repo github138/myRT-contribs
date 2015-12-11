@@ -709,7 +709,7 @@ class pv_linkchain implements Iterator {
 					$evenbgcolor = $rowbgcolor;
 				}
 
-				$chain = "<td><table id=prevmultiport frame=box><tr id=main><td><table id=prevmultimain align=right><tr>$chain</tr></table></td></tr><!-- end main tr--><tr><td><table id=prevmultis>";
+				$chain = "<td><table id=prevmultiport frame=box><tr id=main><td><table id=prevmultimain align=right><tr>$chain</tr></table></td></tr><!-- end main tr--><tr><td><table id=prevmultis align=right>";
 
 				$mi = 0;
 				foreach($port[$prevlinktype]['chains'] as $mlc)
