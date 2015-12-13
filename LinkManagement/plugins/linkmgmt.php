@@ -61,7 +61,7 @@
  *		https://raw.githubusercontent.com/cytoscape/cytoscape.js-dagre/master/cytoscape-dagre.js
  *	qtip
  *		Racktables wwwroot/css directory:
- *		https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.1/jquery.qtip.css
+ *		https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.1/jquery.qtip.min.css
  *
  *		Racktables wwwroot/js directory:
  *		https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.1/jquery.qtip.min.js
@@ -2261,8 +2261,8 @@ body {
 <title>Compound nodes</title>
 <!--<script src="js/jquery-1.4.4.min.js"></script>-->
 
-<script src="js/jquery-1.11.3.js"></script>
-<script src="js/cytoscape.js"></script>
+<script src="js/jquery-1.11.3.min.js"></script>
+<script src="js/cytoscape.min.js"></script>
 <script src="js/dagre.min.js"></script>
 <script src="js/cytoscape-dagre.js"></script>
 <link rel="stylesheet" type="text/css" href="css/jquery.qtip.min.css">
@@ -2452,7 +2452,7 @@ function highlight(evt) {
 
 $.ajax({
 	type: "GET",
-	url: "https://10.49.130.104/RackTables/index.php",
+	url: "{$_SERVER['PHP_SELF']}",
 	data: { module: 'redirect',
 		page: 'object',
 		tab: 'linkmgmt',
