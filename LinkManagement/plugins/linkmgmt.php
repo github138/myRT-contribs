@@ -211,10 +211,12 @@ class pv_linkchain implements Iterator {
 	private $icount = 0;
 	public $exceed = false;
 
-	public $multi = 0;
+	public $initalign = true;
 
 	public $portmulti = 0;
 	public $prevportmulti = 0;
+
+	private $initport = false;
 
 	/* $back = null follow front and back
 	 * 		true follow back only
@@ -362,6 +364,9 @@ class pv_linkchain implements Iterator {
 		global $linkchain_cache;
 		$linktype = $this->getlinktype($back);
 
+		if($port_id == $this->init)
+			$this->initport = true;
+
 		$ports = pv_getPortInfo($port_id, $back);
 
 		$portcount = count($ports);
@@ -479,8 +484,11 @@ class pv_linkchain implements Iterator {
 
 				if($prevportcount > 1)
 				{
+
+					if($this->initport)
+						$this->initalign = false;
+
 					$this->ports[$port_id][$this->getlinktype(!$back)]['portcount'] = $prevportcount;
-					$this->multi++;
 
 					$lcs = array();
 					foreach($prevports as $mport)
@@ -502,7 +510,6 @@ class pv_linkchain implements Iterator {
 		if($portcount > 1)
 		{
 			/* mutlilink: multiple links */
-			$this->multi++;
 
 			$lcs = array();
 			foreach($ports as $mport)
@@ -687,7 +694,7 @@ class pv_linkchain implements Iterator {
 			}
 
 			// current port align	
-			if($this->initback === null && $port_text && !$portmulti && !$prevportmulti && $id == $port_id)
+			if($this->initback === null && $port_text && !$portmulti && !$prevportmulti && $this->initalign && $id == $port_id)
 			{
 				$portalign = true;
 				$port_text = "</tr></table><!--t1 current--></td><!--end firsttd--><td id=secondtd><table id=t2><tr>$port_text";
