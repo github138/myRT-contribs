@@ -1156,6 +1156,7 @@ class pv_linkchain implements Iterator {
 /*
  *   from RT database.php fetchPortList()
  *	with Link table selection
+ *	and multilink changes
  */
 function pv_fetchPortList ($sql_where_clause, $query_params = array(), $linktable = 'Link')
 {
@@ -1173,11 +1174,11 @@ SELECT
 	(SELECT PortInnerInterface.iif_name FROM PortInnerInterface WHERE PortInnerInterface.id = Port.iif_id) AS iif_name,
 	(SELECT PortOuterInterface.oif_name FROM PortOuterInterface WHERE PortOuterInterface.id = Port.type) AS oif_name,
 
-	IF(la.porta, la.cable, lb.cable) AS cableid,
-	IF(la.porta, pa.id, pb.id) AS remote_id,
-	IF(la.porta, pa.name, pb.name) AS remote_name,
-	IF(la.porta, pa.object_id, pb.object_id) AS remote_object_id,
-	IF(la.porta, oa.name, ob.name) AS remote_object_name,
+	lk.cable AS cableid,
+	IF(lk.porta = ?, pb.id, pa.id) AS remote_id,
+	IF(lk.porta = ?, pb.name, pa.name) AS remote_name,
+	IF(lk.porta = ?, pb.object_id, pa.object_id) AS remote_object_id,
+	IF(lk.porta = ?, ob.name, oa.name) AS remote_object_name,
 
 	(SELECT COUNT(*) FROM PortLog WHERE PortLog.port_id = Port.id) AS log_count,
 	PortLog.user,
@@ -1186,11 +1187,10 @@ FROM
 	Port
 	INNER JOIN Object ON Port.object_id = Object.id
 
-	LEFT JOIN $linktable AS la ON la.porta = Port.id
-	LEFT JOIN Port AS pa ON pa.id = la.portb
+	LEFT JOIN $linktable AS lk ON lk.porta = Port.id or lk.portb = Port.id
+	LEFT JOIN Port AS pa ON pa.id = lk.porta
 	LEFT JOIN Object AS oa ON pa.object_id = oa.id
-	LEFT JOIN $linktable AS lb on lb.portb = Port.id
-	LEFT JOIN Port AS pb ON pb.id = lb.porta
+	LEFT JOIN Port AS pb ON pb.id = lk.portb
 	LEFT JOIN Object AS ob ON pb.object_id = ob.id
 
 	LEFT JOIN PortLog ON PortLog.id = (SELECT id FROM PortLog WHERE PortLog.port_id = Port.id ORDER BY date DESC LIMIT 1)
@@ -1199,6 +1199,7 @@ WHERE
 END;
 
 	$result = usePreparedSelectBlade ($query, $query_params);
+
 	$ret = array();
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 	{
@@ -1223,16 +1224,14 @@ END;
 function pv_getPortInfo ($port_id, $back = false)
 {
 	$linktable = ($back ? 'LinkBackend' : 'Link');
-        $result = pv_fetchPortList ('Port.id = ?', array ($port_id), $linktable);
+	if($back)
+		$result = pv_fetchPortList ('Port.id = ?', array ($port_id, $port_id, $port_id, $port_id, $port_id), $linktable);
+	else
+		$result = fetchPortList ('Port.id = ?', array ($port_id));
+
         //return empty ($result) ? NULL : $result[0];
         return $result;
 } /* pv_getPortInfo */
-
-function pv_getObjectPortsAndLinks ($object_id)
-{
-        $ret = pv_fetchPortList ("Port.object_id = ?", array ($object_id));
-        return sortPortList ($ret, TRUE);
-} /* pv_getObjectPortsAndLinks */
 
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------- */
@@ -2176,7 +2175,7 @@ class cytoscapedata
 	function _getlinkchains($object_id) {
 
 	//	$object = spotEntity('object', $object_id);
-		$object['ports'] = pv_getObjectPortsAndLinks ($object_id);
+		$object['ports'] = getObjectPortsAndLinks ($object_id);
 
 		$i = 0;
 		foreach($object['ports'] as $key => $port)
@@ -2664,7 +2663,7 @@ class linkmgmt_gvmap {
 	function addlinkchainsobject($object_id)
 	{
 
-		$object['ports'] = pv_getObjectPortsAndLinks ($object_id);
+		$object['ports'] = getObjectPortsAndLinks ($object_id);
 
 		$i = 0;
 		foreach($object['ports'] as $key => $port)
