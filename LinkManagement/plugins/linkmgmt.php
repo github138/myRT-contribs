@@ -2753,8 +2753,8 @@ class linkmgmt_gvmap {
 			$cluster_id = "c".$port['object_id'];
 
 			if(
-				!isset($gv->graph['clusters'][$cluster_id]) &&
-				!isset($gv->graph['subgraphs'][$cluster_id])
+				!isset($this->gv->graph['clusters'][$cluster_id]) &&
+				!isset($this->gv->graph['subgraphs'][$cluster_id])
 			) {
 				$object_id = $port['object_id'];
 				$object = spotEntity ('object', $object_id);
@@ -2805,7 +2805,7 @@ class linkmgmt_gvmap {
 					$embedin = "c$embedin"; /* see cluster_id */
 
 					/* add container / cluster if not already exists */
-					$this->_add($gv, $object['container_id'], NULL);
+					$this->_add($this->gv, $object['container_id'], NULL);
 				}
 
 				$clusterattr['id'] = "$object_id----"; /* used for js context menu */
@@ -2884,8 +2884,8 @@ class linkmgmt_gvmap {
 			if($remote_id)
 			{
 				if(
-					!isset($gv->graph['edgesFrom'][$port['id']][$port['remote_id']]) &&
-					!isset($gv->graph['edgesFrom'][$port['remote_id']][$port['id']])
+					!isset($this->gv->graph['edgesFrom'][$port['id']][$port['remote_id']]) &&
+					!isset($this->gv->graph['edgesFrom'][$port['remote_id']][$port['id']])
 				) {
 
 					$linktype = $port['linktype'];
