@@ -2835,7 +2835,7 @@ class linkmgmt_gvmap {
 							'label' => $nodelabel,
 						);
 
-				$this->_getcolor('port', 'default',$this->alpha, $nodeattr, 'fontcolor');
+				$this->_getcolor('port', ($linkchain->loop ? 'loop' : 'default'),$this->alpha, $nodeattr, 'fontcolor');
 				$this->_getcolor('oif_id', $port['oif_id'],$this->alpha, $nodeattr, 'color');
 
 				if($this->port_id == $port['id']) {
@@ -2902,7 +2902,7 @@ class linkmgmt_gvmap {
 							'samehead' => $linktype,
 						);
 
-					$this->_getcolor('edge', 'default', $this->alpha, $edgeattr, 'color');
+					$this->_getcolor('edge', ($linkchain->loop ? 'loop' : 'default'), $this->alpha, $edgeattr, 'color');
 					$this->_getcolor('edge', 'default', $this->alpha, $edgeattr, 'fontcolor');
 
 					if($linktype == 'back' )
@@ -3350,6 +3350,7 @@ class linkmgmt_gvmap {
 		$port = array(
 				'current' => '#ffff90',
 				'remote' => '#ffffD0',
+				'loop' => '#ff6666',
 				);
 
 		$cluster = array(
@@ -3359,6 +3360,7 @@ class linkmgmt_gvmap {
 
 		$edge = array (
 				'highlight' => '#ff0000',
+				'loop' => '#ff6666',
 				);
 
 		$oif_id = array(
