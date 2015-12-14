@@ -2691,7 +2691,7 @@ class linkmgmt_gvmap {
 			$children = getEntityRelatives ('children', 'object', $object_id); //'entity_id'
 
 			foreach($children as $child)
-				$this->addlinkchainsobject($obj['id']);
+				$this->addlinkchainsobject($child['entity_id']);
 			//	$this->_add($this->gv, $child['entity_id'], NULL);
 		}
 
