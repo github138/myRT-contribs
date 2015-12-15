@@ -1122,10 +1122,10 @@ SELECT
 	(SELECT PortOuterInterface.oif_name FROM PortOuterInterface WHERE PortOuterInterface.id = Port.type) AS oif_name,
 
 	lk.cable AS cableid,
-	IF(lk.porta = ?, pb.id, pa.id) AS remote_id,
-	IF(lk.porta = ?, pb.name, pa.name) AS remote_name,
-	IF(lk.porta = ?, pb.object_id, pa.object_id) AS remote_object_id,
-	IF(lk.porta = ?, ob.name, oa.name) AS remote_object_name,
+	IF(lk.porta = Port.id, pb.id, pa.id) AS remote_id,
+	IF(lk.porta = Port.id, pb.name, pa.name) AS remote_name,
+	IF(lk.porta = Port.id, pb.object_id, pa.object_id) AS remote_object_id,
+	IF(lk.porta = Port.id, ob.name, oa.name) AS remote_object_name,
 
 	(SELECT COUNT(*) FROM PortLog WHERE PortLog.port_id = Port.id) AS log_count,
 	PortLog.user,
@@ -1172,7 +1172,7 @@ function pv_getPortInfo ($port_id, $back = false)
 {
 	$linktable = ($back ? 'LinkBackend' : 'Link');
 	if($back)
-		$result = pv_fetchPortList ('Port.id = ?', array ($port_id, $port_id, $port_id, $port_id, $port_id), $linktable);
+		$result = pv_fetchPortList ('Port.id = ?', array ($port_id), $linktable);
 	else
 		$result = fetchPortList ('Port.id = ?', array ($port_id));
 
