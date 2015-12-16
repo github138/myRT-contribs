@@ -367,26 +367,10 @@ class pv_linkchain implements Iterator {
 		$this->last = $tmp;
 	}
 
-	//recursive
-	function _getlinks($port_id, $back = false, $prevport_id = null, $reverse = false)
+	function _getobject($object_id , &$rack = null)
 	{
 		global $linkchain_cache;
-		$linktype = $this->getlinktype($back);
 
-		if($port_id == $this->init)
-			$this->initport = true;
-
-		$ports = pv_getPortInfo($port_id, $back);
-
-		$portcount = count($ports);
-
-		$port = $ports[0];
-		
-		$remote_id = $port['remote_id'];
-
-		$port['portcount'] = $portcount;
-
-		$object_id =  $port['object_id'];
 		if(!isset($linkchain_cache['o'.$object_id]))
 		{
 			$object = spotEntity('object', $object_id);
@@ -407,34 +391,59 @@ class pv_linkchain implements Iterator {
 			}
 
 			// rack
-			if($object['rack_id'])
-			{
-				if(!isset($linkchain_cache['r'.$object['rack_id']]))
-				{
-					$rack = spotEntity('rack', $object['rack_id']);
-					$linkchain_cache['r'.$object['rack_id']] = $rack;
-				}
-				else
-					$rack = $linkchain_cache['r'.$object['rack_id']];
-
-				if(!empty($rack['row_name']) || !empty($rack['name']))
-				{
-					$object['rack_text'] = "${rack['row_name']} / ${rack['name']}";
-				}
-			}
-
-			$linkchain_cache['o'.$object_id] = $object;
-
+			$rack = $this->_getrack($object['rack_id']);
 		}
 		else
-		{
 			$object = $linkchain_cache['o'.$object_id];
 
-			if(isset($object['rack_id']))
-				$rack = $linkchain_cache['r'.$object['rack_id']];
+		return $object;
+	}
+
+	function _getrack($rack_id)
+	{
+		global $linkchain_cache;
+
+		// rack
+		if($rack_id)
+		{
+			if(!isset($linkchain_cache['r'.$rack_id]))
+			{
+				$rack = spotEntity('rack', $rack_id);
+				$linkchain_cache['r'.$rack_id] = $rack;
+			}
 			else
-				$rack = null;
+				$rack = $linkchain_cache['r'.$rack_id];
 		}
+		else
+			$rack = null;
+
+		return $rack;
+
+	}
+
+	//recursive
+	function _getlinks($port_id, $back = false, $prevport_id = null, $reverse = false)
+	{
+		global $linkchain_cache;
+		$linktype = $this->getlinktype($back);
+
+		if($port_id == $this->init)
+			$this->initport = true;
+
+		$ports = pv_getPortInfo($port_id, $back);
+
+		$portcount = count($ports);
+
+		$port = $ports[0];
+
+		$remote_id = $port['remote_id'];
+
+		$port['portcount'] = $portcount;
+
+		$object_id =  $port['object_id'];
+
+		$rack = null;
+		$object = $this->_getobject($object_id, $rack);
 
 		if($object['IPV4OBJ'])
 			$this->lastipobjport = $port_id;
@@ -1986,8 +1995,26 @@ class cytoscapedata
 				//has_problems
 				//if($object['has_problems'] != 'no')
 
-				// TODO RACK cache ...
-				$text = $object['name']."TODO RACK";
+				// TODO getrack function
+				// rack
+				$rack_text = "";
+				if($object['rack_id'])
+				{
+					if(!isset($linkchain_cache['r'.$object['rack_id']]))
+					{
+						$rack = spotEntity('rack', $object['rack_id']);
+						$linkchain_cache['r'.$object['rack_id']] = $rack;
+					}
+					else
+						$rack = $linkchain_cache['r'.$object['rack_id']];
+
+					if(!empty($rack['row_name']) || !empty($rack['name']))
+					{
+						$rack_text = "${rack['row_name']} / ${rack['name']}";
+					}
+				}
+
+				$text = $object['name']."\n$rack_text";
 				$data = array('label' => $object['name'], 'text' => $text, 'type' => 'obj');
 
 				$container_id = $object['container_id'];
