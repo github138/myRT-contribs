@@ -2127,6 +2127,10 @@ class cytoscapedata
 			//	break;
 		}
 
+		$children = getEntityRelatives ('children', 'object', $object_id);
+
+		foreach($children as $child)
+			$this->_getlinkchains($child['entity_id']);
 	}
 
 	function allobjects()
@@ -2596,7 +2600,26 @@ class linkmgmt_gvmap {
 	function addlinkchainsobject($object_id)
 	{
 
+		$this->_addNode($object_id);
+
 		$object['ports'] = getObjectPortsAndLinks ($object_id);
+
+		/* needed because of  gv_image empty cluster bug (invalid foreach argument) */
+		if(empty($object['ports']))
+		{
+			$cluster_id = "c$object_id";
+			$this->gv->addNode("dummy$cluster_id", array(
+					//	'label' =>'No Ports found/connected',
+						'label' =>'',
+						'fontsize' => 0,
+						'size' => 0,
+						'width' => 0,
+						'height' => 0,
+						'shape' => 'point',
+						'style' => 'invis',
+						), $cluster_id);
+			return;
+		}
 
 		$i = 0;
 		foreach($object['ports'] as $key => $port)
@@ -2723,19 +2746,14 @@ class linkmgmt_gvmap {
 		error_reporting($this->errorlevel);
 	}
 
-	function addlinkchain($linkchain, $index)
+	function _addNode($object_id)
 	{
-		global $lm_multilink_port_types;
-
-		foreach($linkchain as $id => $port)
-		{
-			$cluster_id = "c".$port['object_id'];
+			$cluster_id = "c".$object_id;
 
 			if(
 				!isset($this->gv->graph['clusters'][$cluster_id]) &&
 				!isset($this->gv->graph['subgraphs'][$cluster_id])
 			) {
-				$object_id = $port['object_id'];
 				$object = spotEntity ('object', $object_id);
 
 			//	$object['attr'] = getAttrValues($object_id);
@@ -2783,8 +2801,9 @@ class linkmgmt_gvmap {
 				{
 					$embedin = "c$embedin"; /* see cluster_id */
 
+					// TODO
 					/* add container / cluster if not already exists */
-					$this->_add($this->gv, $object['container_id'], NULL);
+					$this->addlinkchainsobject($object['container_id']);
 				}
 
 				$clusterattr['id'] = "$object_id----"; /* used for js context menu */
@@ -2792,7 +2811,15 @@ class linkmgmt_gvmap {
 
 				$this->gv->addCluster($cluster_id, $clustertitle, $clusterattr, $embedin);
 			}
+	}
 
+	function addlinkchain($linkchain, $index)
+	{
+		global $lm_multilink_port_types;
+
+		foreach($linkchain as $id => $port)
+		{
+				$this->_addNode($port['object_id']);
 
 				$nodelabel = htmlspecialchars("${port['name']}");
 				$text = $nodelabel;
