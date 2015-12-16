@@ -1938,6 +1938,7 @@ class cytoscapedata
 
 		$this->objects[] = array('group' => 'nodes')  + $node;
 
+		//TODO
 		if(isset($values['parent']))
 			$this->nodes[$id] = array('group' => 'nodes')  + $node;
 		else
@@ -1974,26 +1975,49 @@ class cytoscapedata
 		//$this->edges[] = array('group' => 'edges') + $edge;
 	}
 
+	function _addobjectnode($object_id)
+	{
+			if(!isset($this->parents["o$object_id"]))
+			{
+				$object = spotEntity ('object', $object_id);
+
+				$clustertitle = "${object['dname']}";
+
+				//has_problems
+				//if($object['has_problems'] != 'no')
+
+				// TODO RACK cache ...
+				$text = $object['name']."TODO RACK";
+				$data = array('label' => $object['name'], 'text' => $text, 'type' => 'obj');
+
+				$container_id = $object['container_id'];
+				if($container_id)
+				{
+					$data['parent'] = "o$container_id";
+					$this->_addobjectnode($container_id);
+				}
+
+				$this->addnode('o'.$object_id, $data);
+			//	$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text, 'type' => 'obj'), $this->parents['objects']);
+			}
+
+	}
+
+	// cytoscape
 	function addlinkchain($linkchain, $index) {
 
 		foreach($linkchain as $id => $port)
 		{
 
-			if(0)
-			if(isset($this->ids['p'.$id]))
-				continue;
-
-		//	portlist::var_dump_html($port);
 			if(!$linkchain->linked)
 				continue;
-		//	echo $id;
+
+			$this->_addobjectnode($port['object_id']);
 
 			if(0)
-			if($id == '7472')
-				$linkchain->var_dump_html($port);
-
 			if(!isset($this->parents['o'.$port['object_id']]))
 			{
+
 				$text = $port['object_name'].(isset($port['rack_text']) ? "\n".$port['rack_text'] : "" );
 				$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text, 'type' => 'obj'));
 			//	$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text, 'type' => 'obj'), $this->parents['objects']);
@@ -2004,14 +2028,9 @@ class cytoscapedata
 
 			//$this->addnode('l_'.$port['id'], array( 'label' => $port['name'], 'parent' => 'p'.$port['id'], 'text' => $text ));
 
-			// TODO ignore first object/port on multilinks
 			if($port['portcount'] > 1)
 				foreach($port['chains'] as $mlc)
 				{
-				//	$tmp = $mlc->first;
-				//	$mlc->first = $mlc->last;
-				//	$mlc->last = $tmp;
-				//	echo $mlc->init." ".$mlc->first." ".$mlc->last."<br>";
 					$this->addlinkchain($mlc, 0); // TODO index
 				}
 
@@ -2026,6 +2045,9 @@ class cytoscapedata
 
 			if($port['remote_id'])
 			{
+
+				$this->_addobjectnode($port['remote_object_id']);
+
 				$linktype = $port['linktype'];
 				$edgedata = array('label' => $port['cableid'], 'type' => $linktype, 'loop' => ($linkchain->loop ? '1' : '0'));
 
@@ -2035,9 +2057,6 @@ class cytoscapedata
 				}
 				else
 				{
-		if(0)
-		if($linkchain->initback !== null)
-			echo 'e'.$port['id']."_".$port['remote_id']."<br>";
 
 					$this->addedge('e'.$port['id']."_".$port['remote_id'], 'p'.$port['id'], 'p'.$port['remote_id'], $edgedata);
 					$this->addedge('e'.$port['id']."_".$port['remote_id'], 'p'.$port['id'], 'p'.$port['remote_id'], $edgedata, $this->edges['nodes']);
@@ -2090,6 +2109,7 @@ class cytoscapedata
 
 	function getelements()
 	{
+		//pv_linkchain::var_dump_html($this);
 		return array('parents' => array_values($this->parents),
 			'nodes' =>  array_values($this->nodes),
 			'edges' =>  array(
@@ -2097,6 +2117,7 @@ class cytoscapedata
 					'nodes' => array_values($this->edges['nodes'])
 					)
 			);
+
 	}
 
 	function gettest()
@@ -2107,6 +2128,8 @@ class cytoscapedata
 
 	function _getlinkchains($object_id) {
 
+
+		// container
 	//	$object = spotEntity('object', $object_id);
 		$object['ports'] = getObjectPortsAndLinks ($object_id);
 
