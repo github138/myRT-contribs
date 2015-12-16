@@ -223,7 +223,7 @@ class pv_linkchain implements Iterator {
 	 *		false follow front only
 	 * $prevport first port
 	 */
-	function __construct($port_id, $back = null, $prevport = null)
+	function __construct($port_id, $back = null, $prevport = null, $reverse = false)
 	{
 		global $linkchain_cache;
 
@@ -235,8 +235,7 @@ class pv_linkchain implements Iterator {
 
 		if($back !== null)
 		{
-			//echo "BACK !NULL";
-			$this->last = $this->_getlinks($port_id, $back);
+			$this->last = $this->_getlinks($port_id, $back, null, $reverse);
 
 			// TODO set previous port ..use _set... function()
 			$this->ports[$port_id][$this->getlinktype(!$back)]['portcount'] = 1;
@@ -268,7 +267,7 @@ class pv_linkchain implements Iterator {
 			$this->last = $this->_getlinks($port_id, false);
 
 			if(!$this->loop)
-				$this->first = $this->_getlinks($port_id, true);
+				$this->first = $this->_getlinks($port_id, true, null, true);
 
 			$this->object_id = $this->ports[$this->init]['object_id'];
 
@@ -292,6 +291,9 @@ class pv_linkchain implements Iterator {
 		}
 
 		$this->linked = ($this->linkcount > 0);
+
+		if($reverse)
+			$this->reverse();
 
 	//	$this->object_id = $this->ports[$this->init]['object_id'];
 
@@ -358,8 +360,15 @@ class pv_linkchain implements Iterator {
 		return ($back ? 'back' : 'front' );
 	}
 
+	function reverse()
+	{
+		$tmp = $this->first;
+		$this->first = $this->last;
+		$this->last = $tmp;
+	}
+
 	//recursive
-	function _getlinks($port_id, $back = false, $prevport_id = null)
+	function _getlinks($port_id, $back = false, $prevport_id = null, $reverse = false)
 	{
 		global $linkchain_cache;
 		$linktype = $this->getlinktype($back);
@@ -484,7 +493,6 @@ class pv_linkchain implements Iterator {
 
 				if($prevportcount > 1)
 				{
-
 					if($this->initport)
 						$this->initalign = false;
 
@@ -496,7 +504,7 @@ class pv_linkchain implements Iterator {
 						if($prevport_id != $mport['remote_id'])
 						{
 							$mport['portcount'] = 1;
-							$lc = new pv_linkchain($mport['remote_id'], $back, $mport);
+							$lc = new pv_linkchain($mport['remote_id'], $back, $mport, !$reverse);
 							$lcs[$mport['remote_id']] = $lc;
 							$this->linkcount += $lc->linkcount;
 						}
@@ -517,7 +525,7 @@ class pv_linkchain implements Iterator {
 				if($remote_id != $mport['remote_id'])
 				{
 					$mport['portcount'] = 1;
-					$lc = new pv_linkchain($mport['remote_id'], !$back, $mport);
+					$lc = new pv_linkchain($mport['remote_id'], !$back, $mport, $reverse);
 					$lcs[$mport['remote_id']] = $lc; 
 					$this->linkcount += $lc->linkcount;
 				}
@@ -530,7 +538,7 @@ class pv_linkchain implements Iterator {
 		if($remote_id)
 		{
 			$this->linkcount++;
-			return $this->_getlinks($remote_id, !$back, $port_id);
+			return $this->_getlinks($remote_id, !$back, $port_id, $reverse);
 		}
 
 		return $port_id;
@@ -617,7 +625,7 @@ class pv_linkchain implements Iterator {
 		return $chainlabel;
 	}
 
-	function getchainrow($allback = false, $rowbgcolor = '#ffffff', $right = true)
+	function getchainrow($allback = false, $rowbgcolor = '#ffffff', $isprev = false)
 	{
 		//$this::var_dump_html($this->ports, "Ports");
 		$port_id = $this->init;
@@ -625,15 +633,6 @@ class pv_linkchain implements Iterator {
 		$initport = $this->ports[$port_id];
 		$portmulti = 0;
 		$prevportmulti = 0;
-
-		$initfirst = $this->first;
-
-		if(!$right)
-		{
-			$tmp = $this->last;
-			$this->last = $this->first;
-			$this->first = $tmp;
-		}
 
 		$chain = ""; // "<td id=firsttd><table id=t1 align=right><tr>";
 
@@ -646,7 +645,7 @@ class pv_linkchain implements Iterator {
 			$object_text = $this->getprintobject($port);
 			$port_text = $this->getprintport($port);
 
-			if($this->initback !== null && $id == $initfirst)
+			if($this->initback !== null && (($isprev && $id == $this->last) || (!$isprev && $id == $this->first)))
 			{
 				$object_text = "";
 				$port_text = "";
@@ -678,7 +677,7 @@ class pv_linkchain implements Iterator {
 				foreach($port[$prevlinktype]['chains'] as $mlc)
 				{
 					$mbgcolor = ($mi % 2 ? $evenbgcolor : $oddbgcolor);
-					$chain .= "<tr bgcolor=$mbgcolor align=right><td><table id=t6><tr>".$mlc->getchainrow($allback,$mbgcolor,false)."</tr></table><!-- end t6 --></td></tr>";
+					$chain .= "<tr bgcolor=$mbgcolor align=right><td><table id=t6><tr>".$mlc->getchainrow($allback,$mbgcolor, true)."</tr></table><!-- end t6 --></td></tr>";
 					$mi++;
 				}
 				$chain .= "</table><!--prevmultis--></td></tr></table><!--prevmultiport--></td><td bgcolor=#ff0000></td>";
@@ -1975,21 +1974,8 @@ class cytoscapedata
 		//$this->edges[] = array('group' => 'edges') + $edge;
 	}
 
-	function addlinkchain($linkchain, $index, $right = true) {
-		//addnodes
-		//addedge
-		if(0)
-		if($linkchain->initback !== null)
-			echo "AHH";
+	function addlinkchain($linkchain, $index) {
 
-		if(!$right)
-		{
-			$tmp = $linkchain->first;
-			$linkchain->first = $linkchain->last;
-			$linkchain->last = $tmp;
-		}
-		//	portlist::var_dump_html($linkchain);
-		//	echo "<br>LOOP-".$linkchain->loop."-".$linkchain->linked."-".true."-".false."<br>";
 		foreach($linkchain as $id => $port)
 		{
 
@@ -2737,16 +2723,9 @@ class linkmgmt_gvmap {
 		error_reporting($this->errorlevel);
 	}
 
-	function addlinkchain($linkchain, $index, $right = true)
+	function addlinkchain($linkchain, $index)
 	{
 		global $lm_multilink_port_types;
-
-		if(!$right)
-		{
-			$tmp = $linkchain->first;
-			$linkchain->first = $linkchain->last;
-			$linkchain->last = $tmp;
-		}
 
 		foreach($linkchain as $id => $port)
 		{
