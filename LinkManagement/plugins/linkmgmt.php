@@ -1,6 +1,7 @@
 <?php
 // TODO linkchain cytoscape create libs?
 //	linkchain all objects graph cytoscape takes ages
+//	linkchain multilink loop
 /*
  * Link Management for RT >= 0.20.9
  *
@@ -2650,26 +2651,12 @@ class linkmgmt_gvmap {
 	function addlinkchainsobject($object_id)
 	{
 
-		$this->_addCluster($object_id);
-
 		$object['ports'] = getObjectPortsAndLinks ($object_id);
 
-		/* needed because of  gv_image empty cluster bug (invalid foreach argument) */
+		$this->_addCluster($object_id, empty($object['ports']));
+
 		if(empty($object['ports']))
-		{
-			$cluster_id = "c$object_id";
-			$this->gv->addNode("dummy$cluster_id", array(
-					//	'label' =>'No Ports found/connected',
-						'label' =>'',
-						'fontsize' => 0,
-						'size' => 0,
-						'width' => 0,
-						'height' => 0,
-						'shape' => 'point',
-						'style' => 'invis',
-						), $cluster_id);
 			return;
-		}
 
 		$i = 0;
 		foreach($object['ports'] as $key => $port)
@@ -2797,7 +2784,7 @@ class linkmgmt_gvmap {
 		error_reporting($this->errorlevel);
 	}
 
-	function _addCluster($object_id)
+	function _addCluster($object_id, $adddummy = false)
 	{
 			global $lc_cache;
 
@@ -2864,6 +2851,20 @@ class linkmgmt_gvmap {
 				$clusterattr['id'] = "$object_id----"; /* used for js context menu */
 
 				$this->gv->addCluster($cluster_id, $clustertitle, $clusterattr, $embedin);
+
+				/* needed because of  gv_image empty cluster bug (invalid foreach argument) */
+				if($adddummy)
+					$this->gv->addNode("dummy$cluster_id", array(
+					//	'label' =>'No Ports found/connected',
+						'label' =>'',
+						'fontsize' => 0,
+						'size' => 0,
+						'width' => 0,
+						'height' => 0,
+						'shape' => 'point',
+						'style' => 'invis',
+						), $cluster_id);
+
 
 			}
 	 } // _addCluster
