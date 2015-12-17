@@ -179,7 +179,69 @@ $lm_cache = array(
 //	return 'std';
 //} /* linkmgmt_tabtrigger */
 
-$linkchain_cache = array();
+/* -------------------linkchain stuff------------------------------- */
+class linkchain_cache
+{
+	public $cache = array();
+
+	function getobject($object_id , &$rack = null)
+	{
+		if(!isset($this->cache['o'.$object_id]))
+		{
+			$object = spotEntity('object', $object_id);
+			$object['IPV4OBJ'] = considerConfiguredConstraint ($object, 'IPV4OBJ_LISTSRC');
+
+			/* get more object info */
+
+			if($object['IPV4OBJ'])
+			{
+				// ip addresses
+				//amplifyCell($object); /* get ports, ipv4, ipv6, nat4 and files */
+				$object['ipv4'] = getObjectIPv4Allocations ($object_id);
+				$object['portip'] = array();
+				foreach($object['ipv4'] as $ipv4)
+				{
+					$object['portip'][$ipv4['osif']] = $ipv4['addrinfo']['ip'];
+				}
+			}
+
+			if($object['container_id'])
+			{
+				$container = $this->getobject($object['container_id']);
+			}
+
+			$this->cache['o'.$object_id] = $object;
+		}
+		else
+			$object = $this->cache['o'.$object_id];
+
+		$rack = $this->getrack($object['rack_id']);
+
+		return $object;
+	}
+
+	function getrack($rack_id)
+	{
+		// rack
+		if($rack_id)
+		{
+			if(!isset($this->cache['r'.$rack_id]))
+			{
+				$rack = spotEntity('rack', $rack_id);
+				$this->cache['r'.$rack_id] = $rack;
+			}
+			else
+				$rack = $this->cache['r'.$rack_id];
+		}
+		else
+			$rack = null;
+
+		return $rack;
+
+	}
+}
+
+$lc_cache = new linkchain_cache();
 
 /* recursive class */
 class pv_linkchain implements Iterator {
@@ -225,13 +287,11 @@ class pv_linkchain implements Iterator {
 	 */
 	function __construct($port_id, $back = null, $prevport = null, $reverse = false)
 	{
-		global $linkchain_cache;
+		global $lc_cache;
 
 		$this->init = $port_id;
 
 		$this->initback = $back;
-
-		//$this->cache = &$linkchain_cache;
 
 		if($back !== null)
 		{
@@ -279,7 +339,7 @@ class pv_linkchain implements Iterator {
 
 			/* set first object */
 			$object_id = $this->ports[$port_id]['object_id'];
-			$object = $linkchain_cache['o'.$object_id];
+			$object = $lc_cache->getobject[$object_id];
 
 			if($object['IPV4OBJ'])
 				$this->lastipobjport = $port_id;
@@ -367,69 +427,11 @@ class pv_linkchain implements Iterator {
 		$this->last = $tmp;
 	}
 
-	function _getobject($object_id , &$rack = null)
-	{
-		global $linkchain_cache;
-
-		if(!isset($linkchain_cache['o'.$object_id]))
-		{
-			$object = spotEntity('object', $object_id);
-			$object['IPV4OBJ'] = considerConfiguredConstraint ($object, 'IPV4OBJ_LISTSRC');
-
-			/* get more object info */
-
-			if($object['IPV4OBJ'])
-			{
-				// ip addresses
-				//amplifyCell($object); /* get ports, ipv4, ipv6, nat4 and files */
-				$object['ipv4'] = getObjectIPv4Allocations ($object_id);
-				$object['portip'] = array();
-				foreach($object['ipv4'] as $ipv4)
-				{
-					$object['portip'][$ipv4['osif']] = $ipv4['addrinfo']['ip'];
-				}
-			}
-
-			if($object['container_id'])
-			{
-				$container = $this->_getobject($object['container_id']);
-			}
-
-			// rack
-			$rack = $this->_getrack($object['rack_id']);
-		}
-		else
-			$object = $linkchain_cache['o'.$object_id];
-
-		return $object;
-	}
-
-	function _getrack($rack_id)
-	{
-		global $linkchain_cache;
-
-		// rack
-		if($rack_id)
-		{
-			if(!isset($linkchain_cache['r'.$rack_id]))
-			{
-				$rack = spotEntity('rack', $rack_id);
-				$linkchain_cache['r'.$rack_id] = $rack;
-			}
-			else
-				$rack = $linkchain_cache['r'.$rack_id];
-		}
-		else
-			$rack = null;
-
-		return $rack;
-
-	}
 
 	//recursive
 	function _getlinks($port_id, $back = false, $prevport_id = null, $reverse = false)
 	{
-		global $linkchain_cache;
+		global $lc_cache;
 		$linktype = $this->getlinktype($back);
 
 		if($port_id == $this->init)
@@ -448,7 +450,7 @@ class pv_linkchain implements Iterator {
 		$object_id =  $port['object_id'];
 
 		$rack = null;
-		$object = $this->_getobject($object_id, $rack);
+		$object = $lc_cache->getobject($object_id, $rack);
 
 		if($object['IPV4OBJ'])
 			$this->lastipobjport = $port_id;
@@ -831,6 +833,8 @@ class pv_linkchain implements Iterator {
 	/*
 	 */
 	function getprintobject($port) {
+		global $lc_cache;
+
 		$object_id = $port['object_id'];
 
 		if($object_id == $this->object_id) {
@@ -842,7 +846,7 @@ class pv_linkchain implements Iterator {
 		$style = "font-size: 80%;";
 
 		$rack = null;
-		$object = $this->_getobject($object_id, $rack);
+		$object = $lc_cache->getobject($object_id, $rack);
 
                 if(!$rack)
 			$rackinfo = '<span style="'.$style.'">Unmounted</span>';
@@ -1992,32 +1996,22 @@ class cytoscapedata
 
 	function _addobjectnode($object_id)
 	{
+			global $lc_cache;
+
 			if(!isset($this->parents["o$object_id"]))
 			{
-				$object = spotEntity ('object', $object_id);
+				$rack = null;
+				$object = $lc_cache->getobject($object_id, $rack);
 
 				$clustertitle = "${object['dname']}";
 
 				//has_problems
 				//if($object['has_problems'] != 'no')
 
-				// TODO getrack function
-				// rack
 				$rack_text = "";
-				if($object['rack_id'])
+				if(!empty($rack['row_name']) || !empty($rack['name']))
 				{
-					if(!isset($linkchain_cache['r'.$object['rack_id']]))
-					{
-						$rack = spotEntity('rack', $object['rack_id']);
-						$linkchain_cache['r'.$object['rack_id']] = $rack;
-					}
-					else
-						$rack = $linkchain_cache['r'.$object['rack_id']];
-
-					if(!empty($rack['row_name']) || !empty($rack['name']))
-					{
-						$rack_text = "${rack['row_name']} / ${rack['name']}";
-					}
+					$rack_text = "${rack['row_name']} / ${rack['name']}";
 				}
 
 				$text = $object['name']."\n$rack_text";
@@ -2805,13 +2799,15 @@ class linkmgmt_gvmap {
 
 	function _addNode($object_id)
 	{
+			global $lc_cache;
+
 			$cluster_id = "c".$object_id;
 
 			if(
 				!isset($this->gv->graph['clusters'][$cluster_id]) &&
 				!isset($this->gv->graph['subgraphs'][$cluster_id])
 			) {
-				$object = spotEntity ('object', $object_id);
+				$object = $lc_cache->getobject($object_id);
 
 			//	$object['attr'] = getAttrValues($object_id);
 
