@@ -348,20 +348,12 @@ class pv_linkchain implements Iterator {
 			$this->first = $this->lastipobjport;
 			$this->last = $this->ports[$this->first][$linktype]['remote_id'];
 
-			///$this->first = $this->last;
 		}
 
 		$this->linked = ($this->linkcount > 0);
 
 		if($reverse)
 			$this->reverse();
-
-	//	$this->object_id = $this->ports[$this->init]['object_id'];
-
-		//echo "END ".$this->init." - ".$this->first." - ".$this->last."-".$this->loop."<br>";
-		//echo "PORTS: $port_id";
-		//$this::var_dump_html($this->ports, "POrts");
-		//echo "END PORTS:";
 	}
 
 	function _setportprevlink($port, $linktype, $prevport)
@@ -561,6 +553,7 @@ class pv_linkchain implements Iterator {
 		return $port_id;
 	}
 
+	// TODO
 	function getchaintext()
 	{
 		//$this::var_dump_html($this->ports);
@@ -616,8 +609,6 @@ class pv_linkchain implements Iterator {
 		else
 			$urlparams['port_id'] = $port_id;
 
-	//	$this::var_dump_html($initport);
-
 		$title = "linkcount: ".$this->linkcount."\nTypeID: ${initport['oif_id']}\nPortID: $port_id";
 
 		$onclick = 'onclick=window.open("'.makeHrefProcess(array_merge($_GET, $urlparams)).'","Map","height=500,width=800,scrollbars=yes");';
@@ -644,14 +635,13 @@ class pv_linkchain implements Iterator {
 
 	function getchainrow($allback = false, $rowbgcolor = '#ffffff', $isprev = false)
 	{
-		//$this::var_dump_html($this->ports, "Ports");
 		$port_id = $this->init;
 
 		$initport = $this->ports[$port_id];
 		$portmulti = 0;
 		$prevportmulti = 0;
 
-		$chain = ""; // "<td id=firsttd><table id=t1 align=right><tr>";
+		$chain = "";
 
 		$portalign = false;
 		$portmultis = array();
@@ -668,7 +658,7 @@ class pv_linkchain implements Iterator {
 				$port_text = "";
 			}
 
-			$linktype = $port['linktype']; //$this->getlinktype();
+			$linktype = $port['linktype'];
 			$prevlinktype = ($linktype == 'front' ? 'back' : 'front');
 
 			if($port[$prevlinktype]['portcount'] > 1)
@@ -688,16 +678,16 @@ class pv_linkchain implements Iterator {
 					$evenbgcolor = $rowbgcolor;
 				}
 
-				$chain = "<td><table id=prevmultiport frame=box><tr id=main><td><table id=prevmultimain align=right><tr>$chain</tr></table></td></tr><!-- end main tr--><tr><td><table id=prevmultis align=right width=100%>";
+				$chain = "<td><table id=pmp frame=box><tr id=main><td><table id=pmmain align=right><tr>$chain</tr></table></td></tr><!-- main tr--><tr><td><table id=plcs align=right width=100%>"; // end table pmmain; end main tr
 
 				$mi = 0;
 				foreach($port[$prevlinktype]['chains'] as $mlc)
 				{
 					$mbgcolor = ($mi % 2 ? $evenbgcolor : $oddbgcolor);
-					$chain .= "<tr bgcolor=$mbgcolor align=right><td><table id=t6><tr>".$mlc->getchainrow($allback,$mbgcolor, true)."</tr></table><!-- end t6 --></td></tr>";
+					$chain .= "<tr bgcolor=$mbgcolor align=right><td><table id=plc><tr>".$mlc->getchainrow($allback,$mbgcolor, true)."</tr></table><!-- end plc --></td></tr>"; // close table plc
 					$mi++;
 				}
-				$chain .= "</table><!--prevmultis--></td></tr></table><!--prevmultiport--></td><td bgcolor=#ff0000></td>";
+				$chain .= "</table><!--plcs--></td></tr></table><!--pmp--></td><td bgcolor=#ff0000></td>"; // clode tables plcs; pmp
 
 			}
 
@@ -713,7 +703,7 @@ class pv_linkchain implements Iterator {
 			if($this->initback === null && $port_text && !$portmulti && !$prevportmulti && $this->initalign && $id == $port_id)
 			{
 				$portalign = true;
-				$port_text = "</tr></table><!--t1 current--></td><!--end firsttd--><td id=secondtd><table id=t2><tr>$port_text";
+				$port_text = "</tr></table><!--t1 current--></td><!--end 1st td--><td id=2nd><table id=t2><tr>$port_text"; // close table t1 current; clode 1st td
 			}
 
 			$object_id = $port['object_id'];
@@ -757,9 +747,9 @@ class pv_linkchain implements Iterator {
 					$evenbgcolor = $rowbgcolor;
 				}
 	
-				$chain .= "<td bgcolor=#ff0000></td><td><table id=multiport frame=box>";
+				$chain .= "<td bgcolor=#ff0000></td><td><table id=mp frame=box>";
 
-				$multichain = "<tr><td><table id=portmultis width=100%>";
+				$multichain = "<tr><td><table id=mlcs width=100%>";
 
 				$mi = 0;
 				foreach($port['chains'] as $mlc)
@@ -770,12 +760,12 @@ class pv_linkchain implements Iterator {
 					$mi++;
 				}
 
-				$multichain .= "</table><!-- portmultis --></td></tr>";
+				$multichain .= "</table><!-- mlcs --></td></tr>"; // close table mlcs
 
 				$portmultis[] = $multichain;
 				
 				// main
-				$chain .= "<tr id=multimain><td><table id=portmultimain><tr>";
+				$chain .= "<tr id=mm><td><table id=pmm><tr>";
 
 				$portmulti++;
 
@@ -816,13 +806,13 @@ class pv_linkchain implements Iterator {
 
 		foreach(array_reverse($portmultis) as $multitr)
 		{
-			$chain .= "</tr></table><!-- portmultimain --></td></tr>$multitr</table><!-- multiport--></td>";
+			$chain .= "</tr><!-- tr mm --></table><!-- pmm --></td></tr>$multitr</table><!-- mp--></td>"; // close table pmm; mp
 		}	
 
 		if($this->initback === null)
 		{
-			$chain = "<td id=firsttd".(!$portalign ? " colspan=2" : " width=1%")."><table id=t1 align=right><tr>$chain";
-			$chain .= "</tr></table><!-- end t1/t2 --></td><!--firsttd/secondtd-->";		
+			$chain = "<td id=1st".(!$portalign ? " colspan=2" : " width=1%")."><table id=t1 align=right><tr>$chain";
+			$chain .= "</tr></table><!-- end t1/t2 --></td><!--1st/2nd td-->"; // close table t1/t2; close 1st/2nd td
 		}
 
 		$this->portmulti += $portmulti;
@@ -1004,6 +994,7 @@ class pv_linkchain implements Iterator {
 
 	} /* _printUnLinkPort */
 
+	// TODO
 	// html table
 	function getchainhtml()
 	{
@@ -1084,9 +1075,6 @@ class pv_linkchain implements Iterator {
 	}
 
 	function next() {
-		//$linktype = $this->getlinktype($this->back);
-		//$remote_id = $this->ports[$this->currentid][$linktype]['remote_id'];
-
 		$remote_id = $this->current()['remote_id'];
 	
 		if($this->loop && $remote_id == $this->first)
@@ -1952,13 +1940,9 @@ class cytoscapedata
 
 		$node['data'] = $data;
 
-	//	$this->elements['nodes'][] = $node;
-
-	//	$node['position'] = array('x' => 0, 'y' => 0 );
-
 		$this->objects[] = array('group' => 'nodes')  + $node;
 
-		//TODO
+		//TODO container
 		if(isset($values['parent']))
 			$this->nodes[$id] = array('group' => 'nodes')  + $node;
 		else
@@ -2222,7 +2206,6 @@ function linkmgmt_cytoscapemap() {
 		else
 			echo json_encode($data->getelements());
 
-		//echo json_encode($data->gettest());
 		exit;
 	}
 
@@ -2875,59 +2858,58 @@ class linkmgmt_gvmap {
 
 		foreach($linkchain as $id => $port)
 		{
-				$this->_addCluster($port['object_id']);
+			$this->_addCluster($port['object_id']);
 
-				$nodelabel = htmlspecialchars("${port['name']}");
-				$text = $nodelabel;
+			$nodelabel = htmlspecialchars("${port['name']}");
+			$text = $nodelabel;
 
-				if($port['iif_id'] != '1' )
-				{
-					$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['iif_name']}</FONT>";
-					$text .= "\n".$port['iif_name'];
-				}
+			if($port['iif_id'] != '1' )
+			{
+				$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['iif_name']}</FONT>";
+				$text .= "\n".$port['iif_name'];
+			}
 
-				$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['oif_name']}</FONT>";
-				$text .= "\n".$port['oif_name'];
+			$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">${port['oif_name']}</FONT>";
+			$text .= "\n".$port['oif_name'];
 
-				// add ip address
-				if(isset($port['portip']))
-					$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">".$port['portip']."</FONT>";
+			// add ip address
+			if(isset($port['portip']))
+				$nodelabel .= "<BR/><FONT POINT-SIZE=\"8\">".$port['portip']."</FONT>";
 
-				$nodeattr = array(
-							'label' => $nodelabel,
-						);
+			$nodeattr = array(
+					'label' => $nodelabel,
+					);
 
-				$this->_getcolor('port', ($linkchain->loop ? 'loop' : 'default'),$this->alpha, $nodeattr, 'fontcolor');
-				$this->_getcolor('oif_id', $port['oif_id'],$this->alpha, $nodeattr, 'color');
+			$this->_getcolor('port', ($linkchain->loop ? 'loop' : 'default'),$this->alpha, $nodeattr, 'fontcolor');
+			$this->_getcolor('oif_id', $port['oif_id'],$this->alpha, $nodeattr, 'color');
 
-				if($this->port_id == $port['id']) {
-					$nodeattr['style'] = 'filled';
-					$nodeattr['fillcolor'] = $this->_getcolor('port', 'current', $this->alpha);
-				}
+			if($this->port_id == $port['id']) {
+				$nodeattr['style'] = 'filled';
+				$nodeattr['fillcolor'] = $this->_getcolor('port', 'current', $this->alpha);
+			}
 
-				if($this->remote_id == $port['id']) {
-					$nodeattr['style'] = 'filled';
-					$nodeattr['fillcolor'] = $this->_getcolor('port', 'remote', $this->alpha);
-				}
+			if($this->remote_id == $port['id']) {
+				$nodeattr['style'] = 'filled';
+				$nodeattr['fillcolor'] = $this->_getcolor('port', 'remote', $this->alpha);
+			}
 
-				$nodeattr['tooltip'] = htmlspecialchars("${port['name']}");
+			$nodeattr['tooltip'] = htmlspecialchars("${port['name']}");
 
-				unset($_GET['module']);
-				unset($_GET['remote_id']);
-				$_GET['object_id'] = $port['object_id'];
-				$_GET['port_id'] = $port['id'];
-				$_GET['hl'] = 'p';
+			unset($_GET['module']);
+			unset($_GET['remote_id']);
+			$_GET['object_id'] = $port['object_id'];
+			$_GET['port_id'] = $port['id'];
+			$_GET['hl'] = 'p';
 
-				$nodeattr['URL'] = $this->_makeHrefProcess($_GET);
-				$nodeattr['id'] = "${port['object_id']}-${port['id']}--"; /* for js context menu */
+			$nodeattr['URL'] = $this->_makeHrefProcess($_GET);
+			$nodeattr['id'] = "${port['object_id']}-${port['id']}--"; /* for js context menu */
 
-				$this->gv->addNode($port['id'],
-						$nodeattr,
-						"c${port['object_id']}"); /* see cluster_id */
+			$this->gv->addNode($port['id'],
+					$nodeattr,
+					"c${port['object_id']}"); /* see cluster_id */
 
 			$remote_id = $port['remote_id'];
 
-			// TODO ignore first object/port on multilinks
 			if($port['portcount'] > 1)
 				foreach($port['chains'] as $mlc)
 				{
