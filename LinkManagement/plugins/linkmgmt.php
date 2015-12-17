@@ -2316,7 +2316,9 @@ $(function(){ // on dom ready
 	'font-size': '8',
 	'min-zoomed-font-size' : 8,
         'label': 'data(label)',
-	'edge-text-rotation': 'autorotate'
+	'edge-text-rotation': 'autorotate',
+	'source-arrow-shape': 'none',
+	'target-arrow-shape': 'none'
       }
     },
 	{
@@ -2944,6 +2946,8 @@ class linkmgmt_gvmap {
 							'tooltip' => $edgetooltip,
 							'sametail' => $linktype,
 							'samehead' => $linktype,
+							'arrowhead' => 'none',
+							'arrowtail' => 'none',
 						);
 
 					$this->_getcolor('edge', ($linkchain->loop ? 'loop' : 'default'), $this->alpha, $edgeattr, 'color');
@@ -2952,8 +2956,6 @@ class linkmgmt_gvmap {
 					if($linktype == 'back' )
 					{
 						$edgeattr['style'] =  'dashed';
-						$edgeattr['arrowhead'] = 'none';
-						$edgeattr['arrowtail'] = 'none';
 
 						/* multilink ports */
 						if(in_array($port['oif_id'], $lm_multilink_port_types))
