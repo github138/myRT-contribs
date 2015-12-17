@@ -2650,7 +2650,7 @@ class linkmgmt_gvmap {
 	function addlinkchainsobject($object_id)
 	{
 
-		$this->_addNode($object_id);
+		$this->_addCluster($object_id);
 
 		$object['ports'] = getObjectPortsAndLinks ($object_id);
 
@@ -2797,7 +2797,7 @@ class linkmgmt_gvmap {
 		error_reporting($this->errorlevel);
 	}
 
-	function _addNode($object_id)
+	function _addCluster($object_id)
 	{
 			global $lc_cache;
 
@@ -2807,7 +2807,8 @@ class linkmgmt_gvmap {
 				!isset($this->gv->graph['clusters'][$cluster_id]) &&
 				!isset($this->gv->graph['subgraphs'][$cluster_id])
 			) {
-				$object = $lc_cache->getobject($object_id);
+				$rack = null;
+				$object = $lc_cache->getobject($object_id, $rack);
 
 			//	$object['attr'] = getAttrValues($object_id);
 
@@ -2824,7 +2825,8 @@ class linkmgmt_gvmap {
 					$this->_getcolor('cluster', 'current', $this->alpha, $clusterattr, 'fontcolor');
 				}
 
-				$clustertitle = "${object['dname']}";
+				$clustertitle = htmlspecialchars($object['dname']);
+				$clusterattr['tooltip'] = $clustertitle;
 
 				unset($_GET['module']); // makeHrefProcess adds this
 				unset($_GET['port_id']);
@@ -2842,10 +2844,10 @@ class linkmgmt_gvmap {
 				}
 
 				if(!empty($object['container_name']))
-					$clustertitle .= "<BR/>${object['container_name']}";
+					$clustertitle .= "<BR/>(${object['container_name']})";
 
-				if(!empty($port['rack_text']))
-					$clustertitle .= "<BR/>${port['rack_text']}";
+				if(!empty($rack['row_name']) || !empty($rack['name']))
+					$clustertitle .= "<BR/>{$rack['row_name']} / {$rack['name']}";
 
 				$embedin = $object['container_id'];
 				if(empty($embedin))
@@ -2860,11 +2862,11 @@ class linkmgmt_gvmap {
 				}
 
 				$clusterattr['id'] = "$object_id----"; /* used for js context menu */
-				$clusterattr['tooltip'] = $clustertitle;
 
 				$this->gv->addCluster($cluster_id, $clustertitle, $clusterattr, $embedin);
+
 			}
-	}
+	 } // _addCluster
 
 	function addlinkchain($linkchain, $index)
 	{
@@ -2872,7 +2874,7 @@ class linkmgmt_gvmap {
 
 		foreach($linkchain as $id => $port)
 		{
-				$this->_addNode($port['object_id']);
+				$this->_addCluster($port['object_id']);
 
 				$nodelabel = htmlspecialchars("${port['name']}");
 				$text = $nodelabel;
