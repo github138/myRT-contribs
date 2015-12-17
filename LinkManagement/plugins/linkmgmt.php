@@ -2646,7 +2646,7 @@ class linkmgmt_gvmap {
 		{
 			$i++;
 			$lc = new pv_linkchain($port['id']);
-			if($lc->linkcount > 0)
+			if($this->allports ||($lc->linkcount > 0))
 				$this->addlinkchain($lc, $i);
 		}
 	}
