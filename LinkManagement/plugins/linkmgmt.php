@@ -390,6 +390,11 @@ class pv_linkchain implements Iterator {
 				}
 			}
 
+			if($object['container_id'])
+			{
+				$container = $this->_getobject($object['container_id']);
+			}
+
 			// rack
 			$rack = $this->_getrack($object['rack_id']);
 		}
@@ -826,7 +831,6 @@ class pv_linkchain implements Iterator {
 	/*
 	 */
 	function getprintobject($port) {
-		global $linkchain_cache;
 		$object_id = $port['object_id'];
 
 		if($object_id == $this->object_id) {
@@ -837,11 +841,13 @@ class pv_linkchain implements Iterator {
 
 		$style = "font-size: 80%;";
 
-                if(empty($port['rack_id']))
+		$rack = null;
+		$object = $this->_getobject($object_id, $rack);
+
+                if(!$rack)
 			$rackinfo = '<span style="'.$style.'">Unmounted</span>';
                 else
 		{
-			$rack = $linkchain_cache['r'.$port['rack_id']];
                         $rackinfo = '<a style="'.$style.'" href='.makeHref(array('page'=>'row', 'row_id'=>$rack['row_id'])).'>'.$rack['row_name']
                                 .'</a>/<a style="'.$style.'" href='.makeHref(array('page'=>'rack', 'rack_id'=>$rack['id'])).'>'
                                 .$rack['name'].'</a>';
@@ -849,7 +855,7 @@ class pv_linkchain implements Iterator {
 
                 return '<td><table frame=box align=center cellpadding=5 cellspacing=0><tr><td align=center><a style="font-weight:bold;'
                         .$color.'" href="'.makeHref(array('page'=>'object', 'tab' => 'linkmgmt', 'object_id' => $object_id))
-                        .'"><pre>'.$port['object_name'].'</pre></a><pre>'.$rackinfo
+                        .'"><pre>'.$object['name'].($object['container_name'] ? " (".$object['container_name'].")" : "").'</pre></a><pre>'.$rackinfo
                         .'</pre></td></tr></table></td>';
 
 	} /* printobject */
