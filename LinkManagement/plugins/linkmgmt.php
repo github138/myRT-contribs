@@ -340,7 +340,7 @@ class pv_linkchain implements Iterator {
 
 			/* set first object */
 			$object_id = $this->ports[$port_id]['object_id'];
-			$object = $lc_cache->getobject[$object_id];
+			$object = $lc_cache->getobject($object_id);
 
 			if($object['IPV4OBJ'])
 				$this->lastipobjport = $port_id;
