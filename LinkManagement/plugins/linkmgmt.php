@@ -250,7 +250,7 @@ class pv_linkchain implements Iterator {
 	const B2B_LINK_BGCOLOR = '#d8d8d8';
 	const CURRENT_PORT_BGCOLOR = '#ffff99';
 	const CURRENT_OBJECT_BGCOLOR = '#ff0000';
-	const HL_PORT_BGCOLOR = '#00ff00';
+	const HL_PORT_BGCOLOR = '#A0FFA0';
 	const ALTERNATE_ROW_BGCOLOR = '#f0f0f0';
 
 	public $first = null;
@@ -4287,36 +4287,21 @@ function linkmgmt_renderObjectLinks($object_id) {
 
 	$rowcount = 0;
 
-	if(0)
-	{
-	$lc = new pv_linkchain('2053');
-	echo $lc->getchainlabeltrstart(($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."<td>".$lc->getchainrow($allback, ($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."</td></tr>";
-	}
-
-
-	if(1)
 	foreach($ports as $key => $port) {
-		if(1)
-		{
 
 		$lc = new pv_linkchain($port['id']);
 
 		if($allports || $lc->linkcount > 0)
 		{
-			echo $lc->getchainlabeltrstart(($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff")).$lc->getchainrow($allback, ($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff"))."</tr>";
+
+			if($port['id'] == $hl_port_id)
+				$rowbgcolor = pv_linkchain::HL_PORT_BGCOLOR;
+			else
+				$rowbgcolor = ($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff");
+
+			echo $lc->getchainlabeltrstart($rowbgcolor).$lc->getchainrow($allback, $rowbgcolor)."</tr>";
 			$rowcount++;
 		}
-
-
-		}
-		else
-		{
-		$plist = new portlist($port, $object_id, $allports, $allback);
-
-		if($plist->printportlistrow($first, $hl_port_id, ($rowcount % 2 ? portlist::ALTERNATE_ROW_BGCOLOR : "#ffffff")) )
-			$rowcount++;
-		}
-
 	}
 
 	echo "</table>";
