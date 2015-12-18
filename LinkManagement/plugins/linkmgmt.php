@@ -1941,16 +1941,22 @@ class cytoscapedata
 
 		$this->objects[] = array('group' => 'nodes')  + $node;
 
-		//TODO container
-		if(isset($values['parent']))
-			$this->nodes[$id] = array('group' => 'nodes')  + $node;
-		else
-			$this->parents[$id] = array('group' => 'nodes')  + $node;
+		switch($values['type'])
+		{
+			case 'port':
+				$this->nodes[$id] = array('group' => 'nodes')  + $node;
+				break;
+			case 'object':
+			case 'container':
+				$this->parents[$id] = array('group' => 'nodes')  + $node;
+				break;
+		}
 
 		if($arr !== NULL)
 			$arr[] = array('group' => 'nodes')  + $node;
 
 		$this->ids[$id] = $id;
+
 	}
 
 	function addedge($id, $source, $target, $values = NULL, &$arr = NULL)
@@ -1978,7 +1984,7 @@ class cytoscapedata
 		//$this->edges[] = array('group' => 'edges') + $edge;
 	}
 
-	function _addobjectnode($object_id)
+	function _addobjectnode($object_id, $type = 'object')
 	{
 			global $lc_cache;
 
@@ -1998,13 +2004,13 @@ class cytoscapedata
 					$rack_text = "${rack['row_name']} / ${rack['name']}";
 				}
 
-				$data = array('label' => $object['name'], 'text' => $rack_text, 'type' => 'obj');
+				$data = array('label' => $object['name'], 'text' => $rack_text, 'type' => $type);
 
 				$container_id = $object['container_id'];
 				if($container_id)
 				{
 					$data['parent'] = "o$container_id";
-					$this->_addobjectnode($container_id);
+					$this->_addobjectnode($container_id, 'container');
 				}
 
 				$this->addnode('o'.$object_id, $data);
@@ -2024,7 +2030,7 @@ class cytoscapedata
 			$this->_addobjectnode($port['object_id']);
 
 			$text = (isset($port['portip']) ? $port['portip'] : "" );
-			$nodedata = array( 'label' => $port['name'], 'parent' => 'o'.$port['object_id'], 'text' => $text, 'index' => $index , 'loop' => ($linkchain->loop ? '1' : '0'));
+			$nodedata = array('label' => $port['name'], 'parent' => 'o'.$port['object_id'], 'text' => $text, 'type' => 'port', 'index' => $index , 'loop' => ($linkchain->loop ? '1' : '0'));
 
 			//$this->addnode('l_'.$port['id'], array( 'label' => $port['name'], 'parent' => 'p'.$port['id'], 'text' => $text ));
 
@@ -2247,7 +2253,7 @@ $(function(){ // on dom ready
         'text-halign': 'center',
 	'text-wrap': 'wrap',
 	'shape': function(ele) {
-			if(ele.data('type') == 'obj')
+			if(ele.data('type') != 'port')
 				return 'rectangle';
 			else
 				return 'ellipse';
@@ -2297,7 +2303,7 @@ $(function(){ // on dom ready
 					ret = (ele.data('linkcount') * ret);
 				}
 
-				console.log(ele.data('id') + ret);
+				//console.log(ele.data('id') + ret);
 				return ret;
 			 },
 //	'curve-style': 'segments',
