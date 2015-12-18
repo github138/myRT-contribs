@@ -866,10 +866,15 @@ class pv_linkchain implements Iterator {
 
 		$title = "Label: ${port['label']}\nMAC: $mac\nTypeID: ${port['oif_id']}\nPortID: ${port['id']}";
 
+		if(isset($port['portip']))
+			$ip = "<br><p style=\"font-size: 80%\">".$port['portip']."</p>";
+		else
+			$ip = "";
+
 		return '<td><table><tr><td'.$idtag.' align=center '.$bgcolor.' title="'.$title.'"><pre>[<a href="'
 			.makeHref(array('page'=>'object', 'tab' => 'linkmgmt', 'object_id' => $port['object_id'], 'hl_port_id' => $port['id']))
 			.'#'.$port['id']
-			.'">'.$port['name'].'</a>]</pre>'.($multilink && $lm_cache['allowbacklink'] ? $this->_getlinkportsymbol($port['id'], 'back') : '' ).'</td></tr></table></td>';
+			.'">'.$port['name'].'</a>]'.$ip.'</pre>'.($multilink && $lm_cache['allowbacklink'] ? $this->_getlinkportsymbol($port['id'], 'back') : '' ).'</td></tr></table></td>';
 
 	} /* printport */
 	
