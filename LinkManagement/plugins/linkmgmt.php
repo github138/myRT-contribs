@@ -2,6 +2,8 @@
 // TODO linkchain cytoscape create libs?
 //	linkchain all objects graph cytoscape takes ages
 //	linkchain multilink loop
+//	highlight port gv / cytoscape maps
+//	container in cytoscape map
 /*
  * Link Management for RT >= 0.20.9
  *
@@ -1996,8 +1998,7 @@ class cytoscapedata
 					$rack_text = "${rack['row_name']} / ${rack['name']}";
 				}
 
-				$text = $object['name']."\n$rack_text";
-				$data = array('label' => $object['name'], 'text' => $text, 'type' => 'obj');
+				$data = array('label' => $object['name'], 'text' => $rack_text, 'type' => 'obj');
 
 				$container_id = $object['container_id'];
 				if($container_id)
@@ -2007,7 +2008,6 @@ class cytoscapedata
 				}
 
 				$this->addnode('o'.$object_id, $data);
-			//	$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text, 'type' => 'obj'), $this->parents['objects']);
 			}
 
 	}
@@ -2023,7 +2023,7 @@ class cytoscapedata
 
 			$this->_addobjectnode($port['object_id']);
 
-			$text = (isset($port['portip']) ? $port['portip'] : $port['name']);
+			$text = (isset($port['portip']) ? $port['portip'] : "" );
 			$nodedata = array( 'label' => $port['name'], 'parent' => 'o'.$port['object_id'], 'text' => $text, 'index' => $index , 'loop' => ($linkchain->loop ? '1' : '0'));
 
 			//$this->addnode('l_'.$port['id'], array( 'label' => $port['name'], 'parent' => 'p'.$port['id'], 'text' => $text ));
@@ -2445,7 +2445,7 @@ $.ajax({
 				style: cystyle,
 				wheelSensitivity: 0.1,
 			});
-			cy2.style().selector('node').style('label','data(text)');
+			cy2.style().selector('node').style('label', function(node) { return node.data('label') + '\\n' + node.data('text'); });
 
 			cystyle.push({
 				selector: '.loopedge',
