@@ -448,13 +448,6 @@ class pv_linkchain implements Iterator {
 		if($object['IPV4OBJ'])
 			$this->lastipobjport = $port_id;
 
-		/* set port rack infos */
-		if(!empty($rack['row_name']) || !empty($rack['name']))
-		{
-			$port['rack_id'] = $rack['id'];
-			$port['rack_text'] = "${rack['row_name']}\n${rack['name']}";
-		}
-
 		if($object)
 			if(isset($object['portip'][$port['name']]))
 				$port['portip'] = $object['portip'][$port['name']];
@@ -465,7 +458,6 @@ class pv_linkchain implements Iterator {
 		{
 			$prevlinktype =  $this->getlinktype(!$back);
 			$port = $this->_setportprevlink($port, $prevlinktype, $this->ports[$prevport_id]);
-
 		}
 
 		if(isset($this->ports[$port_id]))
@@ -2026,15 +2018,6 @@ class cytoscapedata
 
 			$this->_addobjectnode($port['object_id']);
 
-			if(0)
-			if(!isset($this->parents['o'.$port['object_id']]))
-			{
-
-				$text = $port['object_name'].(isset($port['rack_text']) ? "\n".$port['rack_text'] : "" );
-				$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text, 'type' => 'obj'));
-			//	$this->addnode('o'.$port['object_id'], array('label' => $port['object_name'], 'text' => $text, 'type' => 'obj'), $this->parents['objects']);
-			}
-
 			$text = (isset($port['portip']) ? $port['portip'] : $port['name']);
 			$nodedata = array( 'label' => $port['name'], 'parent' => 'o'.$port['object_id'], 'text' => $text, 'index' => $index , 'loop' => ($linkchain->loop ? '1' : '0'));
 
@@ -2819,7 +2802,7 @@ class linkmgmt_gvmap {
 					$clustertitle .= "<BR/>(${object['container_name']})";
 
 				if(!empty($rack['row_name']) || !empty($rack['name']))
-					$clustertitle .= "<BR/>{$rack['row_name']} / {$rack['name']}";
+					$clustertitle .= "<BR/><FONT point-size=\"10\">{$rack['row_name']} / {$rack['name']}</FONT>";
 
 				$embedin = $object['container_id'];
 				if(empty($embedin))
