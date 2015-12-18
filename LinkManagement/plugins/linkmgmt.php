@@ -685,7 +685,7 @@ class pv_linkchain implements Iterator {
 
 			}
 
-			if($port_text && $id == $this->first)
+			if($port_text && !$this->loop && $id == $this->first)
 			{
 				$chain .= $this->_printlinkportsymbol($id, $prevlinktype);
 
@@ -773,7 +773,7 @@ class pv_linkchain implements Iterator {
 				else
 					$chain .= "<td>></td>";
 
-			if($port_text && $id == $this->last && !$this->loop)
+			if($port_text && !$this->loop && $id == $this->last && !$this->loop)
 			{
 				$chain .= $this->_printlinkportsymbol($id, $linktype);
 
@@ -1060,7 +1060,11 @@ class pv_linkchain implements Iterator {
 	/* Iterator */
 	function rewind() {
 		$this->currentid = $this->first;
-		$this->back = isset($this->ports[$this->currentid]['back']['remote_id']);
+
+		if($this->loop)
+			$this->back = false;
+		else
+			$this->back = isset($this->ports[$this->currentid]['back']['remote_id']);
 
 		$this->icount = 0;
 	}
