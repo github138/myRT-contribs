@@ -189,6 +189,9 @@ class linkchain_cache
 
 	function getobject($object_id , &$rack = null)
 	{
+		if(!$object_id)
+			return null;
+
 		if(!isset($this->cache['o'.$object_id]))
 		{
 			$object = spotEntity('object', $object_id);
@@ -283,12 +286,14 @@ class pv_linkchain implements Iterator {
 
 	private $initport = false;
 
+	private $lids = null;
+
 	/* $back = null follow front and back
 	 * 		true follow back only
 	 *		false follow front only
 	 * $prevport first port
 	 */
-	function __construct($port_id, $back = null, $prevport = null, $reverse = false)
+	function __construct($port_id, $back = null, $prevport = null, $reverse = false, &$lids = null)
 	{
 		global $lc_cache;
 
@@ -296,10 +301,17 @@ class pv_linkchain implements Iterator {
 
 		$this->initback = $back;
 
+		if($lids === null)
+			$this->lids = array();
+		else
+			$this->lids = &$lids;
+
 		if($back !== null)
 		{
-			$this->last = $this->_getlinks($port_id, $back, null, $reverse);
-
+			$prevport_id = $prevport['id'];
+			if($this->setlinkid($port_id, $prevport_id, $this->getlinktype(!$back)))
+			{
+				$this->last = $this->_getlinks($port_id, $back, null, $reverse);
 			// TODO set previous port ..use _set... function()
 			$this->ports[$port_id][$this->getlinktype(!$back)]['portcount'] = 1;
 			$this->ports[$port_id][$this->getlinktype(!$back)]['linked'] = 1;
@@ -309,7 +321,6 @@ class pv_linkchain implements Iterator {
 			$this->ports[$port_id][$this->getlinktype(!$back)]['remote_object_name'] = $prevport['object_name'];
 			$this->ports[$port_id][$this->getlinktype(!$back)]['cableid'] = $prevport['cableid'];
 
-			$prevport_id = $prevport['id'];
 
 			$prevport = $this->_setportlink($prevport, $this->getlinktype(!$back));
 			$prevport[$this->getlinktype($back)]['portcount'] = null; 
@@ -319,6 +330,13 @@ class pv_linkchain implements Iterator {
 			$this->ports[$prevport_id] = $prevport;
 			$this->first = $prevport_id;
 			$this->linkcount++;
+			}
+			else
+			{
+				$this->loop = true;
+				echo "SUBCHAIN LID exists";
+			}
+
 
 		//	self::var_dump_html($this->ports[$port_id], "PORT");
 		//	self::var_dump_html($prevport, "PREVPORT");
@@ -356,6 +374,23 @@ class pv_linkchain implements Iterator {
 
 		if($reverse)
 			$this->reverse();
+	}
+
+	function setlinkid($porta, $portb, $linktype)
+	{
+		if($porta > $portb)
+			$lid = "${portb}_${porta}";
+		else
+			$lid = "${porta}_${portb}";
+
+		$lid .= $linktype;
+
+		if(isset($this->lids[$lid]))
+			return false;
+
+		$this->lids[$lid] = true;
+
+		return true;
 	}
 
 	function _setportprevlink($port, $linktype, $prevport)
@@ -484,7 +519,7 @@ class pv_linkchain implements Iterator {
 						if($prevport_id != $mport['remote_id'])
 						{
 							$mport['portcount'] = 1;
-							$lc = new pv_linkchain($mport['remote_id'], $back, $mport, !$reverse);
+							$lc = new pv_linkchain($mport['remote_id'], $back, $mport, !$reverse, $this->lids);
 							$lcs[$mport['remote_id']] = $lc;
 							$this->linkcount += $lc->linkcount;
 						}
@@ -505,7 +540,7 @@ class pv_linkchain implements Iterator {
 				if($remote_id != $mport['remote_id'])
 				{
 					$mport['portcount'] = 1;
-					$lc = new pv_linkchain($mport['remote_id'], !$back, $mport, $reverse);
+					$lc = new pv_linkchain($mport['remote_id'], !$back, $mport, $reverse, $this->lids);
 					$lcs[$mport['remote_id']] = $lc; 
 					$this->linkcount += $lc->linkcount;
 				}
@@ -540,8 +575,13 @@ class pv_linkchain implements Iterator {
 
 		if($remote_id)
 		{
-			$this->linkcount++;
-			return $this->_getlinks($remote_id, !$back, $port_id, $reverse);
+			if($this->setlinkid($port_id, $remote_id, $linktype))
+			{
+				$this->linkcount++;
+				return $this->_getlinks($remote_id, !$back, $port_id, $reverse);
+			}
+			else
+				echo "LIDS exists!!";
 		}
 
 		return $port_id;
