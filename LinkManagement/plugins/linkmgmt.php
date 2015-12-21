@@ -462,6 +462,59 @@ class pv_linkchain implements Iterator {
 			$port = $this->_setportprevlink($port, $prevlinktype, $this->ports[$prevport_id]);
 		}
 
+		if(!$back)
+		{
+			if($prevport_id)
+			{
+				/* mutlilink: multiple previous links */
+				$prevports = pv_getPortInfo($port_id, !$back);
+
+				$prevportcount = count($prevports);
+
+				if($prevportcount > 1)
+				{
+					if($this->initport)
+						$this->initalign = false;
+
+					$port[$this->getlinktype(!$back)]['portcount'] = $prevportcount;
+
+					$lcs = array();
+					foreach($prevports as $mport)
+					{
+						if($prevport_id != $mport['remote_id'])
+						{
+							$mport['portcount'] = 1;
+							$lc = new pv_linkchain($mport['remote_id'], $back, $mport, !$reverse);
+							$lcs[$mport['remote_id']] = $lc;
+							$this->linkcount += $lc->linkcount;
+						}
+					}
+
+					$port[$this->getlinktype(!$back)]['chains'] = $lcs;
+				}
+			}
+		}
+
+		if($portcount > 1)
+		{
+			/* mutlilink: multiple links */
+
+			$lcs = array();
+			foreach($ports as $mport)
+			{
+				if($remote_id != $mport['remote_id'])
+				{
+					$mport['portcount'] = 1;
+					$lc = new pv_linkchain($mport['remote_id'], !$back, $mport, $reverse);
+					$lcs[$mport['remote_id']] = $lc; 
+					$this->linkcount += $lc->linkcount;
+				}
+			}
+
+			$port[$linktype]['chains'] = $lcs;
+
+		}
+
 		if(isset($this->ports[$port_id]))
 		{
 			if(!isset($this->ports[$port_id][$linktype]))
@@ -484,59 +537,6 @@ class pv_linkchain implements Iterator {
 		}
 		else
 			$this->ports[$port_id] = $port;
-
-		if(!$back)
-		{
-			if($prevport_id)
-			{
-				/* mutlilink: multiple previous links */
-				$prevports = pv_getPortInfo($port_id, !$back);
-
-				$prevportcount = count($prevports);
-
-				if($prevportcount > 1)
-				{
-					if($this->initport)
-						$this->initalign = false;
-
-					$this->ports[$port_id][$this->getlinktype(!$back)]['portcount'] = $prevportcount;
-
-					$lcs = array();
-					foreach($prevports as $mport)
-					{
-						if($prevport_id != $mport['remote_id'])
-						{
-							$mport['portcount'] = 1;
-							$lc = new pv_linkchain($mport['remote_id'], $back, $mport, !$reverse);
-							$lcs[$mport['remote_id']] = $lc;
-							$this->linkcount += $lc->linkcount;
-						}
-					}
-
-					$this->ports[$port_id][$this->getlinktype(!$back)]['chains'] = $lcs;
-				}
-			}
-		}
-
-		if($portcount > 1)
-		{
-			/* mutlilink: multiple links */
-
-			$lcs = array();
-			foreach($ports as $mport)
-			{
-				if($remote_id != $mport['remote_id'])
-				{
-					$mport['portcount'] = 1;
-					$lc = new pv_linkchain($mport['remote_id'], !$back, $mport, $reverse);
-					$lcs[$mport['remote_id']] = $lc; 
-					$this->linkcount += $lc->linkcount;
-				}
-			}
-
-			$this->ports[$port_id][$linktype]['chains'] = $lcs;
-
-		}
 
 		if($remote_id)
 		{
@@ -4318,6 +4318,7 @@ function linkmgmt_renderObjectLinks($object_id) {
 		if($allports || $lc->linkcount > 0)
 		{
 
+			pv_linkchain::var_dump_html($lc, "renderports");
 			if($port['id'] == $hl_port_id)
 				$rowbgcolor = pv_linkchain::HL_PORT_BGCOLOR;
 			else
