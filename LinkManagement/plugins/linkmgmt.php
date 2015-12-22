@@ -812,7 +812,7 @@ class pv_linkchain implements Iterator {
 				else
 					$chain .= "<td>></td>";
 
-			if($port_text && !$this->loop && $id == $this->last && !$this->loop)
+			if($port_text && !($remote_id && $this->loop) && $id == $this->last)
 			{
 				$chain .= $this->_printlinkportsymbol($id, $linktype);
 
