@@ -1927,6 +1927,8 @@ class cytoscapedata
 
 	public $edges = NULL;
 
+	public $debug = null;
+
 	function __construct()
 	{
 
@@ -2125,7 +2127,8 @@ class cytoscapedata
 			'edges' =>  array(
 					'parents' => array_values($this->edges['parents']),
 					'nodes' => array_values($this->edges['nodes'])
-					)
+					),
+			'debug' => $this->debug
 			);
 
 	}
@@ -2190,14 +2193,21 @@ class cytoscapedata
 
 function linkmgmt_cytoscapemap() {
 
+
 	$object_id = $_GET['object_id'];
 
 	if(isset($_GET['json']))
 	{
+		ob_start();
 		$data = new cytoscapedata();
 		$data->getlinkchains($object_id);
 		//$data->allobjects(); // ugly graph;
 		//echo json_encode($data->objects);
+
+		if(ob_get_length())
+			$data->debug = ob_get_contents();
+
+		ob_end_clean();
 
 		if(isset($_GET['parents']))
 			echo json_encode($data->getparents());
@@ -2436,6 +2446,9 @@ $.ajax({
 
 			var ret = JSON.parse(data);
 
+			if(ret.debug)
+				$('#debug').html(ret.debug);
+
 			//j = ret.parents.concat(ret.edges.parents);
 			j = ret.parents.concat(ret.nodes).concat(ret.edges.nodes);
 
@@ -2604,6 +2617,7 @@ function layoutstop(evt) {
 <body>
 <div id="cy" style="position: absolute; height: 80%; width: 100%; left: 0; top: 20%;"></div>
 <div id="cy2" style="position: absolute; height: 20%; width: 100%; left: 0; top: 0%;"></div>
+<div id="debug"></div>
 </body>
 </html>
 HTMLEND
