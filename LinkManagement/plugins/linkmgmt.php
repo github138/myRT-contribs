@@ -1,9 +1,7 @@
 <?php
 // TODO linkchain cytoscape create libs?
 //	linkchain all objects graph cytoscape takes ages
-//	linkchain multilink loop
 //	highlight port gv / cytoscape maps
-//	container in cytoscape map
 /*
  * Link Management for RT >= 0.20.9
  *
@@ -70,7 +68,7 @@
  *		https://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.1/jquery.qtip.min.js
  *		https://raw.githubusercontent.com/cytoscape/cytoscape.js-qtip/master/cytoscape-qtip.js
  *
- *	jquery >= 1.10.0 (qtip requirement)o
+ *	jquery >= 1.10.0 (qtip requirement)
  *		Racktables wwwroot/js directory:
  *		https://code.jquery.com/jquery-1.11.3.min.js
  *
