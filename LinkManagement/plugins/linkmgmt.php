@@ -573,8 +573,8 @@ class pv_linkchain implements Iterator {
 			{
 				$prevlinktype =  $this->getlinktype(!$back);
 				$this->loop = true;
-				// TODO
-				$this->ports[$port_id][$prevlinktype] = $port[$prevlinktype];
+				if(isset($port[$prevlinktype]))
+					$this->ports[$port_id][$prevlinktype] = $port[$prevlinktype];
 
 				$this->first = $remote_id;
 			}
