@@ -844,7 +844,7 @@ class pv_linkchain implements Iterator {
 		if($this->initback === null)
 		{
 			// TODO width..
-			$chain = "<td id=1st".(!$portalign ? " colspan=2" : " width=1%")."><table id=t1 align=right><tr>$chain";
+			$chain = "<td id=1st".(!$portalign ? " colspan=2" : " width=1%")."><table id=t1".(!$portalign ? "" : " align=right")."><tr>$chain";
 			$chain .= "</tr></table><!-- end t1/t2 --></td><!--1st/2nd td-->"; // close table t1/t2; close 1st/2nd td
 		}
 
