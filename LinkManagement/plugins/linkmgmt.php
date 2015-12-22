@@ -2906,6 +2906,7 @@ class linkmgmt_gvmap {
 	{
 		global $lm_multilink_port_types;
 
+		$remote_id = null;
 		foreach($linkchain as $id => $port)
 		{
 			$this->_addCluster($port['object_id']);
@@ -3049,7 +3050,16 @@ class linkmgmt_gvmap {
 			}
 
 
+		} //foreach
+
+		if($linkchain->loop && $remote_id)
+		{
+			// TODO causes
+// 	dot: graph is too large for cairo-renderer bitmaps. Scaling by 1.52583e-05 to fit GD Warning: one parameter to a memory allocation multiplication is negative or zero, failing operation gracefully
+			// add loop edge
+			//$this->gv->addEdge(array($id => $remote_id), array(), array($id => 'loop', $remote_id => 'loop'));
 		}
+
 	}
 
 	function setFalseOnError($newvalue)
