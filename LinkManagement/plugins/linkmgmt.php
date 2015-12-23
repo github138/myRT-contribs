@@ -1988,7 +1988,7 @@ class cytoscapedata
 {
 	public $objects = array();
 
-	public $ids = array();
+	public $pids = array();
 
 	public $parents = array();
 	public $nodes = array();
@@ -2028,9 +2028,6 @@ class cytoscapedata
 
 		if($arr !== NULL)
 			$arr[] = array('group' => 'nodes')  + $node;
-
-		$this->ids[$id] = $id;
-
 	}
 
 	function addedge($id, $source, $target, $values = NULL, &$arr = NULL)
@@ -2218,17 +2215,16 @@ class cytoscapedata
 		foreach($object['ports'] as $key => $port)
 		{
 
-			if(isset($this->ids['p'.$port['id']]))
-			{
-			//	echo "BREAK ".$port['id'];
-				break;
-			}
+			if(isset($this->pids[$port['id']]))
+				continue;
 
 			$i++;
 			$lc = new pv_linkchain($port['id']);
+
+			$this->pids += $lc->pids;
+
 			$this->addlinkchain($lc, $i);
-			//if($i == 2)
-			//	break;
+
 		}
 
 		$children = getEntityRelatives ('children', 'object', $object_id);
