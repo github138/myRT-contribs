@@ -1,6 +1,7 @@
 <?php
 // TODO linkchain cytoscape create libs?
 //	linkchain all objects graph cytoscape takes ages
+//	avoid create own linkchain for every port on global map
 //	highlight port gv / cytoscape maps
 /*
  * Link Management for RT >= 0.20.9
@@ -284,14 +285,17 @@ class pv_linkchain implements Iterator {
 
 	private $initport = false;
 
-	private $lids = null;
+	private $lids = null; // link ids porta portb linktype
+
+	public $pids = null; // port ids
+	public $oids = null; // object ids
 
 	/* $back = null follow front and back
 	 * 		true follow back only
 	 *		false follow front only
 	 * $prevport first port
 	 */
-	function __construct($port_id, $back = null, $prevport = null, $reverse = false, &$lids = null)
+	function __construct($port_id, $back = null, $prevport = null, $reverse = false, &$lids = null, &$pids = null, &$oids = null)
 	{
 		global $lc_cache;
 
@@ -303,6 +307,16 @@ class pv_linkchain implements Iterator {
 			$this->lids = array();
 		else
 			$this->lids = &$lids;
+
+		if($pids === null)
+			$this->pids = array();
+		else
+			$this->pids = &$pids;
+
+		if($oids === null)
+			$this->oids = array();
+		else
+			$this->oids = &$oids;
 
 		if($back !== null)
 		{
@@ -390,6 +404,22 @@ class pv_linkchain implements Iterator {
 		$this->lids[$lid] = true;
 
 		return true;
+	}
+
+	function hasport_id($port_id)
+	{
+		if(isset($this->pids[$port_id]))
+			return true;
+		else
+			return false;
+	}
+
+	function hasobject_id($object_id)
+	{
+		if(isset($this->oids[$object_id]))
+			return true;
+		else
+			return false;
 	}
 
 	function _setportprevlink($port, $linktype, $prevport)
@@ -482,6 +512,8 @@ class pv_linkchain implements Iterator {
 		$rack = null;
 		$object = $lc_cache->getobject($object_id, $rack);
 
+		$this->oids[$object_id] = true;
+
 		if($object['IPV4OBJ'])
 			$this->lastipobjport = $port_id;
 
@@ -519,7 +551,7 @@ class pv_linkchain implements Iterator {
 						if($prevport_id != $mport['remote_id'])
 						{
 							$mport['portcount'] = 1;
-							$lc = new pv_linkchain($mport['remote_id'], $back, $mport, !$reverse, $this->lids);
+							$lc = new pv_linkchain($mport['remote_id'], $back, $mport, !$reverse, $this->lids, $this->pids, $this->oids);
 							$lcs[$mport['remote_id']] = $lc;
 							$this->linkcount += $lc->linkcount;
 						}
@@ -540,7 +572,7 @@ class pv_linkchain implements Iterator {
 				if($remote_id != $mport['remote_id'])
 				{
 					$mport['portcount'] = 1;
-					$lc = new pv_linkchain($mport['remote_id'], !$back, $mport, $reverse, $this->lids);
+					$lc = new pv_linkchain($mport['remote_id'], !$back, $mport, $reverse, $this->lids, $this->pids, $this->oids);
 					$lcs[$mport['remote_id']] = $lc; 
 					$this->linkcount += $lc->linkcount;
 				}
@@ -559,6 +591,8 @@ class pv_linkchain implements Iterator {
 		}
 		else
 			$this->ports[$port_id] = $port;
+
+		$this->pids[$port_id] = true;
 
 		if($remote_id)
 		{
