@@ -503,6 +503,18 @@ class pv_linkchain implements Iterator {
 
 		$port = $ports[0];
 
+		// check for loops on multilinked ports
+		// set main port to looping one
+		if($portcount > 1)
+			foreach($ports as $mport)
+			{
+				if(isset($this->ports[$mport['remote_id']]))
+				{
+					$port = $mport;
+					break;
+				}
+			}
+
 		$remote_id = $port['remote_id'];
 
 		$port['portcount'] = $portcount;
