@@ -2699,6 +2699,7 @@ class linkmgmt_gvmap {
 	private $object_id = NULL;
 	private $port_id = NULL;
 	private $remote_id = NULL;
+	private $hl = NULL;
 
 	private $gv = NULL;
 
@@ -2713,24 +2714,35 @@ class linkmgmt_gvmap {
 
 	public $data = NULL;
 
+	private $pids = array();
+
 	function addlinkchainsobject($object_id)
 	{
 
 		$object['ports'] = getObjectPortsAndLinks ($object_id);
 
-		$this->_addCluster($object_id, empty($object['ports']));
-
 		if(empty($object['ports']))
+		{
+			$this->_addCluster($object_id, empty($object['ports']));
 			return;
+		}
 
 		$i = 0;
 		foreach($object['ports'] as $key => $port)
 		{
+
+			if(isset($this->pids[$port['id']]))
+				continue;
+
 			$i++;
 			$lc = new pv_linkchain($port['id']);
+
+			$this->pids += $lc->pids;
+
 			if($this->allports ||($lc->linkcount > 0))
 				$this->addlinkchain($lc, $i);
 		}
+
 	}
 
 	function __construct($object_id = NULL, $port_id = NULL, $allports = false, $hl = NULL, $remote_id = NULL) {
@@ -2739,6 +2751,7 @@ class linkmgmt_gvmap {
 		$this->object_id = $object_id;
 		$this->port_id = $port_id;
 		$this->remote_id = $remote_id;
+		$this->hl = $hl;
 
 		$hllabel = "";
 
@@ -2763,6 +2776,14 @@ class linkmgmt_gvmap {
 
 		unset($_GET['all']);
 
+		switch($hl)
+		{
+			case 'o':
+			case 'p':
+				$this->alpha = '30';
+				break;
+		}
+
 		//$this->gv = new Image_GraphViz(true, $graphattr, "map".$object_id);
 		$this->gv = new lm_Image_GraphViz(true, $graphattr, "map".$object_id);
 
@@ -2781,6 +2802,7 @@ class linkmgmt_gvmap {
 
 			$objects = listCells('object');
 
+			// TODO create chains only once
 			foreach($objects as $obj)
 				//$this->addlinkchainsobject($obj['id']); // long dot runtime !!
 				$this->_add($this->gv, $obj['id'], NULL); // for all still faster and nicer looking graph
@@ -2807,6 +2829,7 @@ class linkmgmt_gvmap {
 			//	$this->_add($this->gv, $child['entity_id'], NULL);
 		}
 
+		if(0)
 		switch($hl)
 		{
 			case 'p':
@@ -2937,6 +2960,13 @@ class linkmgmt_gvmap {
 	function addlinkchain($linkchain, $index)
 	{
 		global $lm_multilink_port_types;
+
+		$alpha = $this->alpha;
+		if(
+			($this->hl == 'p' && $linkchain->hasport_id($this->port_id))
+			|| ($this->hl == 'o' && $linkchain->hasobject_id($this->object_id))
+		)
+			$this->alpha = 'ff';
 
 		$remote_id = null;
 		foreach($linkchain as $id => $port)
@@ -3092,6 +3122,8 @@ class linkmgmt_gvmap {
 			//$this->gv->addEdge(array($id => $remote_id), array(), array($id => 'loop', $remote_id => 'loop'));
 		}
 
+		// reset alpha to start value
+		$this->alpha = $alpha;
 	}
 
 	function setFalseOnError($newvalue)
