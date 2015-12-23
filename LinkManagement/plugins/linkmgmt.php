@@ -2950,6 +2950,93 @@ class linkmgmt_gvmap {
 			}
 	 } // _addCluster
 
+	function _addEdge($port, $linkchain, $loopedge = false)
+	{
+		global $lm_multilink_port_types;
+		if(
+			!isset($this->gv->graph['edgesFrom'][$port['id']][$port['remote_id']]) &&
+			!isset($this->gv->graph['edgesFrom'][$port['remote_id']][$port['id']])
+			|| $loopedge
+		) {
+			$remote_id = $port['remote_id'];
+
+			$linktype = $port['linktype'];
+
+			$edgetooltip = $port['object_name'].':'.$port['name'].
+					' - '.$port['cableid'].' -> '.
+					$port['remote_name'].':'.$port['remote_object_name'];
+
+			$edgeattr = array(
+					'fontsize' => 8,
+					'label' => htmlspecialchars($port['cableid']),
+					'tooltip' => $edgetooltip,
+					'sametail' => $linktype,
+					'samehead' => $linktype,
+					'arrowhead' => 'none',
+					'arrowtail' => 'none',
+				);
+
+			$this->_getcolor('edge', ($linkchain->loop ? 'loop' : 'default'), $this->alpha, $edgeattr, 'color');
+			$this->_getcolor('edge', 'default', $this->alpha, $edgeattr, 'fontcolor');
+
+			if($linktype == 'back' )
+			{
+				$edgeattr['style'] =  'dashed';
+
+				/* multilink ports */
+				if(in_array($port['oif_id'], $lm_multilink_port_types))
+				{
+					$edgeattr['dir'] = 'both';
+					$edgeattr['arrowtail'] = 'dot';
+				}
+
+				if(in_array($linkchain->ports[$remote_id]['oif_id'], $lm_multilink_port_types))
+				{
+					$edgeattr['dir'] = 'both';
+					$edgeattr['arrowhead'] = 'dot';
+				}
+			}
+
+			if(
+				($port['id'] == $this->port_id && $port['remote_id'] == $this->remote_id) ||
+				($port['id'] == $this->remote_id && $port['remote_id'] == $this->port_id)
+			)
+			{
+				$this->_getcolor('edge', 'highlight', 'ff', $edgeattr, 'color');
+				$edgeattr['penwidth'] = 2; /* bold */
+			}
+
+			unset($_GET['module']);
+			$_GET['object_id'] = $port['object_id'];
+			$_GET['port_id'] = $port['id'];
+			$_GET['remote_id'] = $port['remote_id'];
+
+			$edgeattr['URL'] = $this->_makeHrefProcess($_GET);
+
+			$edgeattr['id'] = $port['object_id']."-".$port['id']."-".$port['remote_id']."-".$linktype; /* for js context menu  */
+
+			if($loopedge)
+			{
+					$edgeattr = array_merge($edgeattr, array(
+					'sametail' => 'loop',
+					'samehead' => 'loop',
+					'dir' => 'both',
+					'arrowhead' => 'invodot',
+					'arrowtail' => 'invodot',
+					));
+			}
+
+			$this->gv->addEdge(array($port['id'] => $port['remote_id']),
+						$edgeattr,
+						array(
+							$port['id'] => $linktype,
+							$port['remote_id'] => $linktype,
+						)
+					);
+
+		}
+	} // _addEdge
+
 	function addlinkchain($linkchain, $index)
 	{
 		global $lm_multilink_port_types;
@@ -3036,87 +3123,15 @@ class linkmgmt_gvmap {
 			}
 
 			if($remote_id)
-			{
-				if(
-					!isset($this->gv->graph['edgesFrom'][$port['id']][$port['remote_id']]) &&
-					!isset($this->gv->graph['edgesFrom'][$port['remote_id']][$port['id']])
-				) {
-
-					$linktype = $port['linktype'];
-
-					$edgetooltip = $port['object_name'].':'.$port['name'].
-							' - '.$port['cableid'].' -> '.
-							$port['remote_name'].':'.$port['remote_object_name'];
-
-					$edgeattr = array(
-							'fontsize' => 8,
-							'label' => htmlspecialchars($port['cableid']),
-							'tooltip' => $edgetooltip,
-							'sametail' => $linktype,
-							'samehead' => $linktype,
-							'arrowhead' => 'none',
-							'arrowtail' => 'none',
-						);
-
-					$this->_getcolor('edge', ($linkchain->loop ? 'loop' : 'default'), $this->alpha, $edgeattr, 'color');
-					$this->_getcolor('edge', 'default', $this->alpha, $edgeattr, 'fontcolor');
-
-					if($linktype == 'back' )
-					{
-						$edgeattr['style'] =  'dashed';
-
-						/* multilink ports */
-						if(in_array($port['oif_id'], $lm_multilink_port_types))
-						{
-							$edgeattr['dir'] = 'both';
-							$edgeattr['arrowtail'] = 'dot';
-						}
-
-						if(in_array($linkchain->ports[$remote_id]['oif_id'], $lm_multilink_port_types))
-						{
-							$edgeattr['dir'] = 'both';
-							$edgeattr['arrowhead'] = 'dot';
-						}
-					}
-
-					if(
-						($port['id'] == $this->port_id && $port['remote_id'] == $this->remote_id) ||
-						($port['id'] == $this->remote_id && $port['remote_id'] == $this->port_id)
-					)
-					{
-						$this->_getcolor('edge', 'highlight', 'ff', $edgeattr, 'color');
-						$edgeattr['penwidth'] = 2; /* bold */
-					}
-
-					unset($_GET['module']);
-					$_GET['object_id'] = $port['object_id'];
-					$_GET['port_id'] = $port['id'];
-					$_GET['remote_id'] = $port['remote_id'];
-
-					$edgeattr['URL'] = $this->_makeHrefProcess($_GET);
-
-					$edgeattr['id'] = $port['object_id']."-".$port['id']."-".$port['remote_id']."-".$linktype; /* for js context menu  */
-
-					$this->gv->addEdge(array($port['id'] => $port['remote_id']),
-								$edgeattr,
-								array(
-									$port['id'] => $linktype,
-									$port['remote_id'] => $linktype,
-								)
-							);
-
-				}
-			}
-
+				$this->_addEdge($port, $linkchain);
 
 		} //foreach
 
 		if($linkchain->loop && $remote_id)
 		{
-			// TODO causes
-// 	dot: graph is too large for cairo-renderer bitmaps. Scaling by 1.52583e-05 to fit GD Warning: one parameter to a memory allocation multiplication is negative or zero, failing operation gracefully
+			// TODO separate loop link
 			// add loop edge
-			//$this->gv->addEdge(array($id => $remote_id), array(), array($id => 'loop', $remote_id => 'loop'));
+			$this->_addEdge($port, $linkchain, true);
 		}
 
 		// reset alpha to start value
