@@ -2835,31 +2835,6 @@ class linkmgmt_gvmap {
 			//	$this->_add($this->gv, $child['entity_id'], NULL);
 		}
 
-		if(0)
-		switch($hl)
-		{
-			case 'p':
-			case 'port':
-				$hllabel = " (Port highlight)";
-				$this->alpha = '30';
-				$this->addlinkchainsobject($object_id);
-				//$this->_add($this->gv, $object_id, NULL);
-				break;
-			case 'o':
-			case 'object':
-				$hllabel = " (Object highlight)";
-				$this->alpha = '30';
-				/* all objects */
-				$objects = listCells('object');
-
-				foreach($objects as $obj)
-					$this->addlinkchainsobject($obj['id']);
-					//$this->_add($this->gv, $obj['id'], NULL);
-
-				break;
-
-		}
-
 		/* add hl label */
 		$this->gv->addAttributes(array(
 			'label' =>  $this->gv->graph['attributes']['label'].$hllabel,
