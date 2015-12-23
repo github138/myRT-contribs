@@ -1822,7 +1822,12 @@ class lm_Image_GraphViz extends Image_GraphViz {
 			break;
 	}
 
+	$start = microtime(true);
 	$gvmap = new linkmgmt_gvmap($object_id, $port_id, $allports, $hl, $remote_id);
+	$stop = microtime(true);
+
+	if($debug)
+		echo "gvmap Time: ".( $stop - $start )."<br>";
 
 	if($debug) echo "-- after gvmap --<br>";
 
@@ -1949,7 +1954,13 @@ class lm_Image_GraphViz extends Image_GraphViz {
 			$gvmap->setFalseOnError(False);
 
 		$data2 = '';
+
+		$start = microtime(true);
 		$data = $gvmap->fetch($type, $command, 'cmapx', $data2);
+		$stop = microtime(true);
+
+		if($debug)
+			echo "DOT time: ".( $stop - $start )."<br>";
 
 		if($data === false)
 			echo "ERROR Fetching image data!<br>";
@@ -2798,9 +2809,8 @@ class linkmgmt_gvmap {
 
 			$objects = listCells('object');
 
-			// TODO create chains only once
 			foreach($objects as $obj)
-				//$this->addlinkchainsobject($obj['id']); // long dot runtime !!
+				//$this->addlinkchainsobject($obj['id']); // longer runtimes !!
 				$this->_add($this->gv, $obj['id'], NULL); // for all still faster and nicer looking graph
 
 			return;
