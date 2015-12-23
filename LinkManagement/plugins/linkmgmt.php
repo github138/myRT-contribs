@@ -2730,7 +2730,18 @@ class linkmgmt_gvmap {
 
 		if(empty($object['ports']))
 		{
-			$this->_addCluster($object_id, empty($object['ports']));
+
+			$hl = false;
+			$alpha = $this->alpha;
+			if($this->hl == 'o' && $this->object_id == $object_id)
+			{
+				$hl = true;
+				$this->alpha = 'ff';
+			}
+
+			$this->_addCluster($object_id, $hl, empty($object['ports']));
+
+			$this->alpha = $alpha;
 			return;
 		}
 
@@ -2853,7 +2864,7 @@ class linkmgmt_gvmap {
 		error_reporting($this->errorlevel);
 	}
 
-	function _addCluster($object_id, $adddummy = false)
+	function _addCluster($object_id, $hl = false, $adddummy = false)
 	{
 			global $lc_cache;
 
@@ -2862,6 +2873,7 @@ class linkmgmt_gvmap {
 			if(
 				!isset($this->gv->graph['clusters'][$cluster_id]) &&
 				!isset($this->gv->graph['subgraphs'][$cluster_id])
+				|| $hl
 			) {
 				$rack = null;
 				$object = $lc_cache->getobject($object_id, $rack);
@@ -2942,17 +2954,21 @@ class linkmgmt_gvmap {
 	{
 		global $lm_multilink_port_types;
 
+		$hl = false;
 		$alpha = $this->alpha;
 		if(
 			($this->hl == 'p' && $linkchain->hasport_id($this->port_id))
 			|| ($this->hl == 'o' && $linkchain->hasobject_id($this->object_id))
 		)
+		{
+			$hl = true;
 			$this->alpha = 'ff';
+		}
 
 		$remote_id = null;
 		foreach($linkchain as $id => $port)
 		{
-			$this->_addCluster($port['object_id']);
+			$this->_addCluster($port['object_id'], $hl);
 
 			$nodelabel = htmlspecialchars("${port['name']}");
 			$text = $nodelabel;
