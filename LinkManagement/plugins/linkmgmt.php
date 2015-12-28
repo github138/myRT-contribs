@@ -1051,19 +1051,13 @@ class pv_linkchain implements Iterator {
 
 		$dst_port = $this->ports[$src_port['remote_id']];
 
-		/* use RT unlink for front link, linkmgmt unlink for back links */
-		if($linktype == 'back')
-			$tab = 'linkmgmt';
-		else
-			$tab = 'ports';
-
 		return '<a href='.
                                makeHrefProcess(array(
 					'op'=>'unlinkPort',
 					'port_id'=>$src_port['id'],
 					'remote_id' => $dst_port['id'],
-					'object_id'=> $this->ports[$this->init]['object_id'],
-					'tab' => $tab,
+					'object_id'=> $this->object_id, //$this->ports[$this->init]['object_id'],
+					'tab' => 'linkmgmt',
 					'linktype' => $linktype)).
                        ' onclick="return confirm(\'unlink ports '.$src_port['name']. ' -> '.$dst_port['name']
 					.' ('.$linktype.') with cable ID: '.$src_port['cableid'].'?\');">'.
@@ -3652,8 +3646,6 @@ function linkmgmt_opunlinkPort() {
 	$port_id = $_REQUEST['port_id'];
 	$linktype = $_REQUEST['linktype'];
 
-	portlist::var_dump_html($_REQUEST);
-
 	/* check permissions */
 	if(!permitted(NULL, NULL, 'set_link')) {
 		exit;
@@ -3671,26 +3663,18 @@ function linkmgmt_opunlinkPort() {
 					$port_id, $remote_id,
 					$port_id, $remote_id)
 			);
+
+		if($retval == 0)
+			showWarning("Link not found");
+		else
+			showSuccess("Backend Link deleted");
+
 	}
 	else
 	{
-		$table = 'Link';
-
-		$retval = usePreparedDeleteBlade ($table, array('porta' => $port_id, 'portb' => $port_id), 'OR');
+		// RT function for normal links
+		unlinkPort();
 	}
-
-	if($retval == 0)
-		echo " Link not found";
-	else
-		echo " $retval Links deleted";
-
-
-	unset($_GET['module']);
-	unset($_GET['op']);
-
-	header('Location: ?'.http_build_query($_GET));
-	//header('Location: ?page='.$_REQUEST['page'].'&tab='.$_REQUEST['tab'].'&object_id='.$_REQUEST['object_id']);
-	exit;
 } /* opunlinkPort */
 
 /* -------------------------------------------------- */
