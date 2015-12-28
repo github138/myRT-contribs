@@ -285,7 +285,7 @@ class pv_linkchain implements Iterator {
 
 	private $initport = false;
 
-	private $lids = null; // link ids porta portb linktype
+	private $lids = array(); // link ids porta portb linktype
 
 	public $pids = null; // port ids
 	public $oids = null; // object ids
@@ -295,18 +295,13 @@ class pv_linkchain implements Iterator {
 	 *		false follow front only
 	 * $prevport first port
 	 */
-	function __construct($port_id, $back = null, $prevport = null, $reverse = false, &$lids = null, &$pids = null, &$oids = null)
+	function __construct($port_id, $back = null, $prevport = null, $reverse = false, &$pids = null, &$oids = null)
 	{
 		global $lc_cache;
 
 		$this->init = $port_id;
 
 		$this->initback = $back;
-
-		if($lids === null)
-			$this->lids = array();
-		else
-			$this->lids = &$lids;
 
 		if($pids === null)
 			$this->pids = array();
@@ -563,7 +558,7 @@ class pv_linkchain implements Iterator {
 						if($prevport_id != $mport['remote_id'])
 						{
 							$mport['portcount'] = 1;
-							$lc = new pv_linkchain($mport['remote_id'], $back, $mport, !$reverse, $this->lids, $this->pids, $this->oids);
+							$lc = new pv_linkchain($mport['remote_id'], $back, $mport, !$reverse, $this->pids, $this->oids);
 							$lcs[$mport['remote_id']] = $lc;
 							$this->linkcount += $lc->linkcount;
 						}
@@ -584,7 +579,7 @@ class pv_linkchain implements Iterator {
 				if($remote_id != $mport['remote_id'])
 				{
 					$mport['portcount'] = 1;
-					$lc = new pv_linkchain($mport['remote_id'], !$back, $mport, $reverse, $this->lids, $this->pids, $this->oids);
+					$lc = new pv_linkchain($mport['remote_id'], !$back, $mport, $reverse, $this->pids, $this->oids);
 					$lcs[$mport['remote_id']] = $lc; 
 					$this->linkcount += $lc->linkcount;
 				}
