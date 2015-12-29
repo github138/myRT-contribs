@@ -2169,7 +2169,7 @@ class cytoscapedata
 					if(isset($this->edges['parents'][$peid]))
 						$this->edges['parents'][$peid]['data']['linkcount']++;
 					else
-						$this->addedge($peid, 'o'.$id1, 'o'.$id2, array('linktype' => $linktype, 'linkcount' => 1), $this->edges['parents']);
+						$this->addedge($peid, 'o'.$id1, 'o'.$id2, array('type' => $linktype, 'linkcount' => 1), $this->edges['parents']);
 				}
 			}
 
@@ -2196,10 +2196,6 @@ class cytoscapedata
 		$this->edges['nodes'] = array();
 
 		$this->_getlinkchains($object_id);
-	}
-
-	function getparents() {
-		return array_merge(array_values($this->parents), array_values($this->edges['parents']));
 	}
 
 	function getelements()
@@ -2291,10 +2287,7 @@ function linkmgmt_cytoscapemap() {
 
 		ob_end_clean();
 
-		if(isset($_GET['parents']))
-			echo json_encode($data->getparents());
-		else
-			echo json_encode($data->getelements());
+		echo json_encode($data->getelements());
 
 		exit;
 	}
@@ -2332,6 +2325,11 @@ body {
 <!--<script src="js/cytoscape-css-renderer_mod.js"></script>-->
 <!--<script src="js/cytoscape.js-navigator.js_mod"></script>-->
 <script>
+var cy = null;
+var cy2 = null;
+var layout = null;
+var data = null;
+
 $(function(){ // on dom ready
   var cystyle = [
     {
@@ -2445,9 +2443,11 @@ $(function(){ // on dom ready
    }
   ];
 
+var cylayout = { name: 'dagre', nodeSep: 3, ready: layoutready, stop: layoutstop };
+
 function highlight(evt) {
 
-	cy = evt.cy;
+	//cy = evt.cy;
 
 	var hlclass = evt.data.hlclass;
 	var ele = evt.cyTarget;
@@ -2500,7 +2500,7 @@ function highlight(evt) {
 	var hleles2 = hleles.clone();
 	hleles2 = hleles2.add(hleles.parents().clone());
 
-	var cy2 = evt.data.cy2;
+	//var cy2 = evt.data.cy2;
 
 	//var ret = evt.data.ret;
 
@@ -2510,6 +2510,33 @@ function highlight(evt) {
 	cy2.add(hleles2);
 	//cy2.add(j);
 	cy2.layout({name: 'dagre', rankDir: 'LR', ready: layoutready});
+}
+
+function test(evt)
+{
+	var b = evt.target;
+
+	var j = null;
+	if(b.value == "1")
+	{
+		j = data.parents.concat(data.edges.parents);
+		b.value = "0";
+		b.innerHTML = "Ports";
+	}
+	else
+	{
+		j = data.parents.concat(data.nodes).concat(data.edges.nodes);
+		b.value = "1";
+		b.innerHTML = "Objects";
+	}
+
+	//layout.stop();
+	cy.remove(cy.elements());
+
+	cy.add(j);
+
+	cy.layout(cylayout);
+	//layout.run();
 }
 
 $.ajax({
@@ -2524,15 +2551,15 @@ $.ajax({
 		},
 	dataTye: 'json',
 	error: function(){ alert("Error loading"); },
-	success: function(data) {
+	success: function(jdata) {
 
-			var ret = JSON.parse(data);
+			data = JSON.parse(jdata);
 
-			if(ret.debug)
-				$('#debug').html(ret.debug);
+			if(data.debug)
+				$('#debug').html(data.debug);
 
-			//j = ret.parents.concat(ret.edges.parents);
-			j = ret.parents.concat(ret.nodes).concat(ret.edges.nodes);
+			//j = data.parents.concat(data.edges.parents);
+			j = data.parents.concat(data.nodes).concat(data.edges.nodes);
 
 			if(j.length == 0)
 			{
@@ -2541,7 +2568,7 @@ $.ajax({
 				return;
 			}
 
-			var cy2 = cytoscape({
+			cy2 = cytoscape({
 				container: document.getElementById('cy2'),
 				//renderer: { name: 'css' },
 
@@ -2559,7 +2586,7 @@ $.ajax({
 				}
 			});
 
-			var cy = cytoscape({
+			cy = cytoscape({
 				container: document.getElementById('cy'),
 
 				boxSelectionEnabled: false,
@@ -2567,46 +2594,13 @@ $.ajax({
 				style: cystyle,
 				wheelSensitivity: 0.1,
 				elements: j,
-				layout: { name: 'dagre', nodeSep: 3, /* edgeSep: 30, */ ready: layoutready, stop: layoutstop,
-					/*
-						'edgeWeight': function(edge) {
-									if(edge.data('linkcount'))
-										return edge.data('linkcount') * 10;
-									else
-										return 1;
-						},
-					*/
-					/*
-						'minLen': function(edge) {
-
-								if(!edge.data('linktype'))
-									return 10;
-
-								if(edge.data('linktype') == 'back')
-									ret = 10;
-								else
-									ret = 50;
-
-								ret = ret / edge.data('linkcount');
-
-								if(ret < 0)
-									ret = 1;
-
-								if(ret > 10)
-									ret = 5;
-
-								return parseInt(ret);
-						},
-					*/
-					},
-				ready: function() {
-							window.cy = this;
-							//$('#cy').cytoscapeNavigator({ }); // not working with cytoscape 2.5 at the moment
-				 },
+				layout: cylayout,
 			});
 
 			cy.on('mouseover', { hlclass: 'highlighted' }, highlight );
-			cy.on('click', { hlclass: 'clhighlighted', cy2: cy2 , ret: ret}, highlight );
+			cy.on('click', { hlclass: 'clhighlighted' }, highlight );
+
+			$('#test').click(test);
 
 			/*
 				TODO: node ranking
@@ -2662,11 +2656,11 @@ $.ajax({
 }); // on dom ready
 
 function layoutready(evt) {
-	var cy = evt.cy;
-	// highlight current object
-	cy.$('#o$object_id').style('background-color','#ffcccc');
+	var _cy = evt.cy;
 
-	var e = cy.$('node[loop = "1"]').style('background-color','#ff6666');
+	_cy.$('#o$object_id').style('background-color','#ffcccc');
+
+	var e = _cy.$('node[loop = "1"]').style('background-color','#ff6666');
 
 //	console.log(e[0].data('loop'));
 
@@ -2675,15 +2669,16 @@ function layoutready(evt) {
 }
 
 function layoutstop(evt) {
-	var cy = evt.cy;
+	var _cy = evt.cy;
 //	cy.elements().locked = true;
 //	cy.add({group: 'nodes', data: {id:'l2493', parent:'p2943', label: 'test'}});
 
-	var les = cy.$('[loopedge]');
+
+	var les = _cy.$('[loopedge]');
 
 	if(les)
 	{
-		cy.batch( function() {
+		_cy.batch( function() {
 			les.each(function(i, ele) {
 				var le = ele.data('loopedge');
 				var edge = cy.add(le);
@@ -2691,7 +2686,7 @@ function layoutstop(evt) {
 				//edge.style('line-color', '#ffffff'); // TypeError text-transform undefined
 			});	
 		});
-		cy.$('edge[loop = "1"]').style('line-color','#ff6666');
+		_cy.$('edge[loop = "1"]').style('line-color','#ff6666');
 	}
 }
 </script>
@@ -2700,6 +2695,7 @@ function layoutstop(evt) {
 <div id="cy" style="position: absolute; height: 80%; width: 100%; left: 0; top: 20%;"></div>
 <div id="cy2" style="position: absolute; height: 20%; width: 100%; left: 0; top: 0%;"></div>
 <div id="debug"></div>
+<button type="button" id="test" style="position: absolute;" value="1">Object</button>
 </body>
 </html>
 HTMLEND
