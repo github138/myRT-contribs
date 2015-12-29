@@ -557,6 +557,9 @@ class pv_linkchain implements Iterator {
 					{
 						if($prevport_id != $mport['remote_id'])
 						{
+							if(isset($this->pids[$mport['remote_id']]))
+								continue;
+
 							$mport['portcount'] = 1;
 							$lc = new pv_linkchain($mport['remote_id'], $back, $mport, !$reverse, $this->pids, $this->oids);
 							$lcs[$mport['remote_id']] = $lc;
@@ -578,6 +581,9 @@ class pv_linkchain implements Iterator {
 			{
 				if($remote_id != $mport['remote_id'])
 				{
+					if(isset($this->pids[$mport['remote_id']]))
+						continue;
+
 					$mport['portcount'] = 1;
 					$lc = new pv_linkchain($mport['remote_id'], !$back, $mport, $reverse, $this->pids, $this->oids);
 					$lcs[$mport['remote_id']] = $lc; 
