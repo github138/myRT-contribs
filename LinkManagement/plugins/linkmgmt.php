@@ -2681,7 +2681,7 @@ function layoutstop(evt) {
 		_cy.batch( function() {
 			les.each(function(i, ele) {
 				var le = ele.data('loopedge');
-				var edge = cy.add(le);
+				var edge = _cy.add(le);
 				edge.addClass('loopedge');
 				//edge.style('line-color', '#ffffff'); // TypeError text-transform undefined
 			});	
