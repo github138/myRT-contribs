@@ -2,7 +2,7 @@
 // TODO linkchain cytoscape create libs?
 //	linkchain all objects graph cytoscape takes ages
 //	avoid create own linkchain for every port on global map
-//	highlight port gv / cytoscape maps
+//	highlight port cytoscape maps
 /*
  * Link Management for RT >= 0.20.9
  *
@@ -1400,6 +1400,7 @@ function lm_renderObjectCell ($cell)
 }
 /* -------------------------------------- */
 
+// TODO replace..
 class linkmgmt_RTport {
 
 	private $port_id = NULL;
@@ -2093,7 +2094,7 @@ class cytoscapedata
 					$rack_text = "${rack['row_name']} / ${rack['name']}";
 				}
 
-				$data = array('label' => $object['name'], 'text' => $rack_text, 'type' => $type);
+				$data = array('label' => $object['name'], 'text' => $rack_text, 'type' => $type, 'has_problems' => $object['has_problems']);
 
 				$container_id = $object['container_id'];
 				if($container_id)
@@ -2512,7 +2513,7 @@ function highlight(evt) {
 	cy2.layout({name: 'dagre', rankDir: 'LR', ready: layoutready});
 }
 
-function test(evt)
+function cytoscapeswitch(evt)
 {
 	var b = evt.target;
 
@@ -2600,7 +2601,7 @@ $.ajax({
 			cy.on('mouseover', { hlclass: 'highlighted' }, highlight );
 			cy.on('click', { hlclass: 'clhighlighted' }, highlight );
 
-			$('#test').click(test);
+			$('#switch').click(cytoscapeswitch);
 
 			/*
 				TODO: node ranking
@@ -2658,7 +2659,13 @@ $.ajax({
 function layoutready(evt) {
 	var _cy = evt.cy;
 
-	_cy.$('#o$object_id').style('background-color','#ffcccc');
+	// highlight current object
+	var object = _cy.$('#o$object_id');
+	if(object.data('has_problems') == 'no')
+		object.style('background-color','#ffcccc');
+
+	// highlight object with problems
+	_cy.$('node[type = "object"][has_problems != "no"]').style('background-color','#ff0000');
 
 	var e = _cy.$('node[loop = "1"]').style('background-color','#ff6666');
 
@@ -2695,7 +2702,7 @@ function layoutstop(evt) {
 <div id="cy" style="position: absolute; height: 80%; width: 100%; left: 0; top: 20%;"></div>
 <div id="cy2" style="position: absolute; height: 20%; width: 100%; left: 0; top: 0%;"></div>
 <div id="debug"></div>
-<button type="button" id="test" style="position: absolute;" value="1">Object</button>
+<button type="button" id="switch" style="position: absolute;" value="1">Object</button>
 </body>
 </html>
 HTMLEND
