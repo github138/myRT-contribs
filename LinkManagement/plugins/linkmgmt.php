@@ -1153,7 +1153,8 @@ class pv_linkchain implements Iterator {
 	}
 
 	function next() {
-		$remote_id = $this->current()['remote_id'];
+		$port = $this->current();
+		$remote_id = $port['remote_id'];
 	
 		if($this->loop && $remote_id == $this->first)
 			$this->currentid = false;
