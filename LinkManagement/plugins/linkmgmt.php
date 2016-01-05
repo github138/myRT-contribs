@@ -249,7 +249,7 @@ class linkchain_cache
 $lc_cache = new linkchain_cache();
 
 /* recursive class */
-class pv_linkchain implements Iterator {
+class lm_linkchain implements Iterator {
 
 	const B2B_LINK_BGCOLOR = '#d8d8d8';
 	const CURRENT_PORT_BGCOLOR = '#ffff99';
@@ -492,7 +492,7 @@ class pv_linkchain implements Iterator {
 		if($port_id == $this->init)
 			$this->initport = true;
 
-		$ports = pv_getPortInfo($port_id, $back);
+		$ports = lm_getPortInfo($port_id, $back);
 
 		$portcount = count($ports);
 
@@ -541,7 +541,7 @@ class pv_linkchain implements Iterator {
 			if($prevport_id)
 			{
 				/* mutlilink: multiple previous links */
-				$prevports = pv_getPortInfo($port_id, !$back);
+				$prevports = lm_getPortInfo($port_id, !$back);
 
 				$prevportcount = count($prevports);
 
@@ -561,7 +561,7 @@ class pv_linkchain implements Iterator {
 								continue;
 
 							$mport['portcount'] = 1;
-							$lc = new pv_linkchain($mport['remote_id'], $back, $mport, !$reverse, $this->pids, $this->oids);
+							$lc = new lm_linkchain($mport['remote_id'], $back, $mport, !$reverse, $this->pids, $this->oids);
 							$lcs[$mport['remote_id']] = $lc;
 							$this->linkcount += $lc->linkcount;
 						}
@@ -585,7 +585,7 @@ class pv_linkchain implements Iterator {
 						continue;
 
 					$mport['portcount'] = 1;
-					$lc = new pv_linkchain($mport['remote_id'], !$back, $mport, $reverse, $this->pids, $this->oids);
+					$lc = new lm_linkchain($mport['remote_id'], !$back, $mport, $reverse, $this->pids, $this->oids);
 					$lcs[$mport['remote_id']] = $lc; 
 					$this->linkcount += $lc->linkcount;
 				}
@@ -744,7 +744,7 @@ class pv_linkchain implements Iterator {
 				$prevportmulti++;
 				/* mutlilink: multiple previous links */
 
-				$notrowbgcolor = ($rowbgcolor == pv_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : pv_linkchain::ALTERNATE_ROW_BGCOLOR );
+				$notrowbgcolor = ($rowbgcolor == lm_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : lm_linkchain::ALTERNATE_ROW_BGCOLOR );
 				if($this->prevportmulti % 2)
 				{
 					$oddbgcolor = $rowbgcolor;
@@ -813,7 +813,7 @@ class pv_linkchain implements Iterator {
 				
 				/* mutlilink: multiple links */
 
-				$notrowbgcolor = ($rowbgcolor == pv_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : pv_linkchain::ALTERNATE_ROW_BGCOLOR );
+				$notrowbgcolor = ($rowbgcolor == lm_linkchain::ALTERNATE_ROW_BGCOLOR ? '#ffffff' : lm_linkchain::ALTERNATE_ROW_BGCOLOR );
 				if($this->portmulti % 2)
 				{
 					$oddbgcolor = $rowbgcolor;
@@ -1184,14 +1184,14 @@ class pv_linkchain implements Iterator {
 		var_dump($var);
 		echo "\n---------------------END Var Dump -----------$msg-------------</pre>";
 	}
-} // pv_linkchain
+} // lm_linkchain
 
 /*
  *   from RT database.php fetchPortList()
  *	with Link table selection
  *	and multilink changes
  */
-function pv_fetchPortList ($sql_where_clause, $query_params = array(), $linktable = 'Link')
+function lm_fetchPortList ($sql_where_clause, $query_params = array(), $linktable = 'Link')
 {
 	$query = <<<END
 SELECT
@@ -1252,19 +1252,19 @@ END;
 		$ret[] = $row;
 	}
 	return $ret;
-} /* pv_fetchPortList */
+} /* lm_fetchPortList */
 
-function pv_getPortInfo ($port_id, $back = false)
+function lm_getPortInfo ($port_id, $back = false)
 {
 	$linktable = ($back ? 'LinkBackend' : 'Link');
 	if($back)
-		$result = pv_fetchPortList ('Port.id = ?', array ($port_id), $linktable);
+		$result = lm_fetchPortList ('Port.id = ?', array ($port_id), $linktable);
 	else
 		$result = fetchPortList ('Port.id = ?', array ($port_id));
 
         //return empty ($result) ? NULL : $result[0];
         return $result;
-} /* pv_getPortInfo */
+} /* lm_getPortInfo */
 
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------- */
@@ -2202,7 +2202,7 @@ class cytoscapedata
 
 	function getelements()
 	{
-		//pv_linkchain::var_dump_html($this);
+		//lm_linkchain::var_dump_html($this);
 		return array('parents' => array_values($this->parents),
 			'nodes' =>  array_values($this->nodes),
 			'edges' =>  array(
@@ -2235,7 +2235,7 @@ class cytoscapedata
 				continue;
 
 			$i++;
-			$lc = new pv_linkchain($port['id']);
+			$lc = new lm_linkchain($port['id']);
 
 			$this->pids += $lc->pids;
 
@@ -2764,7 +2764,7 @@ class linkmgmt_gvmap {
 				continue;
 
 			$i++;
-			$lc = new pv_linkchain($port['id']);
+			$lc = new lm_linkchain($port['id']);
 
 			$this->pids += $lc->pids;
 
@@ -4436,14 +4436,14 @@ function linkmgmt_renderObjectLinks($object_id) {
 
 	foreach($ports as $key => $port) {
 
-		$lc = new pv_linkchain($port['id']);
+		$lc = new lm_linkchain($port['id']);
 
 		if($allports || $lc->linkcount > 0)
 		{
 			if($port['id'] == $hl_port_id)
-				$rowbgcolor = pv_linkchain::HL_PORT_BGCOLOR;
+				$rowbgcolor = lm_linkchain::HL_PORT_BGCOLOR;
 			else
-				$rowbgcolor = ($rowcount % 2 ? pv_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff");
+				$rowbgcolor = ($rowcount % 2 ? lm_linkchain::ALTERNATE_ROW_BGCOLOR : "#ffffff");
 
 			echo $lc->getchainlabeltrstart($rowbgcolor).$lc->getchainrow($allback, $rowbgcolor)."</tr>";
 			$rowcount++;
