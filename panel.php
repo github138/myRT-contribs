@@ -1262,9 +1262,10 @@ function pv_get_zone($object)
 	/* get zone tags */
 	$zone = array();
 
-	$tagtree = getTagSubtree(getTagByName("Zone")['id']);
-	foreach($tagtree['kids'] as $tag)
-	{
+	$tagtree = buildTagChainFromIds(getTagDescendents(getTagByName("Zone")['id']));
+
+        foreach($tagtree as $tag)
+        {
 		if(tagOnChain($tag, $object['etags']))
 			$zone[] = $tag['tag'];
 	}
