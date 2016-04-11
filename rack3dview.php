@@ -78,7 +78,7 @@ function rack3dview_tabhandler()
 				$locationTree = sprintf ('%s %s', $parentLocation['name'], $locationTree);
 				$hrefLocationTree = "&raquo; <a href='" .
 					makeHref(array('page'=>'location', 'location_id'=>$parentLocation['id'])) .
-					"${cellfilter['urlextra']}'>${parentLocation['name']}</a> " .
+					"'>${parentLocation['name']}</a> " .
 					$hrefLocationTree;
 				$location_id = $parentLocation['parent_id'];
 				$locationIdx++;
@@ -86,7 +86,7 @@ function rack3dview_tabhandler()
 			$hrefLocationTree = substr ($hrefLocationTree, 8);
 
 		echo "<tr><td>$hrefLocationTree</td>";
-		echo "<th class=tdleft><a href='".makeHref(array('page'=>'row', 'row_id'=>$rowInfo['row_id']))."'>${rowInfo['name']}</a></th>";
+		echo "<th class=tdleft><a href='".makeHref(array('page'=>'row', 'row_id'=>$row_id))."'>${rowInfo['name']}</a></th>";
 		echo "<td><input type=checkbox name=rows[$row_id] value=$row_id></select></td>";
 		echo "</tr>";
 	}
