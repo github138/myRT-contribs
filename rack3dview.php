@@ -317,7 +317,7 @@ $.ajax({
 		if(width19 === undefined)
 			width19 = 482.6;
 
-		this.rack19frame = BABYLON.MeshBuilder.CreateBox(name + '19', {height: maxunits * 44.45, width: width19, depth: maxdepth19, faceColors: myColors}, scene);
+		this.rack19frame = BABYLON.MeshBuilder.CreateBox(name + '19', {height: maxunits * 44.45 -1, width: width19 -1, depth: maxdepth19 -1, faceColors: myColors}, scene);
 		this.rack19frame.position = new BABYLON.Vector3(0,0,0);
 		this.rack19frame.showBoundingBox = false;
 		this.rack19frame.scaling = scale3;
