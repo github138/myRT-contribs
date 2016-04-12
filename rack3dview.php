@@ -28,7 +28,7 @@
  *		optimize 3D model
  *		rack heights/widths
  *
- *		container support
+ *		optimize container labels
  */
 
 /**
@@ -47,8 +47,16 @@ $tabhandler['rackspace']['rack3dview'] = 'rack3dview_tabhandler';
 
 $ajaxhandler['r3dv_data'] = 'rack3dview_ajax_data';
 
+$debug = 0;
+
 function rack3dview_tabhandler()
 {
+	if($debug)
+	{
+	rack3dview_display(array(704));
+	return;
+	}
+
 	if(isset($_POST['rows']))
 	{
 		$rows = $_POST['rows'];
@@ -290,7 +298,7 @@ $.ajax({
 		var plane = new BABYLON.Mesh.CreatePlane("TextPlane"+id, size, scene, true);
 		plane.material = new BABYLON.StandardMaterial("TextPlaneMaterial", scene);
 		plane.material.backFaceCulling = false;
-		plane.material.specularColor = new BABYLON.Color3(0, 0, 0);
+		//plane.material.specularColor = new BABYLON.Color3(0, 0, 0);
 		plane.material.diffuseTexture = dynamicTexture;
 	//	plane.isVisible = false;
 		return plane;
@@ -384,59 +392,103 @@ $.ajax({
 		text.position.y = 44.45/-2;
 	} // TEXT
 
-		this.addObject = function(name, rtname, rtlabel, position, units, type , locpos, locdepth) {
+		this.addRTObject = function(objdata, unit) {
+			//r.addObject(obj.object_id, obj.name, obj.label, unit.id, unit.count, obj.objtype_id);
 
-			if(type === undefined)
-				type = 0;
-
-			if(locpos === undefined)
-				locpos = 0;
-
-			if(locdepth === undefined)
-				locdepth = 3;
-
+			var type = objdata.objtype_id;
 			var faceColors = (objtypecolors[type] ? objtypecolors[type] : objtypecolors[0]);
 
-			depth19 = (locdepth == 3 ? maxdepth19 : locdepth * (maxdepth19/3));
+			if(unit.locdepth === undefined)
+				unit.locdepth = 3;
 
-			if(position < 0)
+			depth19 = (unit.locdepth == 3 ? maxdepth19 : unit.locdepth * (maxdepth19/3));
+
+			//zeroU
+			if(unit.id < 0)
 				depth19 = 2;
 
-			var server = BABYLON.MeshBuilder.CreateBox(name, {height: units * 44.45 - 2, width: width19, depth: depth19, faceColors: faceColors}, scene);
-			server.showBoundingBox = false;
-			server.parent = this.rack19frame;
+			unit.height = unit.count * 44.45 - 2;
+			unit.width = width19;
+			unit.depth = depth19;
 
-			var label = createLabel(name, rtlabel, rtname, "black", 482);
-			label.parent = server;
-			label.position = new BABYLON.Vector3(0,(482 - 44.45)/ -2,-depth19/2 - 1);
+			var object = BABYLON.MeshBuilder.CreateBox(objdata.object_id, {height: unit.height, width: unit.width, depth: depth19, faceColors: faceColors}, scene);
+			object.parent = this.rack19frame;
 
-			var pos = (((maxunits)/2) * -44.45) + (position-1) * 44.45 + ((units * 44.45) / 2);
+			var label = createLabel(objdata.object_id, objdata.label, objdata.name, "black", 482);
+			label.parent = object;
+			label.position = new BABYLON.Vector3(0,(482 - 44.45)/ -2,depth19/-2 - 1);
 
-			//console.log(name + " " + position + "  " + ( maxunits - position ) + " - " + pos + " u: " + units);
+			var pos = (((maxunits)/2) * -44.45) + (unit.id-1) * 44.45 + ((unit.count * 44.45) / 2);
 
 			depth19start = (maxdepth19 - depth19)/-2;
 
-			if( locpos == 1)
+			if(unit.locpos === undefined)
+				unit.locpos = 0;
+
+			if( unit.locpos == 1)
 				depth19start = depth19start + maxdepth19/3;
 			else
-				if( locpos == 2 )
+				if( unit.locpos == 2 )
 					depth19start = depth19start + ((maxdepth19/3) * 2);
 
-			//console.log("obj: " + locpos + "  " + locdepth + " -- " + depth19start + "  " + depth19);
+			object.position = new BABYLON.Vector3(0, pos,depth19start);
 
-			server.position = new BABYLON.Vector3(0, pos,depth19start);
+			if( unit.locpos != 0 )
+				object.rotation.y = Math.PI; // 180 degree
 
-			if( locpos != 0 )
-				server.rotation.y = Math.PI; // 180 degree
-		};
+			objdata.object = object;
+		}
 
-		this.addObject3 = function(name, position3, units3) {
-			var position = (position3/3);
-			var units = (units3/3);
+		this.addSlot = function(objdata, parent, unit)
+		{
+			if(parent.rows)
+			{
+				var rows = parent.rows;
+				var cols = parent.cols;
+				var layout = parent.layout;
+			}
 
-			this.addObject(name, position, units);
+			if(objdata.slot)
+				var slot = objdata.slot;
 
-		};
+			width = unit.width / cols;
+			height = unit.height / rows;
+			depth = 2;
+
+			var type = objdata.objtype_id;
+			var faceColors = (objtypecolors[type] ? objtypecolors[type] : objtypecolors[0]);
+
+			var child = BABYLON.MeshBuilder.CreateBox(name, {height: height, width: width, depth: depth, faceColors: faceColors}, scene);
+			child.parent = parent.object;
+			//child.showBoundingBox = true;
+
+			//var s = parent.object.getBoundingInfo();
+
+			labelsize = width;
+				textsize = 28;
+			if(layout == 'V')
+			{
+				labelsize = height;
+				textsize = 50;
+			}
+
+			var label = createLabel(objdata.object_id, objdata.label, objdata.name, "black", labelsize, textsize);
+			label.parent = child;
+
+			if(layout == 'V')
+			{
+				label.rotation = new BABYLON.Vector3(0,0,(-90*Math.PI)/180);
+				label.position = new BABYLON.Vector3(-width,0,depth/-2-2);
+			}
+			else
+				label.position = new BABYLON.Vector3(0,(height/2)-unit.height,depth/-2-2);
+
+			row = Math.floor((slot-1) / cols);
+			col = Math.floor((slot-1) % cols);
+
+			child.position = new BABYLON.Vector3( ((unit.width - width) / -2) + col * width, ((unit.height - height)/2) - row * height,(unit.depth - depth) / -2 - 2);
+			objdata.object = child;
+		}
 
 		this.position = function(x,y,z) {
 			this.rack19frame.position = new BABYLON.Vector3(x * scale,(y + ((height/2) - 1000)) * scale ,z * scale);
@@ -476,23 +528,49 @@ $.ajax({
 				zerou = 0;
 				rackobj.objects.forEach( function(obj) {
 
-								obj.fullunits.forEach( function(unit) {
-									r.addObject(obj.object_id, obj.name, obj.label, unit.id, unit.count, obj.objtype_id);
-								});
+					if(obj.fullunits)
+					obj.fullunits.forEach( function(unit) {
+						//r.addObject(obj.object_id, obj.name, obj.label, unit.id, unit.count, obj.objtype_id);
+						r.addRTObject(obj, unit)
 
-								obj.partitialunits.forEach( function(unit) {
-									r.addObject(obj.object_id, obj.name, obj.label, unit.id , 1, obj.objtype_id, unit.locpos, unit.locdepth);
-								});
-
-								if(obj.zerounit)
-								{
-									zerou++;
-									r.addObject(obj.object_id, obj.name, obj.label, -zerou-2, 1, obj.objtype_id, 0, 1);
-								}
+						if(obj.children)
+						{
+							obj.children.forEach( function(child) {
+								r.addSlot(child, obj, unit);
 							});
+						}
+					});
 
-				}
-			);
+					if(obj.partitialunits)
+					obj.partitialunits.forEach( function(unit) {
+						//r.addObject(obj.object_id, obj.name, obj.label, unit.id , 1, obj.objtype_id, unit.locpos, unit.locdepth);
+						unit.count = 1;
+						r.addRTObject(obj, unit);
+						if(obj.children)
+						{
+							obj.children.forEach( function(child) {
+								r.addSlot(child, obj, unit);
+							});
+						}
+					});
+
+					if(obj.zerounit)
+					{
+						zerou++;
+						unit = {id: -zerou - 2, count:1, locpos: 0, locdepth: 0};
+						//r.addObject(obj.object_id, obj.name, obj.label, -zerou-2, 1, obj.objtype_id, 0, 1);
+						r.addRTObject(obj, unit);
+						if(obj.children)
+						{
+							obj.children.forEach( function(child) {
+								r.addSlot(child, obj, unit);
+							});
+						}
+					}
+
+				});
+
+			});
 		}
 	);
 
@@ -521,6 +599,9 @@ HTMLEND
 function rack3dview_ajax_data()
 {
 	ob_start();
+
+	// DEBUG
+	//$_POST['rows'] = 704;
 
 	if(isset($_POST['rows']))
 		$rack_rows = explode(",",$_POST['rows']);
@@ -583,23 +664,70 @@ function rack3dview_ajax_data()
 			$zeroUObjects = getChildren ($rack, 'object');
 			foreach($zeroUObjects as $object)
 			{
+				if(!isset($objects[$object['id']]))
+				{
+					$objects[$object['id']]['object_id'] =  $object['id'];
+			//		$objects[$object['id']]['fullunits'] = array();
+			//		$objects[$object['id']]['partitialunits'] = array();
+			//		$objects[$object['id']]['unit'] = array();
+				}
+
 				$objects[$object['id']]['zerounit'] = 1;
-				$objects[$object['id']]['object_id'] =  $object['id'];
-				$objects[$object['id']]['fullunits'] = array();
-				$objects[$object['id']]['partitialunits'] = array();
-				$objects[$object['id']]['unit'] = array();
 			}
 
 			foreach($objects as $object_id => $object)
 			{
-				$objectdata = spotEntity('object', $object_id);
+				$objectData = spotEntity('object', $object_id);
 
-			//	r3dv_var_dump_html($object);
-			//	r3dv_var_dump_html($objectdata);
+				// ------------contains children------------------
 
-				$objects[$object_id]['objtype_id'] = $objectdata['objtype_id'];
-				$objects[$object_id]['name'] = $objectdata['name'];
-				$objects[$object_id]['label'] = $objectdata['label'];
+				$attrData = getAttrValues ($object_id);
+				if (isset ($attrData[2])) // HW type
+				{
+					extractLayout ($attrData[2]);
+					if (isset ($attrData[2]['rows']))
+					{
+						$objects[$object_id]['rows'] = $attrData[2]['rows'];
+						$objects[$object_id]['cols'] = $attrData[2]['cols'];
+						$objects[$object_id]['layout'] = $attrData[2]['layout'];
+					}
+				}
+
+				$objectChildren = getChildren ($objectData, 'object');
+				if (count($objectChildren) > 0)
+				{
+					$objects[$object_id]['children'] = array();
+					foreach ($objectChildren as $childData)
+					{
+						$child_id = $childData['id'];
+
+						$objects[$object_id]['children'][$child_id]['object_id'] = $child_id;
+						$objects[$object_id]['children'][$child_id]['objtype_id'] = $childData['objtype_id'];
+						$objects[$object_id]['children'][$child_id]['name'] = $childData['name'];
+						$objects[$object_id]['children'][$child_id]['label'] = $childData['label'];
+						$objects[$object_id]['children'][$child_id]['id'] = $child_id;
+
+						$attrData = getAttrValues ($childData['id']);
+						//r3dv_var_dump_html($attrData);
+						if (isset ($attrData['28'])) // slot number
+						{
+							$slot = $attrData['28']['value'];
+							if (preg_match ('/\d+/', $slot, $matches))
+								$slot = $matches[0];
+						//	echo "SLOT: $slot<br>";
+							$objects[$object_id]['children'][$child_id]['slot'] = $slot;
+						}
+					}
+
+					$objects[$object_id]['children'] = array_values($objects[$object_id]['children']);
+
+				} // object children
+
+				//----------- end children -----------------------------
+
+				$objects[$object_id]['objtype_id'] = $objectData['objtype_id'];
+				$objects[$object_id]['name'] = $objectData['name'];
+				$objects[$object_id]['label'] = $objectData['label'];
 
 				$first_unit = null;
 				$lat_fullunit = null;
