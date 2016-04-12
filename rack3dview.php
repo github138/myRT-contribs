@@ -147,6 +147,11 @@ $.ajax({
 					rdata = JSON.parse(data);
 					if(rdata.debug)
 						$('#debug').html(rdata.debug);
+
+					if(rdata.msgs)
+						rdata.msgs.forEach( function(msg) {
+							$('.msgbar').append("<div>"+msg+"</div>");
+						});
 				}
 });
 
@@ -615,6 +620,8 @@ function rack3dview_ajax_data()
 	//$location = spotEntity('location', 2);
 	//amplifyCell($location);
 
+	$msgs = array();
+
 	//foreach($location['rows'] as $row_id => $row)
 //	foreach(array(4,15,29,43) as $row_id)
 	foreach($rack_rows as $row_id)
@@ -682,6 +689,12 @@ function rack3dview_ajax_data()
 				$objectData = spotEntity('object', $object_id);
 
 				// ------------contains children------------------
+				$numrows = null;
+				$numcols = 1;
+				$layout = 'H';
+				$numslots = null;
+
+				$needsslots = false;
 
 				$attrData = getAttrValues ($object_id);
 				if (isset ($attrData[2])) // HW type
@@ -689,9 +702,10 @@ function rack3dview_ajax_data()
 					extractLayout ($attrData[2]);
 					if (isset ($attrData[2]['rows']))
 					{
-						$objects[$object_id]['rows'] = $attrData[2]['rows'];
-						$objects[$object_id]['cols'] = $attrData[2]['cols'];
-						$objects[$object_id]['layout'] = $attrData[2]['layout'];
+						$numrows = $attrData[2]['rows'];
+						$numcols = $attrData[2]['cols'];
+						$layout = $attrData[2]['layout'];
+						$numslots = $numrows * $numcols;
 					}
 				}
 
@@ -716,11 +730,32 @@ function rack3dview_ajax_data()
 							$slot = $attrData['28']['value'];
 							if (preg_match ('/\d+/', $slot, $matches))
 								$slot = $matches[0];
-						//	echo "SLOT: $slot<br>";
-							$objects[$object_id]['children'][$child_id]['slot'] = $slot;
+
+							$needsslots = true;
+
+							if($numslots === null)
+							{
+									$slot = null;
+							}
+							else
+								if($slot > $numslots)
+								{
+									$msgs[] = "slot > slots for ".$childData['name']." in ".$objectData['name']." not displayed!";
+									$slot = null;
+								}
+
+							if($slot)
+								$objects[$object_id]['children'][$child_id]['slot'] = $slot;
 						}
 					}
 
+					if($numslots === null && $needsslots)
+						$msgs[] = "No slots ( rows/cols)  for ".$objectData['name']." not displaying children!";
+
+					$objects[$object_id]['rows'] = $numrows;
+					$objects[$object_id]['cols'] = $numcols;
+					$objects[$object_id]['layout'] = $layout;
+					$objects[$object_id]['slots'] = $numslots;
 					$objects[$object_id]['children'] = array_values($objects[$object_id]['children']);
 
 				} // object children
@@ -795,13 +830,16 @@ function rack3dview_ajax_data()
 		} // rack
 	} // row
 
-	$msgs = ob_get_contents();
+	$debugtxt = ob_get_contents();
 	ob_end_clean();
 
 	$ret = array();
 
+	if($debugtxt)
+		$ret['debug'] = $debugtxt;
+
 	if($msgs)
-		$ret['debug'] = $msgs;
+		$ret['msgs'] = $msgs;
 
 	$ret['rows'] = array_values($rows);
 
