@@ -126,12 +126,10 @@ function rack3dview_display($rows)
 	var rdata = null;
 $.ajax({
         type: "POST",
-        url: "{$_SERVER['PHP_SELF']}",
-        data: { module: 'ajax',
-                ac: 'r3dv_data',
-                json: 'json',
+        url: "{$_SERVER['PHP_SELF']}?module=ajax&ac=r3dv_data&json=json",
+        data: {
                 rows: "$rows"
-                },
+              },
         dataTye: 'json',
 	async: false,
         error: function(){ alert("Error loading"); },
