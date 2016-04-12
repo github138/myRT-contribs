@@ -87,10 +87,10 @@ function rack3dview_tabhandler()
 
 		echo "<tr><td>$hrefLocationTree</td>";
 		echo "<th class=tdleft><a href='".makeHref(array('page'=>'row', 'row_id'=>$row_id))."'>${rowInfo['name']}</a></th>";
-		echo "<td><input type=checkbox name=rows[$row_id] value=$row_id></select></td>";
+		echo "<td><input type=checkbox name=rows[$row_id] value=$row_id></td>";
 		echo "</tr>";
 	}
-	echo "<tr><td></td><td></td><td><input type=submit value=OK></input></td></tr>";
+	echo "<tr><td></td><td></td><td><input type=submit value=OK></td></tr>";
 	echo "</table>";
 	echo "</form>";
 } // tabhandler
