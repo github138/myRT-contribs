@@ -51,6 +51,8 @@ $debug = 0;
 
 function rack3dview_tabhandler()
 {
+	global $debug;
+
 	if($debug)
 	{
 	rack3dview_display(array(704));
