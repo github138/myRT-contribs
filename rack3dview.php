@@ -676,9 +676,9 @@ function rack3dview_ajax_data()
 				if(!isset($objects[$object['id']]))
 				{
 					$objects[$object['id']]['object_id'] =  $object['id'];
-			//		$objects[$object['id']]['fullunits'] = array();
-			//		$objects[$object['id']]['partitialunits'] = array();
-			//		$objects[$object['id']]['unit'] = array();
+					$objects[$object['id']]['fullunits'] = array();
+					$objects[$object['id']]['partitialunits'] = array();
+					$objects[$object['id']]['unit'] = array();
 				}
 
 				$objects[$object['id']]['zerounit'] = 1;
@@ -767,7 +767,8 @@ function rack3dview_ajax_data()
 				$objects[$object_id]['label'] = $objectData['label'];
 
 				$first_unit = null;
-				$lat_fullunit = null;
+				$last_fullunit = null;
+
 				foreach($object['unit'] as $u => $atoms)
 				{
 					if(count($atoms) == 3)
