@@ -183,6 +183,9 @@ $.ajax({
          //var camera = new BABYLON.ArcRotateCamera("camera1", (-90*Math.PI) / 180 , (90*Math.PI) / 180, 5000 * scale, new BABYLON.Vector3(0, 0, 0), scene);
          var camera = new BABYLON.ArcRotateCamera("camera1", (0*Math.PI) / 180 , (0*Math.PI) / 180, 5000 * scale, new BABYLON.Vector3(0, 0, 0), scene);
 	camera.wheelPrecision = 1/(scale * 10); // slow down mouse wheel speed x10
+	camera.angularSensibilityX = camera.angularSensibilityY = 1/(scale);
+	camera.zoomOnFactor = 1/(scale * 10);
+	camera.panningSensibility = 1/(scale);
          //var camera = new BABYLON.ArcRotateCamera("camera1", 0, 0, 5000 * scale, new BABYLON.Vector3(0, 0, 0), scene);
          // This targets the camera to scene origin
          //camera.setTarget(BABYLON.Vector3.Zero());
