@@ -17,6 +17,9 @@
  *
  *	babylon.js - http://cdn.babylonjs.com/2-3/babylon.js
  *
+ *	2.4.0-alpha - better mouse control (recommended)
+ *	https://github.com/BabylonJS/Babylon.js/raw/master/dist/preview%20release/babylon.js
+ *
  *
  *	goto Rackspace page -> 3D View tab -> choose rows -> OK
  *
