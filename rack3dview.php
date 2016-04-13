@@ -28,7 +28,8 @@
  *		optimize 3D model
  *		rack heights/widths
  *
- *		optimize container labels
+ *		optimize label sizes / cutoffs
+ *		optimize zero-u container handling
  */
 
 /**
@@ -273,44 +274,90 @@ $.ajax({
 	multimat1.subMaterials.push(material3);
 	multimat1.subMaterials.push(material0);
 
-	function createLabel(id, label, name, color, size, labelsize)
+
+	/* modified function from babylon js
+	 * add dyntex parameter
+	 * add text align x = 'right'
+	 */
+	function drawTextalign(dyntex, text, x, y, font, color, clearColor, invertY, update) {
+		if(update === undefined)
+			update = true;
+
+            var size = dyntex.getSize();
+            if (clearColor) {
+                dyntex._context.fillStyle = clearColor;
+                dyntex._context.fillRect(0, 0, size.width, size.height);
+            }
+
+            dyntex._context.font = font;
+            if (x === null) {
+                var textSize = dyntex._context.measureText(text);
+                x = (size.width - textSize.width) / 2;
+            }
+
+		if(x === 'right')
+		{
+			var textSize = dyntex._context.measureText(text);
+			x = (size.width - textSize.width);
+		}
+
+            dyntex._context.fillStyle = color;
+            dyntex._context.fillText(text, x, y);
+
+            if (update) {
+                dyntex.update(invertY);
+            }
+        }
+
+	function createLabel(id, label, name, colors, size, fontsize)
 	{
 		if(name === undefined)
 			name = '';
 
-		if(color === undefined)
-			color ="white";
+		if(colors.label === undefined)
+			colors.label ="black";
 
-		if(size === undefined)
-			size = 482;
+		if(colors.name === undefined)
+			colors.name ="black";
 
-		if(labelsize === undefined)
-			labelsize = 28;
-
-		var dynamicTexture = new BABYLON.DynamicTexture("DynamicTexture"+id, 512, scene, true);
-		dynamicTexture.hasAlpha = true;
-		namesize = 16;
-
-		if(label != null )
-			dynamicTexture.drawText(label, 0, labelsize, "bold "+labelsize+"px Arial", color , "transparent", true);
-		else
+		if(fontsize === undefined)
 		{
-			labelsize = 0;
-			namesize = 24;
+			if( label == null )
+				fontsize = {label: 0, name: size.height*3/5};
+			else
+				fontsize = {label: size.height * 3/5, name: size.height*2/5};
 		}
 
-		if(name != '' )
-			dynamicTexture.drawText(name, size/2, labelsize+namesize, "bold "+namesize+"px Arial", color , "transparent", true);
+		var planesize = ( size.width > size.height ? size.width : size.height );
 
-		var plane = new BABYLON.Mesh.CreatePlane("TextPlane"+id, size, scene, true);
+		var dynamicTexture = new BABYLON.DynamicTexture("DynamicTexture"+id, planesize, scene, true);
+		dynamicTexture.hasAlpha = true;
+
+		var texsize = dynamicTexture.getSize();
+
+		var textpos = texsize.height/2 + fontsize.label/2;
+
+		if( name != '')
+			textpos -=  fontsize.name/2;
+
+		if(label != null )
+			dynamicTexture.drawText(label, null, textpos, "bold "+fontsize.label+"px Arial", colors.label , "transparent", true);
+
+		//var textwidth = dynamicTexture._context.measureText(label).width;
+
+		if(name != '' )
+			drawTextalign(dynamicTexture, name, 'right', textpos + fontsize.name, "bold "+fontsize.name+"px Arial", colors.name , "transparent", true);
+
+		var plane = new BABYLON.Mesh.CreatePlane("TextPlane"+id, planesize, scene, true);
 		plane.material = new BABYLON.StandardMaterial("TextPlaneMaterial", scene);
 		plane.material.backFaceCulling = false;
 		//plane.material.specularColor = new BABYLON.Color3(0, 0, 0);
 		plane.material.diffuseTexture = dynamicTexture;
 	//	plane.isVisible = false;
+	//	plane.showBoundingBox = true;
 		return plane;
 
-	};
+	}; // createLabel
 
 	function createrack(name, rtname, maxunits, height, width, depth, maxdepth19, width19) {
 		// RACK
@@ -338,9 +385,10 @@ $.ajax({
 		this.rack19frame.scaling = scale3;
 		this.rack19frame.material = material3;
 
-		var label = createLabel(name, rtname, '', "white", 200, 100);
+		var labelsize = {width:800, height:100};
+		var label = createLabel(name, rtname, '', {label:"white"}, labelsize, {label:100});
 		label.parent = this.rack19frame;
-		label.position = new BABYLON.Vector3(0,(height-200)/2, (maxdepth19/-2));
+		label.position = new BABYLON.Vector3(0,height/2+labelsize.height, (maxdepth19/-2));
 
 		this.rackframe = BABYLON.MeshBuilder.CreateBox(name, {height: height, width: width, depth: depth, faceColors: myColors}, scene);
 		this.rackframe.material = material3;
@@ -399,6 +447,7 @@ $.ajax({
 		text.position.y = 44.45/-2;
 	} // TEXT
 
+		var test = 0;
 		this.addRTObject = function(objdata, unit) {
 			//r.addObject(obj.object_id, obj.name, obj.label, unit.id, unit.count, obj.objtype_id);
 
@@ -421,9 +470,14 @@ $.ajax({
 			var object = BABYLON.MeshBuilder.CreateBox(objdata.object_id, {height: unit.height, width: unit.width, depth: depth19, faceColors: faceColors}, scene);
 			object.parent = this.rack19frame;
 
-			var label = createLabel(objdata.object_id, objdata.label, objdata.name, "black", 482);
+			objdata.labelsize = {width:482,height:44.45};
+			var label = createLabel(objdata.object_id, objdata.label, objdata.name, {}, objdata.labelsize);
 			label.parent = object;
-			label.position = new BABYLON.Vector3(0,(482 - 44.45)/ -2,depth19/-2 - 1);
+
+			if(objdata.children)
+				label.position = new BABYLON.Vector3(0,unit.height/2 - objdata.labelsize.height/2,depth19/-2 - 1);
+			else
+				label.position = new BABYLON.Vector3(0,0,depth19/-2 - 1);
 
 			var pos = (((maxunits)/2) * -44.45) + (unit.id-1) * 44.45 + ((unit.count * 44.45) / 2);
 
@@ -459,7 +513,7 @@ $.ajax({
 				var slot = objdata.slot;
 
 			width = unit.width / cols;
-			height = unit.height / rows;
+			height = (unit.height - parent.labelsize.height) / rows;
 			depth = 2;
 
 			var type = objdata.objtype_id;
@@ -471,29 +525,26 @@ $.ajax({
 
 			//var s = parent.object.getBoundingInfo();
 
-			labelsize = width;
-				textsize = 28;
-			if(layout == 'V')
-			{
-				labelsize = height;
-				textsize = 50;
-			}
+			var labelsize = {width: width, height: height};
 
-			var label = createLabel(objdata.object_id, objdata.label, objdata.name, "black", labelsize, textsize);
+			if(layout == 'V')
+				var labelsize = {width: height, height: width};
+
+			var label = createLabel(objdata.object_id, objdata.label, objdata.name, {}, labelsize, {label:14, name:10});
 			label.parent = child;
 
 			if(layout == 'V')
 			{
 				label.rotation = new BABYLON.Vector3(0,0,(-90*Math.PI)/180);
-				label.position = new BABYLON.Vector3(-width,0,depth/-2-2);
+				label.position = new BABYLON.Vector3(0,0,depth/-2-2);
 			}
 			else
-				label.position = new BABYLON.Vector3(0,(height/2)-unit.height,depth/-2-2);
+				label.position = new BABYLON.Vector3(0,0,depth/-2-2);
 
 			row = Math.floor((slot-1) / cols);
 			col = Math.floor((slot-1) % cols);
 
-			child.position = new BABYLON.Vector3( ((unit.width - width) / -2) + col * width, ((unit.height - height)/2) - row * height,(unit.depth - depth) / -2 - 2);
+			child.position = new BABYLON.Vector3( ((unit.width - width) / -2) + col * width, ((unit.height - height)/2) - row * height - parent.labelsize.height,(unit.depth - depth) / -2 - 2);
 			objdata.object = child;
 		}
 
@@ -517,8 +568,11 @@ $.ajax({
 
 			rowpos = (rowcount - 1) * -4000;
 
-			var rowlabel = createLabel(rowcount, row.name, '', "white", 500*scale, 60);
-			rowlabel.position = new BABYLON.Vector3(((800/-2)+(500/2)-60*2)*scale,0,rowpos * scale);
+			var labelsize = {width: 2000, height: 300};
+			var rowlabel = createLabel(rowcount, row.name, '', {label:"white"}, labelsize, {label:200});
+			rowlabel.scaling = scale3;
+			rowlabel.position = new BABYLON.Vector3(((800/-2) - labelsize.height) * scale,0,rowpos * scale);
+			//rowlabel.position = new BABYLON.Vector3(((800/-2)+(500/2)-60*2)*scale,0,rowpos * scale);
 			rowlabel.rotation = new BABYLON.Vector3(0,0,(90*Math.PI)/180);
 
 			rackcount = 0;
@@ -689,77 +743,79 @@ function rack3dview_ajax_data()
 				$objectData = spotEntity('object', $object_id);
 
 				// ------------contains children------------------
-				$numrows = null;
-				$numcols = 1;
-				$layout = 'H';
-				$numslots = null;
-
-				$needsslots = false;
-
-				$attrData = getAttrValues ($object_id);
-				if (isset ($attrData[2])) // HW type
+				if (in_array ($objectData['objtype_id'], array (1502,1503))) // server chassis, network chassis
 				{
-					extractLayout ($attrData[2]);
-					if (isset ($attrData[2]['rows']))
+					$numrows = null;
+					$numcols = 1;
+					$layout = 'H';
+					$numslots = null;
+
+					$needsslots = false;
+
+					$attrData = getAttrValues ($object_id);
+					if (isset ($attrData[2])) // HW type
 					{
-						$numrows = $attrData[2]['rows'];
-						$numcols = $attrData[2]['cols'];
-						$layout = $attrData[2]['layout'];
-						$numslots = $numrows * $numcols;
-					}
-				}
-
-				$objectChildren = getChildren ($objectData, 'object');
-				if (count($objectChildren) > 0)
-				{
-					$objects[$object_id]['children'] = array();
-					foreach ($objectChildren as $childData)
-					{
-						$child_id = $childData['id'];
-
-						$objects[$object_id]['children'][$child_id]['object_id'] = $child_id;
-						$objects[$object_id]['children'][$child_id]['objtype_id'] = $childData['objtype_id'];
-						$objects[$object_id]['children'][$child_id]['name'] = $childData['name'];
-						$objects[$object_id]['children'][$child_id]['label'] = $childData['label'];
-						$objects[$object_id]['children'][$child_id]['id'] = $child_id;
-
-						$attrData = getAttrValues ($childData['id']);
-						//r3dv_var_dump_html($attrData);
-						if (isset ($attrData['28'])) // slot number
+						extractLayout ($attrData[2]);
+						if (isset ($attrData[2]['rows']))
 						{
-							$slot = $attrData['28']['value'];
-							if (preg_match ('/\d+/', $slot, $matches))
-								$slot = $matches[0];
-
-							$needsslots = true;
-
-							if($numslots === null)
-							{
-									$slot = null;
-							}
-							else
-								if($slot > $numslots)
-								{
-									$msgs[] = "slot > slots for ".$childData['name']." in ".$objectData['name']." not displayed!";
-									$slot = null;
-								}
-
-							if($slot)
-								$objects[$object_id]['children'][$child_id]['slot'] = $slot;
+							$numrows = $attrData[2]['rows'];
+							$numcols = $attrData[2]['cols'];
+							$layout = $attrData[2]['layout'];
+							$numslots = $numrows * $numcols;
 						}
 					}
 
-					if($numslots === null && $needsslots)
-						$msgs[] = "No slots ( rows/cols)  for ".$objectData['name']." not displaying children!";
+					$objectChildren = getChildren ($objectData, 'object');
+					if (count($objectChildren) > 0)
+					{
+						$objects[$object_id]['children'] = array();
+						foreach ($objectChildren as $childData)
+						{
+							$child_id = $childData['id'];
 
-					$objects[$object_id]['rows'] = $numrows;
-					$objects[$object_id]['cols'] = $numcols;
-					$objects[$object_id]['layout'] = $layout;
-					$objects[$object_id]['slots'] = $numslots;
-					$objects[$object_id]['children'] = array_values($objects[$object_id]['children']);
+							$objects[$object_id]['children'][$child_id]['object_id'] = $child_id;
+							$objects[$object_id]['children'][$child_id]['objtype_id'] = $childData['objtype_id'];
+							$objects[$object_id]['children'][$child_id]['name'] = $childData['name'];
+							$objects[$object_id]['children'][$child_id]['label'] = $childData['label'];
+							$objects[$object_id]['children'][$child_id]['id'] = $child_id;
 
-				} // object children
+							$attrData = getAttrValues ($childData['id']);
+							//r3dv_var_dump_html($attrData);
+							if (isset ($attrData['28'])) // slot number
+							{
+								$slot = $attrData['28']['value'];
+								if (preg_match ('/\d+/', $slot, $matches))
+									$slot = $matches[0];
 
+								$needsslots = true;
+
+								if($numslots === null)
+								{
+										$slot = null;
+								}
+								else
+									if($slot > $numslots)
+									{
+										$msgs[] = "slot > slots for ".$childData['name']." in ".$objectData['name']." not displayed!";
+										$slot = null;
+									}
+
+								if($slot)
+									$objects[$object_id]['children'][$child_id]['slot'] = $slot;
+							}
+						}
+
+						if($numslots === null && $needsslots)
+							$msgs[] = "No slots ( rows/cols)  for ".$objectData['name']." not displaying children!";
+
+						$objects[$object_id]['rows'] = $numrows;
+						$objects[$object_id]['cols'] = $numcols;
+						$objects[$object_id]['layout'] = $layout;
+						$objects[$object_id]['slots'] = $numslots;
+						$objects[$object_id]['children'] = array_values($objects[$object_id]['children']);
+
+					} // object children
+				}
 				//----------- end children -----------------------------
 
 				$objects[$object_id]['objtype_id'] = $objectData['objtype_id'];
