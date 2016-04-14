@@ -579,7 +579,7 @@ $.ajax({
 		}
 
 		this.position = function(x,y,z) {
-			this.rack19frame.position = new BABYLON.Vector3(x * scale,(y + ((height/2) - 1000)) * scale ,z * scale);
+			this.rack19frame.position = new BABYLON.Vector3(x * scale,(y + ((height/2))) * scale ,z * scale);
 		};
 
 		this.rotation = function(degx,degy,degz) {
@@ -601,7 +601,7 @@ $.ajax({
 			var labelsize = {width: 2000, height: 300};
 			var rowlabel = createLabel(rowcount, row.name, '', {label:"white"}, labelsize, {label: null, name: null}, {label:200});
 			rowlabel.scaling = scale3;
-			rowlabel.position = new BABYLON.Vector3(((800/-2) - labelsize.height) * scale,0,rowpos * scale);
+			rowlabel.position = new BABYLON.Vector3(((800/-2) - labelsize.height) * scale,labelsize.width/2 * scale,rowpos * scale);
 			//rowlabel.position = new BABYLON.Vector3(((800/-2)+(500/2)-60*2)*scale,0,rowpos * scale);
 			rowlabel.rotation = new BABYLON.Vector3(0,0,(90*Math.PI)/180);
 
@@ -611,7 +611,7 @@ $.ajax({
 				//alert(rackobj.rack_id);
 				var r = new createrack("rack_id_" + rackobj.rack_id, rackobj.name, rackobj.height, (rackobj.height == 47 ? 2200 : 2000));
 				rackcount++;
-				r.position((rackcount - 1) * 800,0, rowpos);
+				r.position((rackcount - 1) * 800,rackobj.height/2, rowpos);
 
 				if(((rowcount) % 2) == 0)
 					r.rotation(0,180,0);
