@@ -485,7 +485,15 @@ $.ajax({
 			var height = size.height - 2;
 
 			if(parent.layout !== undefined)
+			{
 				width -= 1;
+				if(parent.layout == 'V')
+				{
+					h = height;
+					height = width;
+					width = h;
+				}
+			}
 
 			objdata.options = {width: width, height: height, depth: size.depth, faceColors: faceColors};
 
