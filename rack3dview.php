@@ -403,7 +403,7 @@ $.ajax({
 		this.rack19frame.material = material3;
 
 		var labelsize = {width:400, height:100};
-		labelMaterial = createLabelMaterial({ id:name, label:rtname, name:'' , options: { width: 200, height: 100}}, {label:"white"}, labelsize, {label: null, name: null}); //, {label:100});
+		labelMaterial = createLabelMaterial({ id:name, label:rtname, name:'' , options: { width: 200, height: 100}}, {label:"white"}, labelsize, {label: 0, name: null}); //, {label:100});
 
 		label = new BABYLON.MeshBuilder.CreatePlane("racklabel"+name,  labelsize, scene);
 		label.material = labelMaterial;
@@ -610,7 +610,7 @@ $.ajax({
 			rowpos = (rowcount - 1) * -4000;
 
 			var labelsize = {width: 2000, height: 200};
-			labelMaterial = createLabelMaterial({ id:rowcount, label:row.name, name:'' , options: labelsize}, {label:"white"}, labelsize, {label: null, name: null}, {label:200, name:50});
+			labelMaterial = createLabelMaterial({ id:rowcount, label:row.name, name:'' , options: labelsize}, {label:"white"}, labelsize, {label: 0, name: null}, {label:200, name:50});
 
 			rowlabel = new BABYLON.MeshBuilder.CreatePlane("TextPlane"+rowcount,  labelsize, scene);
 
