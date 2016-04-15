@@ -31,6 +31,7 @@
  *		optimize 3D model
  *		rack heights/widths
  *
+ *		https://blog.raananweber.com/2015/09/03/scene-optimization-in-babylon-js-introduction/
  *		optimize label sizes / cutoffs
  *		optimize zero-u container handling
  */
@@ -59,7 +60,8 @@ function rack3dview_tabhandler()
 
 	if($debug)
 	{
-	rack3dview_display(array(704));
+	rack3dview_display(array(15, 43, 704));
+	//rack3dview_display(array(704));
 	return;
 	}
 
@@ -315,11 +317,8 @@ $.ajax({
             }
         }
 
-	function createLabel(id, label, name, colors, size, align, fontsize)
+	function createLabelMaterial(objdata, colors, size, align, fontsize)
 	{
-		if(name === undefined)
-			name = '';
-
 		if(colors.label === undefined)
 			colors.label ="black";
 
@@ -328,42 +327,52 @@ $.ajax({
 
 		if(align === undefined)
 			align = {label:0, name:'right'};
+
 		if(fontsize === undefined)
 		{
-			if( label == null )
+			if( objdata.label == null )
 				fontsize = {label: 0, name: size.height*3/5};
 			else
 				fontsize = {label: size.height * 3/5, name: size.height*2/5};
 		}
 
-		var planesize = ( size.width > size.height ? size.width : size.height );
+		if(fontsize.label === undefined)
+			fontsize.label = 0;
 
-		var dynamicTexture = new BABYLON.DynamicTexture("DynamicTexture"+id, planesize, scene, true);
+		var dynamicTexture = new BABYLON.DynamicTexture("DynamicTexture"+objdata.id, {height:size.height , width:size.width}, scene, true);
 		dynamicTexture.hasAlpha = true;
+	//	dynamicTexture.coordinatesMode = BABYLON.Texture.PLANAR_MODE;
 
 		var texsize = dynamicTexture.getSize();
 
 		var textpos = texsize.height/2 + fontsize.label/2;
 
-		if( name != '')
+		if( objdata.name != '')
 			textpos -=  fontsize.name/2;
 
-		if(label != null )
-			dynamicTexture.drawText(label, align.label, textpos, "bold "+fontsize.label+"px Arial", colors.label , "transparent", true);
+		if(objdata.label !== null )
+			dynamicTexture.drawText(objdata.label, align.label, textpos, "bold "+fontsize.label+"px Arial", colors.label , "transparent", true);
 
 		//var textwidth = dynamicTexture._context.measureText(label).width;
 
-		if(name != '' )
-			drawTextalign(dynamicTexture, name, align.name, textpos + fontsize.name, "bold "+fontsize.name+"px Arial", colors.name , "transparent", true);
+		if(objdata.name != '' )
+			drawTextalign(dynamicTexture, objdata.name, align.name, textpos + fontsize.name, "bold "+fontsize.name+"px Arial", colors.name , "transparent", true);
 
-		var plane = new BABYLON.Mesh.CreatePlane("TextPlane"+id, planesize, scene, true);
-		plane.material = new BABYLON.StandardMaterial("TextPlaneMaterial", scene);
-		plane.material.backFaceCulling = false;
-		//plane.material.specularColor = new BABYLON.Color3(0, 0, 0);
-		plane.material.diffuseTexture = dynamicTexture;
-	//	plane.isVisible = false;
-	//	plane.showBoundingBox = true;
-		return plane;
+		var material = new BABYLON.StandardMaterial("TextPlaneMaterial", scene);
+		material.backFaceCulling = false;
+		material.diffuseTexture = dynamicTexture;
+		material.diffuseTexture.vScale = objdata.options.height/texsize.height;
+		BABYLON.Tools.Log("Name:" + objdata.name + " Label: " + objdata.label + " vScale: " + objdata.options.height/texsize.height);
+		material.diffuseTexture.uScale = 1;
+		var vOffsetLabel = (texsize.height - size.height) / texsize.height / 4; // center within size.height
+		var vOffsetObject = (objdata.options.height - size.height)/texsize.height;
+
+		if(objdata.children)
+			material.diffuseTexture.vOffset = vOffsetLabel - vOffsetObject;
+		else
+			material.diffuseTexture.vOffset = vOffsetLabel - vOffsetObject/2;
+
+		return material;
 
 	}; // createLabel
 
@@ -393,8 +402,14 @@ $.ajax({
 		this.rack19frame.scaling = scale3;
 		this.rack19frame.material = material3;
 
-		var labelsize = {width:800, height:100};
-		var label = createLabel(name, rtname, '', {label:"white"}, labelsize, {label: null, name: null}, {label:100});
+		var labelsize = {width:400, height:100};
+		labelMaterial = createLabelMaterial({ id:name, label:rtname, name:'' , options: { width: 200, height: 100}}, {label:"white"}, labelsize, {label: null, name: null}); //, {label:100});
+
+		label = new BABYLON.MeshBuilder.CreatePlane("racklabel"+name,  labelsize, scene);
+		label.material = labelMaterial;
+		label.material.backFaceCulling = false;
+		//label.showBoundingBox = true;
+
 		label.parent = this.rack19frame;
 		label.position = new BABYLON.Vector3(0,height/2+labelsize.height, (maxdepth19/-2));
 
@@ -470,45 +485,33 @@ $.ajax({
 			var height = size.height - 2;
 
 			if(parent.layout !== undefined)
-			{
-				var layout = parent.layout;
-				if(layout == 'V')
-				{
-					size = {width: size.height, height: size.width, depth: size.depth};
-				}
+				width -= 1;
 
-				fontsize = {label:14, name:12};
-				width -= 2;
-			}
+			objdata.options = {width: width, height: height, depth: size.depth, faceColors: faceColors};
 
-			var object = BABYLON.MeshBuilder.CreateBox(objdata.object_id, {height: height, width: width, depth: size.depth, faceColors: faceColors}, scene);
+			var object = BABYLON.MeshBuilder.CreateBox(objdata.object_id, objdata.options, scene);
 
 			if( parent !== undefined)
 				object.parent = parent.object;
 
 			var labelsize = {width: width, height: (height > 44.45 ? 44.45 : height)};
 
-			var label = createLabel(objdata.object_id, objdata.label, objdata.name, labelcolors, labelsize);
-			label.parent = object;
+			var labelMaterial = createLabelMaterial(objdata, labelcolors, labelsize);
 
+			var MultiMaterial = new BABYLON.MultiMaterial("lmm"+objdata.id, scene);
+			MultiMaterial.subMaterials.push(material0);
+			MultiMaterial.subMaterials.push(labelMaterial);
+
+			object.material = MultiMaterial;
+			object.subMeshes.push(new BABYLON.SubMesh(1,4,4,6,6, object )); // -z
 			objdata.labelsize = labelsize;
 
 			if(parent.layout !== undefined)
 			{
-				label.position = new BABYLON.Vector3(0,0,size.depth/-2-2);
-
-				if(layout == 'V')
+				// rotate child
+				if(parent.layout == 'V')
 					object.rotation = new BABYLON.Vector3(0,0,(-90*Math.PI)/180);
 			}
-			else
-			{
-				if(objdata.children)
-					label.position = new BABYLON.Vector3(0,size.height/2 - labelsize.height/2,size.depth/-2 - 1);
-				else
-					label.position = new BABYLON.Vector3(0,0,size.depth/-2 - 1);
-			}
-
-			//objdata.label = label;
 
 			return object;
 
@@ -598,11 +601,17 @@ $.ajax({
 
 			rowpos = (rowcount - 1) * -4000;
 
-			var labelsize = {width: 2000, height: 300};
-			var rowlabel = createLabel(rowcount, row.name, '', {label:"white"}, labelsize, {label: null, name: null}, {label:200});
+			var labelsize = {width: 2000, height: 200};
+			labelMaterial = createLabelMaterial({ id:rowcount, label:row.name, name:'' , options: labelsize}, {label:"white"}, labelsize, {label: null, name: null}, {label:200, name:50});
+
+			rowlabel = new BABYLON.MeshBuilder.CreatePlane("TextPlane"+rowcount,  labelsize, scene);
+
+			rowlabel.material = labelMaterial;
+			rowlabel.material.backFaceCulling = false;
+			//rowlabel.showBoundingBox = true;
+
 			rowlabel.scaling = scale3;
 			rowlabel.position = new BABYLON.Vector3(((800/-2) - labelsize.height) * scale,labelsize.width/2 * scale,rowpos * scale);
-			//rowlabel.position = new BABYLON.Vector3(((800/-2)+(500/2)-60*2)*scale,0,rowpos * scale);
 			rowlabel.rotation = new BABYLON.Vector3(0,0,(90*Math.PI)/180);
 
 			rackcount = 0;
