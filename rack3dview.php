@@ -472,7 +472,7 @@ $.ajax({
 
 		this.makeObject = function(objdata, size, parent) {
 			var type = objdata.objtype_id;
-			var faceColors = (objtypecolors[type] ? objtypecolors[type] : objtypecolors[0]);
+			var faceColors = (objtypecolors[type] ? objtypecolors[type].slice() : objtypecolors[0].slice()); //copy array
 
 			labelcolors = {label: "black", name: "black"};
 			if(objdata.has_problems != 'no')
