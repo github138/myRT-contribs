@@ -388,7 +388,7 @@ $.ajax({
 			var type = objdata.objtype_id;
 			var faceColors = (objtypecolors[type] ? objtypecolors[type].slice() : objtypecolors[0].slice()); //copy array
 
-			labelcolors = {label: "black", name: "black"};
+			var labelcolors = {label: "black", name: "black"};
 			if(objdata.has_problems != 'no')
 			{
 				//labelcolors = {label: "red", name: "red"};
@@ -403,7 +403,7 @@ $.ajax({
 				width -= 1;
 				if(parent.layout == 'V')
 				{
-					h = height;
+					var h = height;
 					height = width;
 					width = h;
 				}
@@ -444,7 +444,7 @@ $.ajax({
 			if(unit.locdepth === undefined)
 				unit.locdepth = 3;
 
-			depth19 = (unit.locdepth == 3 ? parent.maxdepth19 : unit.locdepth * (parent.maxdepth19/3));
+			var depth19 = (unit.locdepth == 3 ? parent.maxdepth19 : unit.locdepth * (parent.maxdepth19/3));
 
 			//zeroU
 			if(unit.id < 0)
@@ -458,7 +458,7 @@ $.ajax({
 
 			var pos = (((parent.maxunits)/2) * -44.45) + (unit.id-1) * 44.45 + ((unit.count * 44.45) / 2);
 
-			depth19start = (parent.maxdepth19 - depth19)/-2;
+			var depth19start = (parent.maxdepth19 - depth19)/-2;
 
 			if(unit.locpos === undefined)
 				unit.locpos = 0;
@@ -483,15 +483,15 @@ $.ajax({
 			var cols = parent.cols;
 			var slot = objdata.slot;
 
-			width = unit.width / cols;
-			height = (unit.height - parent.labelsize.height) / rows;
+			var width = unit.width / cols;
+			var height = (unit.height - parent.labelsize.height) / rows;
 
-			depth = 2;
+			var depth = 2;
 
 			var object = makeObject(objdata, parent, {height: height, width: width, depth: depth});
 
-			row = Math.floor((slot-1) / cols);
-			col = Math.floor((slot-1) % cols);
+			var row = Math.floor((slot-1) / cols);
+			var col = Math.floor((slot-1) % cols);
 
 			object.position = new BABYLON.Vector3( ((unit.width - width) / -2) + col * width, ((unit.height - height)/2) - row * height - parent.labelsize.height,(unit.depth - depth) / -2 - 2);
 
@@ -527,7 +527,7 @@ $.ajax({
 		var labelsize = {width:400, height:100};
 		var labelMaterial = createLabelMaterial({ id: objdata.rack_id, label: objdata.name, name:'' , options: { width: 200, height: 100}}, {label:"white"}, labelsize, {label: 0, name: null}); //, {label:100});
 
-		label = new BABYLON.MeshBuilder.CreatePlane("racklabel"+objdata.rack_id,  labelsize, scene);
+		var label = new BABYLON.MeshBuilder.CreatePlane("racklabel"+objdata.rack_id,  labelsize, scene);
 		label.material = labelMaterial;
 		label.material.backFaceCulling = false;
 		//label.showBoundingBox = true;
@@ -599,7 +599,7 @@ $.ajax({
 
 	//rack19frame.position = new BABYLON.Vector3((2000 / 2) * scale,10,0);
 
-	var r = new Array();
+	var rowlabel;
 	var rowcount = 0;
 	var rowpos = 0;
 	rdata.rows.forEach(function(row) {
@@ -608,7 +608,7 @@ $.ajax({
 			rowpos = (rowcount - 1) * -4000;
 
 			var labelsize = {width: 2000, height: 200};
-			labelMaterial = createLabelMaterial({ id:rowcount, label:row.name, name:'' , options: labelsize}, {label:"white"}, labelsize, {label: 0, name: null}, {label:200, name:50});
+			var labelMaterial = createLabelMaterial({ id:rowcount, label:row.name, name:'' , options: labelsize}, {label:"white"}, labelsize, {label: 0, name: null}, {label:200, name:50});
 
 			rowlabel = new BABYLON.MeshBuilder.CreatePlane("TextPlane"+rowcount,  labelsize, scene);
 
@@ -620,7 +620,7 @@ $.ajax({
 			rowlabel.position = new BABYLON.Vector3(((800/-2) - labelsize.height) * scale,labelsize.width/2 * scale,rowpos * scale);
 			rowlabel.rotation = new BABYLON.Vector3(0,0,(90*Math.PI)/180);
 
-			rackcount = 0;
+			var rackcount = 0;
 			if(row.racks)
 			row.racks.forEach(function(rackobj) {
 				//alert(rackobj.rack_id);
@@ -632,7 +632,7 @@ $.ajax({
 				if(((rowcount) % 2) == 0)
 					r.rotation = new BABYLON.Vector3(0, Math.PI,0); // 180 degree
 
-				zerou = 0;
+				var zerou = 0;
 				rackobj.objects.forEach( function(obj) {
 
 					if(obj.fullunits)
@@ -662,7 +662,7 @@ $.ajax({
 					if(obj.zerounit)
 					{
 						zerou++;
-						unit = {id: -zerou - 2, count:1, locpos: 0, locdepth: 0};
+						var unit = {id: -zerou - 2, count:1, locpos: 0, locdepth: 0};
 						addRTObject(obj, rackobj, unit);
 						if(obj.children)
 						{
