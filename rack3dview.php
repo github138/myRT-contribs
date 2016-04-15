@@ -209,6 +209,15 @@ $.ajax({
 				new BABYLON.Color4(1,1,1,1)  // bottom
 				);
 
+	var RackColors = new Array(
+				new BABYLON.Color4(1,1,1,1), // back
+				new BABYLON.Color4(1,1,1,1), // front
+				new BABYLON.Color4(1,1,1,1), // left
+				new BABYLON.Color4(1,1,1,1), // right
+				new BABYLON.Color4(1,1,1,1), // top
+				new BABYLON.Color4(1,1,1,1)  // bottom
+				);
+
 	var objtypecolors = {
 			// default
 			0: new Array(
@@ -362,7 +371,6 @@ $.ajax({
 		material.backFaceCulling = false;
 		material.diffuseTexture = dynamicTexture;
 		material.diffuseTexture.vScale = objdata.options.height/texsize.height;
-		BABYLON.Tools.Log("Name:" + objdata.name + " Label: " + objdata.label + " vScale: " + objdata.options.height/texsize.height);
 		material.diffuseTexture.uScale = 1;
 		var vOffsetLabel = (texsize.height - size.height) / texsize.height / 4; // center within size.height
 		var vOffsetObject = (objdata.options.height - size.height)/texsize.height;
@@ -374,103 +382,9 @@ $.ajax({
 
 		return material;
 
-	}; // createLabel
+	}; // createLabelMaterial
 
-	function createrack(name, rtname, maxunits, height, width, depth, maxdepth19, width19) {
-		// RACK
-		if(maxunits === undefined)
-			maxunits = 42;
-
-		if(height === undefined)
-			height = 2000;
-
-		if(width === undefined)
-			width = 800;
-
-		if(depth === undefined)
-			depth = 1000;
-
-		if(maxdepth19 === undefined)
-			maxdepth19 = 800;
-
-		if(width19 === undefined)
-			width19 = 482.6;
-
-		this.rack19frame = BABYLON.MeshBuilder.CreateBox(name + '19', {height: maxunits * 44.45 - 3, width: width19 -1, depth: maxdepth19 -1, faceColors: myColors}, scene);
-		this.rack19frame.position = new BABYLON.Vector3(0,0,0);
-		this.rack19frame.showBoundingBox = false;
-		this.rack19frame.scaling = scale3;
-		this.rack19frame.material = material3;
-
-		var labelsize = {width:400, height:100};
-		labelMaterial = createLabelMaterial({ id:name, label:rtname, name:'' , options: { width: 200, height: 100}}, {label:"white"}, labelsize, {label: 0, name: null}); //, {label:100});
-
-		label = new BABYLON.MeshBuilder.CreatePlane("racklabel"+name,  labelsize, scene);
-		label.material = labelMaterial;
-		label.material.backFaceCulling = false;
-		//label.showBoundingBox = true;
-
-		label.parent = this.rack19frame;
-		label.position = new BABYLON.Vector3(0,height/2+labelsize.height, (maxdepth19/-2));
-
-		this.rackframe = BABYLON.MeshBuilder.CreateBox(name, {height: height, width: width, depth: depth, faceColors: myColors}, scene);
-		this.rackframe.material = material3;
-		this.rackframe.showBoundingBox = false;
-		this.rackframe.parent = this.rack19frame;
-		//this.rackframe.isVisible = false;
-
-		this.rackframe.material = multimat1;
-		//box.subMeshes.push(new BABYLON.SubMesh(0,0,4,0,6, box )); // front
-		//box.subMeshes.push(new BABYLON.SubMesh(1,4,4,6,6, box )); // right
-		//box.subMeshes.push(new BABYLON.SubMesh(2,8,4,12,6, box )); // back
-		//box.subMeshes.push(new BABYLON.SubMesh(1,12,4,18,6, box )); // left
-		//box.subMeshes.push(new BABYLON.SubMesh(1,16,4,24,6, box )); // top
-		this.rackframe.subMeshes.push(new BABYLON.SubMesh(2,20,4,30,6, this.rackframe )); // bottom
-
-	if(0)
-	{
-		var lines = BABYLON.Mesh.CreateLines("lines", [
-				new BABYLON.Vector3(0, 0, 0),
-				new BABYLON.Vector3(20 + 482.6, 0, 0),
-				new BABYLON.Vector3(20, 0, 0),
-				new BABYLON.Vector3(20, -6.35, 0),
-				new BABYLON.Vector3(10, -6.35, 0),
-				new BABYLON.Vector3(20, -6.35, 0),
-				new BABYLON.Vector3(20, -15.88 - 6.35, 0),
-				new BABYLON.Vector3(10, -15.88 - 6.35, 0),
-				new BABYLON.Vector3(20, -15.88 - 6.35, 0),
-				new BABYLON.Vector3(20, -15.88 * 2 - 6.35, 0),
-				new BABYLON.Vector3(10, -15.88 * 2 - 6.35, 0),
-				new BABYLON.Vector3(20, -15.88 * 2 - 6.35, 0),
-				new BABYLON.Vector3(20, -15.88 * 2 - 12.7, 0),
-				new BABYLON.Vector3(0, -15.88 * 2 - 12.7, 0),
-		], scene);
-
-		lines.parent = this.rack19frame;
-		lines.position = new BABYLON.Vector3((482.6 / -2) - 20, (maxunits/2) * 44.45, maxdepth19 / -2);
-		lines.isVisible = false;
-
-
-		for(u = 2; u<=maxunits;u++)
-		{
-			var lines1 = lines.clone();
-			lines1.parent = this.rack19frame;
-			lines1.position.y = (maxunits/2) * 44.45 - ((u-1) * 44.45);
-
-			var text = this.Text(u,40);
-			text.parent = lines1;
-			text.position.x = 10;
-			text.position.y = -44.45/2;
-
-		}
-
-		var text = this.Text("1");
-		text.parent = lines;
-		text.position.x = 10;
-		text.position.y = 44.45/-2;
-	} // TEXT
-
-		this.makeObject = function(objdata, size, parent) {
+	function makeObject(objdata, parent, size) {
 			var type = objdata.objtype_id;
 			var faceColors = (objtypecolors[type] ? objtypecolors[type].slice() : objtypecolors[0].slice()); //copy array
 
@@ -525,35 +439,35 @@ $.ajax({
 
 		} //addObject
 
-		this.addRTObject = function(objdata, unit) {
+		function addRTObject(objdata, parent, unit) {
 
 			if(unit.locdepth === undefined)
 				unit.locdepth = 3;
 
-			depth19 = (unit.locdepth == 3 ? maxdepth19 : unit.locdepth * (maxdepth19/3));
+			depth19 = (unit.locdepth == 3 ? parent.maxdepth19 : unit.locdepth * (parent.maxdepth19/3));
 
 			//zeroU
 			if(unit.id < 0)
 				depth19 = 2;
 
 			unit.height = unit.count * 44.45;
-			unit.width = width19;
+			unit.width = parent.width19;
 			unit.depth = depth19;
 
-			var object = this.makeObject(objdata, unit, {object:this.rack19frame});
+			var object = makeObject(objdata, parent, unit);
 
-			var pos = (((maxunits)/2) * -44.45) + (unit.id-1) * 44.45 + ((unit.count * 44.45) / 2);
+			var pos = (((parent.maxunits)/2) * -44.45) + (unit.id-1) * 44.45 + ((unit.count * 44.45) / 2);
 
-			depth19start = (maxdepth19 - depth19)/-2;
+			depth19start = (parent.maxdepth19 - depth19)/-2;
 
 			if(unit.locpos === undefined)
 				unit.locpos = 0;
 
 			if( unit.locpos == 1)
-				depth19start = depth19start + maxdepth19/3;
+				depth19start = depth19start + parent.maxdepth19/3;
 			else
 				if( unit.locpos == 2 )
-					depth19start = depth19start + ((maxdepth19/3) * 2);
+					depth19start = depth19start + ((parent.maxdepth19/3) * 2);
 
 			object.position = new BABYLON.Vector3(0, pos,depth19start);
 
@@ -563,47 +477,131 @@ $.ajax({
 			objdata.object = object;
 		}
 
-		this.addSlot = function(objdata, parent, unit)
+		function addSlot(objdata, parent, unit)
 		{
-			if(parent.rows)
-			{
-				var rows = parent.rows;
-				var cols = parent.cols;
-			}
-
-			if(objdata.slot)
-				var slot = objdata.slot;
+			var rows = parent.rows;
+			var cols = parent.cols;
+			var slot = objdata.slot;
 
 			width = unit.width / cols;
 			height = (unit.height - parent.labelsize.height) / rows;
 
 			depth = 2;
 
-			var child = this.makeObject(objdata, {height: height, width: width, depth: depth}, parent);
+			var object = makeObject(objdata, parent, {height: height, width: width, depth: depth});
 
 			row = Math.floor((slot-1) / cols);
 			col = Math.floor((slot-1) % cols);
 
-			child.position = new BABYLON.Vector3( ((unit.width - width) / -2) + col * width, ((unit.height - height)/2) - row * height - parent.labelsize.height,(unit.depth - depth) / -2 - 2);
+			object.position = new BABYLON.Vector3( ((unit.width - width) / -2) + col * width, ((unit.height - height)/2) - row * height - parent.labelsize.height,(unit.depth - depth) / -2 - 2);
 
-			objdata.object = child;
+			objdata.object = object;
 		}
 
-		this.position = function(x,y,z) {
-			this.rack19frame.position = new BABYLON.Vector3(x * scale,(y + ((height/2))) * scale ,z * scale);
-		};
+	function createRack(objdata) {
+		// RACK
+		if(objdata.maxunits === undefined)
+			objdata.maxunits = 42;
 
-		this.rotation = function(degx,degy,degz) {
-			this.rack19frame.rotation = new BABYLON.Vector3((degx * Math.PI) / 180, (degy * Math.PI) / 180,(degz * Math.PI) / 180);
+		if(objdata.height === undefined)
+			objdata.height = (objdata.maxunits == 47 ? 2200 : 2000);
+
+		if(objdata.width === undefined)
+			objdata.width = 800;
+
+		if(objdata.depth === undefined)
+			objdata.depth = 1000;
+
+		if(objdata.maxdepth19 === undefined)
+			objdata.maxdepth19 = 800;
+
+		if(objdata.width19 === undefined)
+			objdata.width19 = 482.6;
+
+		var rack19frame = BABYLON.MeshBuilder.CreateBox('rack19_' + objdata.rack_id, {height: objdata.maxunits * 44.45 - 3, width: objdata.width19 -1, depth: objdata.maxdepth19 -1, faceColors: RackColors}, scene);
+		rack19frame.position = new BABYLON.Vector3(0,0,0);
+		rack19frame.showBoundingBox = false;
+		rack19frame.scaling = scale3;
+		rack19frame.material = material3;
+
+		var labelsize = {width:400, height:100};
+		var labelMaterial = createLabelMaterial({ id: objdata.rack_id, label: objdata.name, name:'' , options: { width: 200, height: 100}}, {label:"white"}, labelsize, {label: 0, name: null}); //, {label:100});
+
+		label = new BABYLON.MeshBuilder.CreatePlane("racklabel"+objdata.rack_id,  labelsize, scene);
+		label.material = labelMaterial;
+		label.material.backFaceCulling = false;
+		//label.showBoundingBox = true;
+
+		label.parent = rack19frame;
+		label.position = new BABYLON.Vector3(0,objdata.height/2+labelsize.height, (objdata.maxdepth19/-2));
+
+		var rackframe = BABYLON.MeshBuilder.CreateBox('rf'+objdata.id, {height: objdata.height, width: objdata.width, depth: objdata.depth, faceColors: RackColors}, scene);
+		rackframe.material = material3;
+		rackframe.showBoundingBox = false;
+		rackframe.parent = rack19frame;
+		//rackframe.isVisible = false;
+
+		rackframe.material = multimat1;
+		//box.subMeshes.push(new BABYLON.SubMesh(0,0,4,0,6, box )); // front
+		//box.subMeshes.push(new BABYLON.SubMesh(1,4,4,6,6, box )); // right
+		//box.subMeshes.push(new BABYLON.SubMesh(2,8,4,12,6, box )); // back
+		//box.subMeshes.push(new BABYLON.SubMesh(1,12,4,18,6, box )); // left
+		//box.subMeshes.push(new BABYLON.SubMesh(1,16,4,24,6, box )); // top
+		rackframe.subMeshes.push(new BABYLON.SubMesh(2,20,4,30,6, rackframe )); // bottom
+
+	if(0)
+	{
+		var lines = BABYLON.Mesh.CreateLines("lines", [
+				new BABYLON.Vector3(0, 0, 0),
+				new BABYLON.Vector3(20 + 482.6, 0, 0),
+				new BABYLON.Vector3(20, 0, 0),
+				new BABYLON.Vector3(20, -6.35, 0),
+				new BABYLON.Vector3(10, -6.35, 0),
+				new BABYLON.Vector3(20, -6.35, 0),
+				new BABYLON.Vector3(20, -15.88 - 6.35, 0),
+				new BABYLON.Vector3(10, -15.88 - 6.35, 0),
+				new BABYLON.Vector3(20, -15.88 - 6.35, 0),
+				new BABYLON.Vector3(20, -15.88 * 2 - 6.35, 0),
+				new BABYLON.Vector3(10, -15.88 * 2 - 6.35, 0),
+				new BABYLON.Vector3(20, -15.88 * 2 - 6.35, 0),
+				new BABYLON.Vector3(20, -15.88 * 2 - 12.7, 0),
+				new BABYLON.Vector3(0, -15.88 * 2 - 12.7, 0),
+		], scene);
+
+		lines.parent = rack19frame;
+		lines.position = new BABYLON.Vector3((482.6 / -2) - 20, (objdata.maxunits/2) * 44.45, objdata.maxdepth19 / -2);
+		lines.isVisible = false;
+
+
+		for(u = 2; u<=maxunits;u++)
+		{
+			var lines1 = lines.createInstance("lines"+u); // interfer
+			lines1.parent = rack19frame;
+			lines1.position.y = (objdata.maxunits/2) * 44.45 - ((u-1) * 44.45);
+
+			var text = makeText(u,40);
+			text.parent = lines1;
+			text.position.x = 10;
+			text.position.y = -44.45/2;
+
 		}
 
+		var text = makeText("1");
+		text.parent = lines;
+		text.position.x = 10;
+		text.position.y = 44.45/-2;
+	} // TEXT
+
+		objdata.object = rack19frame;
+
+		return rack19frame;
 	}
 
 	//rack19frame.position = new BABYLON.Vector3((2000 / 2) * scale,10,0);
 
 	var r = new Array();
-	rowcount = 0;
-	rowpos = 0;
+	var rowcount = 0;
+	var rowpos = 0;
 	rdata.rows.forEach(function(row) {
 			rowcount++;
 
@@ -626,38 +624,37 @@ $.ajax({
 			if(row.racks)
 			row.racks.forEach(function(rackobj) {
 				//alert(rackobj.rack_id);
-				var r = new createrack("rack_id_" + rackobj.rack_id, rackobj.name, rackobj.height, (rackobj.height == 47 ? 2200 : 2000));
+				var r = new createRack(rackobj);
+
 				rackcount++;
-				r.position((rackcount - 1) * 800,rackobj.height/2, rowpos);
+				r.position = new BABYLON.Vector3((rackcount-1) * 800 * scale,(((rackobj.height/2))) * scale ,rowpos * scale);
 
 				if(((rowcount) % 2) == 0)
-					r.rotation(0,180,0);
+					r.rotation = new BABYLON.Vector3(0, Math.PI,0); // 180 degree
 
 				zerou = 0;
 				rackobj.objects.forEach( function(obj) {
 
 					if(obj.fullunits)
 					obj.fullunits.forEach( function(unit) {
-						//r.addObject(obj.object_id, obj.name, obj.label, unit.id, unit.count, obj.objtype_id);
-						r.addRTObject(obj, unit)
+						addRTObject(obj, rackobj, unit)
 
 						if(obj.children)
 						{
 							obj.children.forEach( function(child) {
-								r.addSlot(child, obj, unit);
+								addSlot(child, obj, unit);
 							});
 						}
 					});
 
 					if(obj.partitialunits)
 					obj.partitialunits.forEach( function(unit) {
-						//r.addObject(obj.object_id, obj.name, obj.label, unit.id , 1, obj.objtype_id, unit.locpos, unit.locdepth);
 						unit.count = 1;
-						r.addRTObject(obj, unit);
+						addRTObject(obj, rackobj, unit);
 						if(obj.children)
 						{
 							obj.children.forEach( function(child) {
-								r.addSlot(child, obj, unit);
+								addSlot(child, obj, unit);
 							});
 						}
 					});
@@ -666,12 +663,11 @@ $.ajax({
 					{
 						zerou++;
 						unit = {id: -zerou - 2, count:1, locpos: 0, locdepth: 0};
-						//r.addObject(obj.object_id, obj.name, obj.label, -zerou-2, 1, obj.objtype_id, 0, 1);
-						r.addRTObject(obj, unit);
+						addRTObject(obj, rackobj, unit);
 						if(obj.children)
 						{
 							obj.children.forEach( function(child) {
-								r.addSlot(child, obj, unit);
+								addSlot(child, obj, unit);
 							});
 						}
 					}
@@ -932,7 +928,7 @@ function rack3dview_ajax_data()
 			} // objects
 
 
-			$rows[$row_id]['racks'][] = array('rack_id' => $rack_id, 'height' => $rack['height'], 'name' => $rack['name'], 'objects' => array_values($objects));
+			$rows[$row_id]['racks'][] = array('rack_id' => $rack_id, 'maxunits' => $rack['height'], 'name' => $rack['name'], 'objects' => array_values($objects));
 		} // rack
 	} // row
 
