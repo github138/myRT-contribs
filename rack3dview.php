@@ -139,6 +139,8 @@ function rack3dview_display($rows)
 <div id="debug" style="overflow: scroll;height:200px;width:100%"></div>
    <script type="text/javascript">
 
+	"use strict";
+
 	var rdata = null;
 $.ajax({
         type: "POST",
@@ -326,7 +328,7 @@ $.ajax({
             }
         }
 
-	function createLabelMaterial(objdata, colors, size, align, fontsize)
+	function createLabelMaterial(objdata, colors, align, fontsize)
 	{
 		if(colors.label === undefined)
 			colors.label ="black";
@@ -336,6 +338,8 @@ $.ajax({
 
 		if(align === undefined)
 			align = {label:0, name:'right'};
+
+		var size = objdata.labelsize;
 
 		if(fontsize === undefined)
 		{
@@ -348,7 +352,7 @@ $.ajax({
 		if(fontsize.label === undefined)
 			fontsize.label = 0;
 
-		var dynamicTexture = new BABYLON.DynamicTexture("DynamicTexture"+objdata.id, {height:size.height , width:size.width}, scene, true);
+		var dynamicTexture = new BABYLON.DynamicTexture("DynamicTexture"+objdata.id, size, scene, true);
 		dynamicTexture.hasAlpha = true;
 	//	dynamicTexture.coordinatesMode = BABYLON.Texture.PLANAR_MODE;
 
@@ -400,7 +404,7 @@ $.ajax({
 
 			if(parent.layout !== undefined)
 			{
-				width -= 1;
+				width -= 2;
 				if(parent.layout == 'V')
 				{
 					var h = height;
@@ -416,9 +420,7 @@ $.ajax({
 			if( parent !== undefined)
 				object.parent = parent.object;
 
-			var labelsize = {width: width, height: (height > 44.45 ? 44.45 : height)};
-
-			var labelMaterial = createLabelMaterial(objdata, labelcolors, labelsize);
+			var labelMaterial = createLabelMaterial(objdata, labelcolors);
 
 			var MultiMaterial = new BABYLON.MultiMaterial("lmm"+objdata.id, scene);
 			MultiMaterial.subMaterials.push(material0);
@@ -426,7 +428,6 @@ $.ajax({
 
 			object.material = MultiMaterial;
 			object.subMeshes.push(new BABYLON.SubMesh(1,4,4,6,6, object )); // -z
-			objdata.labelsize = labelsize;
 
 			if(parent.layout !== undefined)
 			{
@@ -448,42 +449,44 @@ $.ajax({
 
 		} //addObject
 
-		function addRTObject(objdata, parent) {
+		function addRTObject(objdata, rackobj)
+		{
 
 			if(objdata.unit.locdepth === undefined)
 				objdata.unit.locdepth = 3;
 
-			var depth19 = (objdata.unit.locdepth == 3 ? parent.maxdepth19 : objdata.unit.locdepth * (parent.maxdepth19/3));
+			var depth19 = (objdata.unit.locdepth == 3 ? rackobj.maxdepth19 : objdata.unit.locdepth * (rackobj.maxdepth19/3));
 
 			//zeroU
 			if(objdata.unit.id < 0)
 				depth19 = 2;
 
-			objdata.unit.height = objdata.unit.count * 44.45;
-			objdata.unit.width = parent.width19;
+			objdata.unit.height = objdata.unit.count * rackobj.unit_height;
+			objdata.unit.width = rackobj.width19;
 			objdata.unit.depth = depth19;
 
-			var object = makeObject(objdata, parent);
+			objdata.labelsize = {width: objdata.unit.width, height: (objdata.unit.height > rackobj.unit_height ? rackobj.unit_height : objdata.unit.height)};
 
-			var pos = (((parent.maxunits)/2) * -44.45) + (objdata.unit.id-1) * 44.45 + ((objdata.unit.count * 44.45) / 2);
+			var object = makeObject(objdata, rackobj);
 
-			var depth19start = (parent.maxdepth19 - depth19)/-2;
+			var pos = (((rackobj.maxunits)/2) * -rackobj.unit_height) + (objdata.unit.id-1) * rackobj.unit_height + ((objdata.unit.count * rackobj.unit_height) / 2);
+
+			var depth19start = (rackobj.maxdepth19 - depth19)/-2;
 
 			if(objdata.unit.locpos === undefined)
 				objdata.unit.locpos = 0;
 
 			if( objdata.unit.locpos == 1)
-				depth19start = depth19start + parent.maxdepth19/3;
+				depth19start = depth19start + rackobj.maxdepth19/3;
 			else
 				if( objdata.unit.locpos == 2 )
-					depth19start = depth19start + ((parent.maxdepth19/3) * 2);
+					depth19start = depth19start + ((rackobj.maxdepth19/3) * 2);
 
 			object.position = new BABYLON.Vector3(0, pos,depth19start);
 
 			if( objdata.unit.locpos != 0 )
 				object.rotation.y = Math.PI; // 180 degree
-
-		}
+		} // addRTObject
 
 		function addSlot(objdata, parent)
 		{
@@ -497,6 +500,11 @@ $.ajax({
 					depth: 2
 					};
 
+			if(parent.layout == 'V')
+				objdata.labelsize = {height: objdata.unit.width, width: objdata.unit.height};
+			else
+				objdata.labelsize = objdata.unit;
+
 			var object = makeObject(objdata, parent);
 
 			var row = Math.floor((slot-1) / cols);
@@ -509,6 +517,9 @@ $.ajax({
 		// RACK
 		if(objdata.maxunits === undefined)
 			objdata.maxunits = 42;
+
+		if(objdata.width19 === undefined)
+			objdata.unit_height = 44.45;
 
 		if(objdata.height === undefined)
 			objdata.height = (objdata.maxunits == 47 ? 2200 : 2000);
@@ -525,22 +536,22 @@ $.ajax({
 		if(objdata.width19 === undefined)
 			objdata.width19 = 482.6;
 
-		var rack19frame = BABYLON.MeshBuilder.CreateBox('rack19_' + objdata.rack_id, {height: objdata.maxunits * 44.45 - 3, width: objdata.width19 -1, depth: objdata.maxdepth19 -1, faceColors: RackColors}, scene);
+		var rack19frame = BABYLON.MeshBuilder.CreateBox('rack19_' + objdata.rack_id, {height: objdata.maxunits * objdata.unit_height - 3, width: objdata.width19 -1, depth: objdata.maxdepth19 -1, faceColors: RackColors}, scene);
 		rack19frame.position = new BABYLON.Vector3(0,0,0);
 		rack19frame.showBoundingBox = false;
 		rack19frame.scaling = scale3;
 		rack19frame.material = material3;
 
-		var labelsize = {width:400, height:100};
-		var labelMaterial = createLabelMaterial({ id: objdata.rack_id, label: objdata.name, name:'' , options: { width: 200, height: 100}}, {label:"white"}, labelsize, {label: 0, name: null}); //, {label:100});
+		objdata.labelsize = {width:400, height:100};
+		var labelMaterial = createLabelMaterial({ id: objdata.rack_id, label: objdata.name, name:'' , options: { width: 200, height: 100}, labelsize:objdata.labelsize}, {label:"white"}, {label: 0, name: null}); //, {label:100});
 
-		var label = new BABYLON.MeshBuilder.CreatePlane("racklabel"+objdata.rack_id,  labelsize, scene);
+		var label = new BABYLON.MeshBuilder.CreatePlane("racklabel"+objdata.rack_id,  objdata.labelsize, scene);
 		label.material = labelMaterial;
 		label.material.backFaceCulling = false;
 		//label.showBoundingBox = true;
 
 		label.parent = rack19frame;
-		label.position = new BABYLON.Vector3(0,objdata.height/2+labelsize.height, (objdata.maxdepth19/-2));
+		label.position = new BABYLON.Vector3(0,objdata.height/2+objdata.labelsize.height, (objdata.maxdepth19/-2));
 
 		var rackframe = BABYLON.MeshBuilder.CreateBox('rf'+objdata.id, {height: objdata.height, width: objdata.width, depth: objdata.depth, faceColors: RackColors}, scene);
 		rackframe.material = material3;
@@ -602,7 +613,7 @@ $.ajax({
 		objdata.object = rack19frame;
 
 		return rack19frame;
-	}
+	} //createRack
 
 	//rack19frame.position = new BABYLON.Vector3((2000 / 2) * scale,10,0);
 
@@ -615,7 +626,7 @@ $.ajax({
 			rowpos = (rowcount - 1) * -4000;
 
 			var labelsize = {width: 2000, height: 200};
-			var labelMaterial = createLabelMaterial({ id:rowcount, label:row.name, name:'' , options: labelsize}, {label:"white"}, labelsize, {label: 0, name: null}, {label:200, name:50});
+			var labelMaterial = createLabelMaterial({ id:rowcount, label:row.name, name:'' , options: labelsize, labelsize: labelsize}, {label:"white"}, {label: 0, name: null}, {label:200, name:50});
 
 			rowlabel = new BABYLON.MeshBuilder.CreatePlane("TextPlane"+rowcount,  labelsize, scene);
 
@@ -634,7 +645,7 @@ $.ajax({
 				var r = new createRack(rackobj);
 
 				rackcount++;
-				r.position = new BABYLON.Vector3((rackcount-1) * 800 * scale,(((rackobj.height/2))) * scale ,rowpos * scale);
+				r.position = new BABYLON.Vector3((rackcount-1) * rackobj.width * scale,(((rackobj.height/2))) * scale ,rowpos * scale);
 
 				if(((rowcount) % 2) == 0)
 					r.rotation = new BABYLON.Vector3(0, Math.PI,0); // 180 degree
