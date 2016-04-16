@@ -384,7 +384,7 @@ $.ajax({
 
 	}; // createLabelMaterial
 
-	function makeObject(objdata, parent, size) {
+	function makeObject(objdata, parent) {
 			var type = objdata.objtype_id;
 			var faceColors = (objtypecolors[type] ? objtypecolors[type].slice() : objtypecolors[0].slice()); //copy array
 
@@ -395,8 +395,8 @@ $.ajax({
 				faceColors[1] = new BABYLON.Color3.FromHexString("#dd0048");
 			}
 
-			var width = size.width;
-			var height = size.height - 2;
+			var width = objdata.unit.width;
+			var height = objdata.unit.height - 2;
 
 			if(parent.layout !== undefined)
 			{
@@ -409,7 +409,7 @@ $.ajax({
 				}
 			}
 
-			objdata.options = {width: width, height: height, depth: size.depth, faceColors: faceColors};
+			objdata.options = {width: width, height: height, depth: objdata.unit.depth, faceColors: faceColors};
 
 			var object = BABYLON.MeshBuilder.CreateBox(objdata.object_id, objdata.options, scene);
 
@@ -435,67 +435,74 @@ $.ajax({
 					object.rotation = new BABYLON.Vector3(0,0,(-90*Math.PI)/180);
 			}
 
+			objdata.object = object;
+
+			if(objdata.children)
+			{
+				objdata.children.forEach( function(child) {
+					addSlot(child, objdata);
+				});
+			}
+
 			return object;
 
 		} //addObject
 
-		function addRTObject(objdata, parent, unit) {
+		function addRTObject(objdata, parent) {
 
-			if(unit.locdepth === undefined)
-				unit.locdepth = 3;
+			if(objdata.unit.locdepth === undefined)
+				objdata.unit.locdepth = 3;
 
-			var depth19 = (unit.locdepth == 3 ? parent.maxdepth19 : unit.locdepth * (parent.maxdepth19/3));
+			var depth19 = (objdata.unit.locdepth == 3 ? parent.maxdepth19 : objdata.unit.locdepth * (parent.maxdepth19/3));
 
 			//zeroU
-			if(unit.id < 0)
+			if(objdata.unit.id < 0)
 				depth19 = 2;
 
-			unit.height = unit.count * 44.45;
-			unit.width = parent.width19;
-			unit.depth = depth19;
+			objdata.unit.height = objdata.unit.count * 44.45;
+			objdata.unit.width = parent.width19;
+			objdata.unit.depth = depth19;
 
-			var object = makeObject(objdata, parent, unit);
+			var object = makeObject(objdata, parent);
 
-			var pos = (((parent.maxunits)/2) * -44.45) + (unit.id-1) * 44.45 + ((unit.count * 44.45) / 2);
+			var pos = (((parent.maxunits)/2) * -44.45) + (objdata.unit.id-1) * 44.45 + ((objdata.unit.count * 44.45) / 2);
 
 			var depth19start = (parent.maxdepth19 - depth19)/-2;
 
-			if(unit.locpos === undefined)
-				unit.locpos = 0;
+			if(objdata.unit.locpos === undefined)
+				objdata.unit.locpos = 0;
 
-			if( unit.locpos == 1)
+			if( objdata.unit.locpos == 1)
 				depth19start = depth19start + parent.maxdepth19/3;
 			else
-				if( unit.locpos == 2 )
+				if( objdata.unit.locpos == 2 )
 					depth19start = depth19start + ((parent.maxdepth19/3) * 2);
 
 			object.position = new BABYLON.Vector3(0, pos,depth19start);
 
-			if( unit.locpos != 0 )
+			if( objdata.unit.locpos != 0 )
 				object.rotation.y = Math.PI; // 180 degree
 
-			objdata.object = object;
 		}
 
-		function addSlot(objdata, parent, unit)
+		function addSlot(objdata, parent)
 		{
 			var rows = parent.rows;
 			var cols = parent.cols;
 			var slot = objdata.slot;
 
-			var width = unit.width / cols;
-			var height = (unit.height - parent.labelsize.height) / rows;
+			objdata.unit = {
+					width: parent.unit.width / cols,
+					height: (parent.unit.height - parent.labelsize.height) / rows,
+					depth: 2
+					};
 
-			var depth = 2;
-
-			var object = makeObject(objdata, parent, {height: height, width: width, depth: depth});
+			var object = makeObject(objdata, parent);
 
 			var row = Math.floor((slot-1) / cols);
 			var col = Math.floor((slot-1) % cols);
 
-			object.position = new BABYLON.Vector3( ((unit.width - width) / -2) + col * width, ((unit.height - height)/2) - row * height - parent.labelsize.height,(unit.depth - depth) / -2 - 2);
-
-			objdata.object = object;
+			object.position = new BABYLON.Vector3( ((parent.unit.width - objdata.unit.width) / -2) + col * objdata.unit.width, ((parent.unit.height - objdata.unit.height)/2) - row * objdata.unit.height - parent.labelsize.height,(parent.unit.depth - objdata.unit.depth) / -2 - 2);
 		}
 
 	function createRack(objdata) {
@@ -637,39 +644,22 @@ $.ajax({
 
 					if(obj.fullunits)
 					obj.fullunits.forEach( function(unit) {
-						addRTObject(obj, rackobj, unit)
-
-						if(obj.children)
-						{
-							obj.children.forEach( function(child) {
-								addSlot(child, obj, unit);
-							});
-						}
+						obj.unit = unit;
+						addRTObject(obj, rackobj)
 					});
 
 					if(obj.partitialunits)
 					obj.partitialunits.forEach( function(unit) {
 						unit.count = 1;
-						addRTObject(obj, rackobj, unit);
-						if(obj.children)
-						{
-							obj.children.forEach( function(child) {
-								addSlot(child, obj, unit);
-							});
-						}
+						obj.unit = unit;
+						addRTObject(obj, rackobj);
 					});
 
 					if(obj.zerounit)
 					{
 						zerou++;
-						var unit = {id: -zerou - 2, count:1, locpos: 0, locdepth: 0};
-						addRTObject(obj, rackobj, unit);
-						if(obj.children)
-						{
-							obj.children.forEach( function(child) {
-								addSlot(child, obj, unit);
-							});
-						}
+						obj.unit = {id: -zerou - 2, count:1, locpos: 0, locdepth: 0};
+						addRTObject(obj, rackobj);
 					}
 
 				});
