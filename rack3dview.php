@@ -220,6 +220,14 @@ $.ajax({
 				new BABYLON.Color4(1,1,1,1)  // bottom
 				);
 
+	var RackColorsProblems = new Array(
+				new BABYLON.Color4(1,0,0,1), // back
+				new BABYLON.Color4(1,0,0,1), // front
+				new BABYLON.Color4(1,0,0,1), // left
+				new BABYLON.Color4(1,0,0,1), // right
+				new BABYLON.Color4(1,0,0,1), // top
+				new BABYLON.Color4(1,0,0,1)  // bottom
+				);
 	var objtypecolors = {
 			// default
 			0: new Array(
@@ -553,7 +561,14 @@ $.ajax({
 		label.parent = rack19frame;
 		label.position = new BABYLON.Vector3(0,objdata.height/2+objdata.labelsize.height, (objdata.maxdepth19/-2));
 
-		var rackframe = BABYLON.MeshBuilder.CreateBox('rf'+objdata.id, {height: objdata.height, width: objdata.width, depth: objdata.depth, faceColors: RackColors}, scene);
+		var options = {height: objdata.height, width: objdata.width, depth: objdata.depth};
+
+		if(objdata.has_problems != 'no')
+			options.faceColors = RackColorsProblems;
+		else
+			options.faceColors = RackColors;
+
+		var rackframe = BABYLON.MeshBuilder.CreateBox('rf'+objdata.id, options, scene);
 		rackframe.material = material3;
 		rackframe.showBoundingBox = false;
 		rackframe.parent = rack19frame;
@@ -734,8 +749,12 @@ function rack3dview_ajax_data()
 	//	foreach(array(16) as $rack_id)
 		{
 			//echo "$rack_id<br>";
+			$rackproblems = 'no';
 			$rack = spotEntity('rack', $rack_id);
 			amplifyCell($rack);
+
+			if($rack['has_problems'] != 'no')
+				$rackproblems = $rack['has_problems'];
 
 			$objects = array();
 			$last_obj_id = NULL;
@@ -823,6 +842,8 @@ function rack3dview_ajax_data()
 							$objects[$object_id]['children'][$child_id]['label'] = $childData['label'];
 							$objects[$object_id]['children'][$child_id]['id'] = $child_id;
 							$objects[$object_id]['children'][$child_id]['has_problems'] = $childData['has_problems'];
+							if($childData['has_problems'] != 'no')
+								$rackproblems = $childData['has_problems'];
 
 							$attrData = getAttrValues ($childData['id']);
 							//r3dv_var_dump_html($attrData);
@@ -867,6 +888,9 @@ function rack3dview_ajax_data()
 				$objects[$object_id]['name'] = $objectData['name'];
 				$objects[$object_id]['label'] = $objectData['label'];
 				$objects[$object_id]['has_problems'] = $objectData['has_problems'];
+
+				if($objectData['has_problems'] != 'no')
+					$rackproblems = $objectData['has_problems'];
 
 				$first_unit = null;
 				$last_fullunit = null;
@@ -929,7 +953,7 @@ function rack3dview_ajax_data()
 			} // objects
 
 
-			$rows[$row_id]['racks'][] = array('rack_id' => $rack_id, 'maxunits' => $rack['height'], 'name' => $rack['name'], 'objects' => array_values($objects));
+			$rows[$row_id]['racks'][] = array('rack_id' => $rack_id, 'maxunits' => $rack['height'], 'name' => $rack['name'], 'has_problems' => $rackproblems, 'objects' => array_values($objects));
 		} // rack
 	} // row
 
