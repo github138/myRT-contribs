@@ -68,45 +68,64 @@ function rack3dview_tabhandler()
 	if(isset($_POST['rows']))
 	{
 		$rows = $_POST['rows'];
-		rack3dview_display($rows);
+		rack3dview_display(array_keys($rows));
 		return;
 	}
 
+	addJS(<<<ENDJS
+		function selectRows(elem) {
+			$("input[value='"+elem.value+"']").attr("checked", (elem.checked ? "checked" : ""));
+		}
+ENDJS
+,true);
+
 	echo "<form id=rows method=POST>";
 	echo "<table>";
+
+	$locations = array();
+
 	foreach (listCells ('row') as $row_id => $rowInfo)
 	{
 		/* location from renderRackspace() */
 			$location_id = $rowInfo['location_id'];
-			$locationIdx = 0;
-			// contains location names in the form of 'grandparent parent child', used for sorting
-			$locationTree = '';
-			// contains location names as well as links
-			$hrefLocationTree = '';
-			while ($location_id)
-			{
-				if ($locationIdx == 20)
-				{
-					showWarning ("Warning: There is likely a circular reference in the location tree.  Investigate location ${location_id}.");
-					break;
-				}
-				$parentLocation = spotEntity ('location', $location_id);
-				$locationTree = sprintf ('%s %s', $parentLocation['name'], $locationTree);
-				$hrefLocationTree = "&raquo; <a href='" .
-					makeHref(array('page'=>'location', 'location_id'=>$parentLocation['id'])) .
-					"'>${parentLocation['name']}</a> " .
-					$hrefLocationTree;
-				$location_id = $parentLocation['parent_id'];
-				$locationIdx++;
-			}
-			$hrefLocationTree = substr ($hrefLocationTree, 8);
 
-		echo "<tr><td>$hrefLocationTree</td>";
+			if(!isset($locations[$location_id]))
+			{
+				$locations[$location_id] = 1;
+				$locationIdx = 0;
+				// contains location names in the form of 'grandparent parent child', used for sorting
+				$locationTree = '';
+				// contains location names as well as links
+				$hrefLocationTree = '';
+				while ($location_id)
+				{
+					if ($locationIdx == 20)
+					{
+						showWarning ("Warning: There is likely a circular reference in the location tree.  Investigate location ${location_id}.");
+						break;
+					}
+					$parentLocation = spotEntity ('location', $location_id);
+					$locationTree = sprintf ('%s %s', $parentLocation['name'], $locationTree);
+					$hrefLocationTree = "&raquo; <a href='" .
+						makeHref(array('page'=>'location', 'location_id'=>$parentLocation['id'])) .
+						"'>${parentLocation['name']}</a> " .
+						$hrefLocationTree;
+					$location_id = $parentLocation['parent_id'];
+					$locationIdx++;
+				}
+				$hrefLocationTree = substr ($hrefLocationTree, 8);
+
+				echo "<tr></tr><td colspan=5><hr></td></tr>";
+				echo "<tr><td>$hrefLocationTree</td>";
+				echo "<td><input onclick=\"selectRows(this);\" type=checkbox name=loc[{$rowInfo['location_id']}] value={$rowInfo['location_id']}></td></tr>";
+			}
+
+		echo "<tr><td colspan=2></td>";
 		echo "<th class=tdleft><a href='".makeHref(array('page'=>'row', 'row_id'=>$row_id))."'>${rowInfo['name']}</a></th>";
-		echo "<td><input type=checkbox name=rows[$row_id] value=$row_id></td>";
+		echo "<td><input type=checkbox name=rows[$row_id] value={$rowInfo['location_id']}></td>";
 		echo "</tr>";
 	}
-	echo "<tr><td></td><td></td><td><input type=submit value=OK></td></tr>";
+	echo "<tr><td colspan=3></td><td><input type=submit value=OK></td></tr>";
 	echo "</table>";
 	echo "</form>";
 } // tabhandler
