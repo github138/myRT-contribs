@@ -168,6 +168,8 @@ function rack3dview_display($rows)
 
 	"use strict";
 
+	var labels = false;
+
 	var rdata = null;
 $.ajax({
         type: "POST",
@@ -463,6 +465,8 @@ document.addEventListener("DOMContentLoaded", function () {
 			if( parent !== undefined)
 				object.parent = parent.object;
 
+			if(labels)
+			{
 			var labelMaterial = createLabelMaterial(objdata, labelcolors);
 
 			var MultiMaterial = new BABYLON.MultiMaterial("lmm"+objdata.id, scene);
@@ -471,6 +475,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
 			object.material = MultiMaterial;
 			object.subMeshes.push(new BABYLON.SubMesh(1,4,4,6,6, object )); // -z
+
+			}
 
 			if(parent.layout !== undefined)
 			{
@@ -586,6 +592,8 @@ document.addEventListener("DOMContentLoaded", function () {
 		rack19frame.material = material3;
 
 		objdata.labelsize = {width:400, height:100};
+		if(labels)
+		{
 		var labelMaterial = createLabelMaterial({ id: objdata.rack_id, label: objdata.name, name:'' , options: { width: 200, height: 100}, labelsize:objdata.labelsize}, {label:"white"}, {label: 0, name: null}); //, {label:100});
 
 		var label = new BABYLON.MeshBuilder.CreatePlane("racklabel"+objdata.rack_id,  objdata.labelsize, scene);
@@ -595,7 +603,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 		label.parent = rack19frame;
 		label.position = new BABYLON.Vector3(0,objdata.height/2+objdata.labelsize.height, (objdata.maxdepth19/-2));
-
+		}
 		var options = {height: objdata.height, width: objdata.width, depth: objdata.depth};
 
 		if(objdata.has_problems != 'no')
@@ -676,6 +684,8 @@ document.addEventListener("DOMContentLoaded", function () {
 			rowpos = (rowcount - 1) * -4000;
 
 			var labelsize = {width: 2000, height: 200};
+			if(labels)
+			{
 			var labelMaterial = createLabelMaterial({ id:rowcount, label:row.name, name:'' , options: labelsize, labelsize: labelsize}, {label:"white"}, {label: 0, name: null}, {label:200, name:50});
 
 			rowlabel = new BABYLON.MeshBuilder.CreatePlane("TextPlane"+rowcount,  labelsize, scene);
@@ -687,6 +697,7 @@ document.addEventListener("DOMContentLoaded", function () {
 			rowlabel.scaling = scale3;
 			rowlabel.position = new BABYLON.Vector3(((800/-2) - labelsize.height) * scale,labelsize.width/2 * scale,rowpos * scale);
 			rowlabel.rotation = new BABYLON.Vector3(0,0,(90*Math.PI)/180);
+			}
 
 			var rackcount = 0;
 			if(row.racks)
