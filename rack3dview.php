@@ -158,8 +158,7 @@ function rack3dview_display($rows)
          touch-action: none;
       }
    </style>
-   <script src="?module=chrome&uri=rack3dview/babylon.js"></script>
-<!-- for RT 0.20.10 --><!--   <script src="?module=chrome&uri=js/babylon.js"></script> -->
+<!-- for RT 0.20.10 --> <script src="?module=chrome&uri=js/babylon.js"></script>
 <!--   <script src="?module=chrome&uri=rack3dview/hand.js"></script> -->
 <!--   <script src="?module=chrome&uri=rack3dview/cannon.js"></script> --><!-- optional physics engine -->
 <!-- <script src="?module=chrome&uri=rack3dview/Oimo.js"></script>  New physics engine -->
@@ -191,9 +190,17 @@ $.ajax({
 				}
 });
 
+/**
+* Load the scene when the canvas is fully loaded
+*/
+document.addEventListener("DOMContentLoaded", function () {
+    if (BABYLON.Engine.isSupported()) {
+        initScene();
+    }
+}, false);
 
 
-
+	function initScene() {
 
       // Get the canvas element from our HTML below
       var canvas = document.querySelector("#renderCanvas");
@@ -739,6 +746,7 @@ $.ajax({
       window.addEventListener("resize", function () {
          engine.resize();
       });
+}
    </script>
 HTMLEND
 ); // echo
