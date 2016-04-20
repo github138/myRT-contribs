@@ -12,8 +12,16 @@
  *
  *	put rack3dview.php in plugins folder
  *
+ *	only for RT <= 0.20.10
+ *	place babylon.js file in wwwroot/js folder
+ *  	remove line "<script src="?module=chrome&uri=rack3dview/babylon.js"></script>" somewhere around line 161
+ *	uncomment line <!-- for RT 0.20.10 --> <script src="?module=chrome&uri=js/babylon.js"></script>
+ *
+ *
+ *	for RT >= 0.20.11
  *	create plugins/rack3dview folder
  *	place babylon.js file in this folder
+ *
  *
  *	babylon.js - http://cdn.babylonjs.com/2-3/babylon.js
  *
@@ -151,6 +159,7 @@ function rack3dview_display($rows)
       }
    </style>
    <script src="?module=chrome&uri=rack3dview/babylon.js"></script>
+<!-- for RT 0.20.10 --><!--   <script src="?module=chrome&uri=js/babylon.js"></script> -->
 <!--   <script src="?module=chrome&uri=rack3dview/hand.js"></script> -->
 <!--   <script src="?module=chrome&uri=rack3dview/cannon.js"></script> --><!-- optional physics engine -->
 <!-- <script src="?module=chrome&uri=rack3dview/Oimo.js"></script>  New physics engine -->
