@@ -133,14 +133,14 @@ ENDJS
 				$hrefLocationTree = substr ($hrefLocationTree, 8);
 
 				echo "<tr></tr><td colspan=5><hr></td></tr>";
-				echo "<tr><td>$hrefLocationTree</td>";
-				echo "<td><input onclick=\"selectRows(this);\" type=checkbox name=loc[{$rowInfo['location_id']}] value={$rowInfo['location_id']}></td></tr>";
+				echo "<tr><td><input onclick=\"selectRows(this);\" type=checkbox name=loc[{$rowInfo['location_id']}] value={$rowInfo['location_id']}></td>";
+				echo "<td>$hrefLocationTree</td></tr>";
 
 			}
 
 		echo "<tr><td colspan=2></td>";
-		echo "<th class=tdleft><a href='".makeHref(array('page'=>'row', 'row_id'=>$row_id))."'>${rowInfo['name']}</a></th>";
 		echo "<td><input onclick=\"selectRacks(this);\" type=checkbox name=rows[$row_id] value=loc_{$rowInfo['location_id']}></td>";
+		echo "<th class=tdleft><a href='".makeHref(array('page'=>'row', 'row_id'=>$row_id))."'>${rowInfo['name']}</a></th>";
 		echo "</tr>";
 
 		foreach($rowInfo['racks'] as $rack_id => $rack)
