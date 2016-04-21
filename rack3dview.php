@@ -101,7 +101,13 @@ ENDJS
 
 	foreach (listCells ('row') as $row_id => $rowInfo)
 	{
+			if(!$debug)
+				ob_start(); // Notice: Undefined index: height
+
 			amplifyCell($rowInfo);
+
+			if(!$debug)
+				ob_end_clean(); // Notice: Undefined index: height
 
 		/* location from renderRackspace() */
 			$location_id = $rowInfo['location_id'];
