@@ -318,12 +318,15 @@ $(document).ready(function () {
 
 	var material1 = new BABYLON.StandardMaterial("texture1", scene);
 	material1.alpha = 0.1;
+	material1.freeze();
 
 	var material3 = new BABYLON.StandardMaterial("texture3", scene);
 	material3.alpha = 0.3;
+	material3.freeze();
 
 	var material0 = new BABYLON.StandardMaterial("texture0", scene);
 	material0.backFaceCulling = false;
+	material0.freeze();
 
 	var multimat1 = new BABYLON.MultiMaterial("multi1", scene);
 	multimat1.subMaterials.push(material1);
@@ -409,6 +412,7 @@ $(document).ready(function () {
 			drawTextalign(dynamicTexture, objdata.name, align.name, textpos + fontsize.name, "bold "+fontsize.name+"px Arial", colors.name , "transparent", true);
 
 		var material = new BABYLON.StandardMaterial("TextPlaneMaterial", scene);
+		material.freeze();
 		material.backFaceCulling = false;
 		material.diffuseTexture = dynamicTexture;
 		material.diffuseTexture.vScale = objdata.options.height/texsize.height;
@@ -473,6 +477,7 @@ $(document).ready(function () {
 					object.rotation = new BABYLON.Vector3(0,0,(-90*Math.PI)/180);
 			}
 
+			object.convertToUnIndexedMesh();
 			objdata.object = object;
 
 			if(objdata.children)
