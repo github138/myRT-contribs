@@ -191,7 +191,7 @@ $(document).ready(function () {
 
 	if(rdata.msgs)
 		rdata.msgs.forEach( function(msg) {
-			$('.msgbar').append("<div>"+msg+"</div>");
+			$('.msgbar').append("<div class=msg_warning>"+msg+"</div>");
 		});
 
 	if (BABYLON.Engine.isSupported()) {
