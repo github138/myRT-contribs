@@ -182,27 +182,22 @@ $.ajax({
         error: function(){ alert("Error loading"); },
         success: function(data) {
 					rdata = JSON.parse(data);
-					if(rdata.debug)
-						$('#debug').html(rdata.debug);
-
-					if(rdata.msgs)
-						rdata.msgs.forEach( function(msg) {
-							$('.msgbar').append("<div>"+msg+"</div>");
-						});
 				}
 });
 
 /**
 * Load the scene when the canvas is fully loaded
 */
-document.addEventListener("DOMContentLoaded", function () {
+$(document).ready(function () {
+	if(rdata.debug)
+		$('#debug').html(rdata.debug);
+
+	if(rdata.msgs)
+		rdata.msgs.forEach( function(msg) {
+			$('.msgbar').append("<div>"+msg+"</div>");
+		});
+
     if (BABYLON.Engine.isSupported()) {
-        initScene();
-    }
-}, false);
-
-
-	function initScene() {
 
       // Get the canvas element from our HTML below
       var canvas = document.querySelector("#renderCanvas");
@@ -757,7 +752,8 @@ document.addEventListener("DOMContentLoaded", function () {
       window.addEventListener("resize", function () {
          engine.resize();
       });
-}
+} // engine.issupported()
+});// ready()
    </script>
 HTMLEND
 ); // echo
