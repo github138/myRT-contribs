@@ -73,16 +73,23 @@ function rack3dview_tabhandler()
 	return;
 	}
 
-	if(isset($_POST['rows']))
+	if(isset($_POST['racks']))
 	{
-		$rows = $_POST['rows'];
-		rack3dview_display(array_keys($rows));
+		$racks = $_POST['racks'];
+		rack3dview_display(array_keys($racks));
 		return;
 	}
 
 	addJS(<<<ENDJS
 		function selectRows(elem) {
-			$("input[value='"+elem.value+"']").attr("checked", (elem.checked ? "checked" : ""));
+			var loc = elem.name.slice(4,-1);
+			$("input[value='loc_"+loc+"']").attr("checked", (elem.checked ? "checked" : ""));
+			$("input[value='loc_"+loc+"']").each( function() { selectRacks(this); });
+		}
+
+		function selectRacks(elem) {
+			var row = elem.name.slice(5,-1);
+			$("input[value='row_"+row+"']").attr("checked", (elem.checked ? "checked" : ""));
 		}
 ENDJS
 ,true);
@@ -94,6 +101,8 @@ ENDJS
 
 	foreach (listCells ('row') as $row_id => $rowInfo)
 	{
+			amplifyCell($rowInfo);
+
 		/* location from renderRackspace() */
 			$location_id = $rowInfo['location_id'];
 
@@ -126,22 +135,29 @@ ENDJS
 				echo "<tr></tr><td colspan=5><hr></td></tr>";
 				echo "<tr><td>$hrefLocationTree</td>";
 				echo "<td><input onclick=\"selectRows(this);\" type=checkbox name=loc[{$rowInfo['location_id']}] value={$rowInfo['location_id']}></td></tr>";
+
 			}
 
 		echo "<tr><td colspan=2></td>";
 		echo "<th class=tdleft><a href='".makeHref(array('page'=>'row', 'row_id'=>$row_id))."'>${rowInfo['name']}</a></th>";
-		echo "<td><input type=checkbox name=rows[$row_id] value={$rowInfo['location_id']}></td>";
+		echo "<td><input onclick=\"selectRacks(this);\" type=checkbox name=rows[$row_id] value=loc_{$rowInfo['location_id']}></td>";
 		echo "</tr>";
+
+		foreach($rowInfo['racks'] as $rack_id => $rack)
+		{
+			echo "<tr><td colspan=4></td><td><input type=checkbox name=racks[$rack_id] value=row_{$row_id}></td>";
+			echo "<td>{$rack['name']}</td></tr>";
+		}
 	}
 	echo "<tr><td colspan=3></td><td><input type=submit value=OK></td></tr>";
 	echo "</table>";
 	echo "</form>";
 } // tabhandler
 
-function rack3dview_display($rows)
+function rack3dview_display($racks)
 {
 
-	$rows = implode(",",$rows);
+	$racks = implode(",",$racks);
 
 	echo (<<<HTMLEND
    <style>
@@ -175,7 +191,7 @@ $.ajax({
         type: "POST",
         url: "{$_SERVER['PHP_SELF']}?module=ajax&ac=r3dv_data&json=json",
         data: {
-                rows: "$rows"
+                racks: "$racks"
               },
         dataTye: 'json',
 	async: false,
@@ -774,34 +790,29 @@ function rack3dview_ajax_data()
 {
 	ob_start();
 
-	// DEBUG
-	//$_POST['rows'] = 704;
-
-	if(isset($_POST['rows']))
-		$rack_rows = explode(",",$_POST['rows']);
+	if(isset($_POST['racks']))
+		$racks = explode(",",$_POST['racks']);
 	else
 		return;
 
-	//r3dv_var_dump_html(listCells ('row'));
-
-	//$location = spotEntity('location', 2);
-	//amplifyCell($location);
-
 	$msgs = array();
+	$rows = array();
 
-	//foreach($location['rows'] as $row_id => $row)
-//	foreach(array(4,15,29,43) as $row_id)
-	foreach($rack_rows as $row_id)
-	{
-		$row = spotEntity('row', $row_id);
-		amplifyCell($row);
-
-		$rows[$row_id]['row_id'] = $row_id;
-		$rows[$row_id]['name'] = $row['name'];
-
-		foreach($row['racks'] as $rack_id => $rack)
-	//	foreach(array(16) as $rack_id)
+		foreach($racks as $rack_id)
 		{
+			$rack = spotEntity('rack', $rack_id);
+			$row_id = $rack['row_id'];
+
+			if(!isset($rows[$row_id]))
+			{
+				$row = spotEntity('row', $row_id);
+				amplifyCell($row);
+
+				$rows[$row_id] = array();
+				$rows[$row_id]['row_id'] = $row_id;
+				$rows[$row_id]['name'] = $row['name'];
+			}
+
 			//echo "$rack_id<br>";
 			$rackproblems = 'no';
 			$rack = spotEntity('rack', $rack_id);
@@ -1009,7 +1020,6 @@ function rack3dview_ajax_data()
 
 			$rows[$row_id]['racks'][] = array('rack_id' => $rack_id, 'maxunits' => $rack['height'], 'name' => $rack['name'], 'has_problems' => $rackproblems, 'objects' => array_values($objects));
 		} // rack
-	} // row
 
 	$debugtxt = ob_get_contents();
 	ob_end_clean();
