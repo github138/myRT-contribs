@@ -321,12 +321,15 @@ $(document).ready(function () {
 
 	var material1 = new BABYLON.StandardMaterial("texture1", scene);
 	material1.alpha = 0.1;
+	material1.freeze();
 
 	var material3 = new BABYLON.StandardMaterial("texture3", scene);
 	material3.alpha = 0.3;
+	material3.freeze();
 
 	var material0 = new BABYLON.StandardMaterial("texture0", scene);
 	material0.backFaceCulling = false;
+	material0.freeze();
 
 	var multimat1 = new BABYLON.MultiMaterial("multi1", scene);
 	multimat1.subMaterials.push(material1);
@@ -412,6 +415,7 @@ $(document).ready(function () {
 			drawTextalign(dynamicTexture, objdata.name, align.name, textpos + fontsize.name, "bold "+fontsize.name+"px Arial", colors.name , "transparent", true);
 
 		var material = new BABYLON.StandardMaterial("TextPlaneMaterial", scene);
+		material.freeze();
 		material.backFaceCulling = false;
 		material.diffuseTexture = dynamicTexture;
 		material.diffuseTexture.vScale = objdata.options.height/texsize.height;
@@ -457,6 +461,7 @@ $(document).ready(function () {
 
 			var object = BABYLON.MeshBuilder.CreateBox(objdata.object_id, objdata.options, scene);
 
+
 			if( parent !== undefined)
 				object.parent = parent.object;
 
@@ -472,6 +477,8 @@ $(document).ready(function () {
 			object.subMeshes.push(new BABYLON.SubMesh(1,4,4,6,6, object )); // -z
 
 			}
+
+			object.convertToUnIndexedMesh();
 
 			if(parent.layout !== undefined)
 			{
@@ -741,6 +748,8 @@ $(document).ready(function () {
          camera.setTarget(new BABYLON.Vector3(0,0, (rowpos/2) * scale));
          return scene;
       }; // End of createScene function
+
+
       // -------------------------------------------------------------
       // Now, call the createScene function that you just finished creating
       var scene = createScene();
