@@ -68,7 +68,7 @@ function rack3dview_tabhandler()
 
 	if($debug)
 	{
-	rack3dview_display(array(15, 43, 704));
+	rack3dview_display(array(706));
 	//rack3dview_display(array(704));
 	return;
 	}
@@ -186,11 +186,13 @@ function rack3dview_display($racks)
 <!--   <script src="?module=chrome&uri=rack3dview/cannon.js"></script> --><!-- optional physics engine -->
 <!-- <script src="?module=chrome&uri=rack3dview/Oimo.js"></script>  New physics engine -->
    <canvas id="renderCanvas"></canvas>
+<div id="fpslabel" style="position:relative;"></div>
 <div id="debug" style="overflow: scroll;height:200px;width:100%"></div>
    <script type="text/javascript">
 
 	"use strict";
 
+	var fpslabel = $('#fpslabel')[0];
 	var rdata = null;
 $.ajax({
         type: "POST",
@@ -765,6 +767,7 @@ $(document).ready(function () {
       // Register a render loop to repeatedly render the scene
       engine.runRenderLoop(function () {
          scene.render();
+	fpslabel.innerHTML = engine.getFps().toFixed() + " fps";
       });
       // Watch for browser/canvas resize events
       window.addEventListener("resize", function () {
