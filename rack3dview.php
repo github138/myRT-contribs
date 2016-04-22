@@ -759,6 +759,9 @@ $(document).ready(function () {
       // -------------------------------------------------------------
       // Now, call the createScene function that you just finished creating
       var scene = createScene();
+
+      var octree = scene.createOrUpdateSelectionOctree()
+
       // Register a render loop to repeatedly render the scene
       engine.runRenderLoop(function () {
          scene.render();
