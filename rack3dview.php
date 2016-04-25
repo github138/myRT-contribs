@@ -591,7 +591,7 @@ $(document).ready(function () {
 			objdata.unit_height = 44.45;
 
 		if(objdata.height === undefined)
-			objdata.height = (objdata.maxunits == 47 ? 2200 : 2000);
+			objdata.height = (objdata.maxunits == 47 ? 2200 : objdata.maxunits == 42 ? 2000 : objdata.maxunits * objdata.unit_height);
 
 		if(objdata.width === undefined)
 			objdata.width = 800;
