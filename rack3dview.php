@@ -560,6 +560,9 @@ $(document).ready(function () {
 			var cols = parent.cols;
 			var slot = objdata.slot;
 
+			if(slot === null)
+				return;
+
 			objdata.unit = {
 					width: parent.unit.width / cols,
 					height: (parent.unit.height - parent.labelsize.height) / rows,
