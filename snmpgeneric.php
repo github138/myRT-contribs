@@ -815,6 +815,9 @@ function snmpgeneric_tabhandler($object_id) {
 			{
 				switch($value)
 				{
+					case "host":
+						$snmpvalues[$key + 1] = str_replace(':', '#', $_POST[$value]);
+						break;
 					case "auth_passphrase":
 					case "priv_passphrase":
 						$snmpvalues[$key + 1] = base64_encode($_POST[$value]);
@@ -992,6 +995,9 @@ function snmpgeneric_snmpconfig($object_id) {
 			{
 				switch($key)
 				{
+					case 1:
+						$snmpvalues[$value] = str_replace('#', ':', $snmpstrarray[$key]);
+						break;
 					case 6:
 					case 8:
 						$snmpvalues[$value] = base64_decode($snmpstrarray[$key]);
