@@ -229,7 +229,7 @@ function printlldp($object)
 
 			$result = usePreparedSelectBlade
 			(
-				'SELECT COUNT(*) FROM Link WHERE porta IN (?,?) OR portb IN (?,?)',
+				'SELECT COUNT(*) FROM Link WHERE porta IN (?,?) AND portb IN (?,?)',
 				array ($loc_ports[0]['id'], $rem_ports[0]['id'], $loc_ports[0]['id'], $rem_ports[0]['id'])
 			);
 			if ($result->fetchColumn () != 0)
@@ -237,6 +237,38 @@ function printlldp($object)
 				showWarning("Ports $loc_port_info $rem_port_info already linked");
 				$ret[$key]['descr'] = 'exists';
 				continue;
+			}
+			else
+			{
+				$result = usePreparedSelectBlade
+				(
+					'SELECT * FROM Link WHERE porta IN (?,?) OR portb IN (?,?)',
+					array ($loc_ports[0]['id'], $rem_ports[0]['id'], $loc_ports[0]['id'], $rem_ports[0]['id'])
+				);
+				$links = $result->fetchAll (PDO::FETCH_ASSOC);
+				if ( count ($links) != 0)
+				{
+
+					foreach ($links as $link)
+					{
+						switch (TRUE)
+						{
+							case $link['porta'] == $loc_ports[0]['id']:
+							case $link['portb'] == $loc_ports[0]['id']:
+								$linked = 'loc';
+								break;
+							case $link['porta'] == $rem_ports[0]['id']:
+							case $link['portb'] == $rem_ports[0]['id']:
+								$linked = 'rem';
+								break;
+						}
+
+						showWarning ($linked.' Port '.${$linked.'_port_info'}.' is already linked to a different port');
+					}
+
+					$ret[$key]['descr'] = 'different link';
+					continue;
+				}
 			}
 
 			$ret[$key]['link'] = '<input type=checkbox name='.$loc_ports[0]['id'].' value='.$rem_ports[0]['id'].'>';
