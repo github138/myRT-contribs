@@ -504,23 +504,22 @@ class sl_lldpsnmp extends SNMP
 		$lldpremsysname = $this->walk($oid_lldpremsysname, TRUE);
 		$lldpremsysdesc = $this->walk($oid_lldpremsysdesc, TRUE);
 
-		foreach ($lldpremchassisidsubtype as $oid => $subtype)
+		foreach ($lldpremchassisidsubtype as $key => $subtype)
 		{
 
-			$key = preg_replace('/^\d+\./', '', $oid);
-			$localportnum = preg_replace('/^(\d+)\..*/', '$1', $key);
+			$localportnum = preg_replace('/\d+\.(\d+)\.\d+$/', '$1', $key);
 
 			usePreparedInsertBlade('LLDPCache', array(
 						'object_id' => $object_id,
 						'src' => 'SNMP',
 						'location' => 'rem',
 						'chassisidsubtype' => $subtype,
-						'chassisid' => strnormalize($lldpremchassisid["0.$key"], 'chassis', $subtype),
-						'portidsubtype' => $lldpremportidsubtype["0.$key"],
-						'portid' => strnormalize($lldpremportid["0.$key"], 'port', $lldpremportidsubtype["0.$key"]),
-						'portdesc' => (isset($lldpremportdesc["0.$key"]) ? strnormalize ($lldpremportdesc["0.$key"]) : ''),
-						'sysname' => (isset($lldpremsysname["0.$key"]) ? strnormalize ($lldpremsysname["0.$key"]) : ''),
-						'sysdesc' => (isset($lldpremsysdesc["0.$key"]) ? strnormalize ($lldpremsysdesc["0.$key"]) : ''),
+						'chassisid' => strnormalize($lldpremchassisid[$key], 'chassis', $subtype),
+						'portidsubtype' => $lldpremportidsubtype[$key],
+						'portid' => strnormalize($lldpremportid[$key], 'port', $lldpremportidsubtype[$key]),
+						'portdesc' => (isset($lldpremportdesc[$key]) ? strnormalize ($lldpremportdesc[$key]) : ''),
+						'sysname' => (isset($lldpremsysname[$key]) ? strnormalize ($lldpremsysname[$key]) : ''),
+						'sysdesc' => (isset($lldpremsysdesc[$key]) ? strnormalize ($lldpremsysdesc[$key]) : ''),
 						'locportidsubtype' => $lldplocporttable["1.2.$localportnum"],
 						'locportid' => strnormalize($lldplocporttable["1.3.$localportnum"], 'port', $lldplocporttable["1.2.$localportnum"])
 						)
