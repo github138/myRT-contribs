@@ -508,13 +508,17 @@ class sl_lldpsnmp extends SNMP
 		{
 
 			$localportnum = preg_replace('/\d+\.(\d+)\.\d+$/', '$1', $key);
+			$chassisid = strnormalize($lldpremchassisid[$key], 'chassis', $subtype);
+
+			if (empty ($chassisid))
+				continue;
 
 			usePreparedInsertBlade('LLDPCache', array(
 						'object_id' => $object_id,
 						'src' => 'SNMP',
 						'location' => 'rem',
 						'chassisidsubtype' => $subtype,
-						'chassisid' => strnormalize($lldpremchassisid[$key], 'chassis', $subtype),
+						'chassisid' => $chassisid,
 						'portidsubtype' => $lldpremportidsubtype[$key],
 						'portid' => strnormalize($lldpremportid[$key], 'port', $lldpremportidsubtype[$key]),
 						'portdesc' => (isset($lldpremportdesc[$key]) ? strnormalize ($lldpremportdesc[$key]) : ''),
