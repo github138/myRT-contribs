@@ -17,6 +17,15 @@
  * (c)2017 Maik Ehinger <m.ehinger@ltur.de>
  */
 
+/*********
+ * TODO
+ *
+ * - CDP
+ * - remote address
+ * - better link checking (first-last port)
+ *
+ */
+
 /****
  * INSTALL
  * 	just place file in plugins directory
@@ -119,6 +128,7 @@ function printlldp($object)
 	$rows[] = array ('Chassis ID:', $loc['chassisid']);
 	$rows[] = array ('SysName:', $loc['sysname']);
 	$rows[] = array ('SysDesc:', $loc['sysdesc']);
+	$rows[] = array ('ManAddr:', $loc['manaddr']);
 	renderTableViewer($columns, $rows);
 	finishPortlet ();
 
@@ -477,6 +487,8 @@ class sl_lldpsnmp extends SNMP
 
 		$lldplocmanaddroid = $this->get (array ($oid_lldplocmanaddroid), FALSE);
 
+		$locmanaddr = preg_replace ('/.*?((\d+\.){3}\d+)$/', '$1', key ($lldplocmanaddroid));
+
 		// clear LLDP cache for object
 		usePreparedDeleteBlade('LLDPCache', array ('object_id' => $object_id, 'src' => 'SNMP'));
 
@@ -492,7 +504,8 @@ class sl_lldpsnmp extends SNMP
 						'chassisidsubtype' => $locchassisidsubtype,
 						'chassisid' => strnormalize($lldplocchassis[$oid_lldplocchassisid], 'chassis', $locchassisidsubtype),
 						'sysname' => strnormalize($lldplocchassis[$oid_lldplocsysname]),
-						'sysdesc' => strnormalize($lldplocchassis[$oid_lldplocsysdesc])
+						'sysdesc' => strnormalize($lldplocchassis[$oid_lldplocsysdesc]),
+						'manaddr' => $locmanaddr,
 						)
 		);
 
