@@ -284,6 +284,7 @@ function printlldp($object)
 			array ('row_key' => 'remote_name', 'th_text' => 'Remote Object Name'),
 			array ('row_key' => 'portid', 'th_text' => 'Remote Port Name'),
 			array ('row_key' => 'sysname', 'th_text' => 'Remote LLDP System'),
+			array ('row_key' => 'manaddr', 'th_text' => 'ManAddr'),
 			array ('row_key' => 'link', 'th_text' => 'Link', 'td_escape' => FALSE),
 			array ('row_key' => 'descr')
 		);
@@ -294,6 +295,7 @@ function printlldp($object)
 			'remote_name' => NULL,
 			'portid' => NULL,
 			'sysname' => NULL,
+			'manaddr' => NULL,
 			'link' => '<input type=submit value=Link>',
 			'descr' => NULL
 		);
@@ -500,7 +502,8 @@ class sl_lldpsnmp extends SNMP
 		$oid_lldpremportdesc =		'.1.0.8802.1.1.2.1.4.1.1.8.0';
 		$oid_lldpremsysname =		'.1.0.8802.1.1.2.1.4.1.1.9.0';
 		$oid_lldpremsysdesc =		'.1.0.8802.1.1.2.1.4.1.1.10.0';
-		//$oid_lldpremaddrtable =	'.1.0.8802.1.1.2.1.4.2';
+		//$oid_lldpremaddrtable =	'.1.0.8802.1.1.2.1.4.2'; // !! uses TimeFilter
+		$oid_lldpremmanaddrifsubtype=	'.1.0.8802.1.1.2.1.4.2.1.3.0';
 
 		// @ supprress warning
 		$lldplocchassis = @$this->get (array (
@@ -516,8 +519,7 @@ class sl_lldpsnmp extends SNMP
 			return;
 		}
 
-		$lldplocmanaddrtable = $this->walk (array ($oid_lldplocmanaddrtable), FALSE);
-
+		$lldplocmanaddrtable = $this->walk ($oid_lldplocmanaddrtable, FALSE);
 		$locmanaddr = preg_replace ('/.*?((\d+\.){3}\d+)$/', '$1', key ($lldplocmanaddrtable));
 
 		// clear LLDP cache for object
@@ -548,6 +550,14 @@ class sl_lldpsnmp extends SNMP
 		$lldpremsysname = $this->walk($oid_lldpremsysname, TRUE);
 		$lldpremsysdesc = $this->walk($oid_lldpremsysdesc, TRUE);
 
+		$lldpremmanaddrifsubtype = $this->walk ($oid_lldpremmanaddrifsubtype, FALSE);
+		$lldpremmanaddrs = array();
+		foreach ($lldpremmanaddrifsubtype as $key => $subtype)
+		{
+			preg_match('/\.(\d+\.\d+)\.\d+\.\d+\.((?:\d+\.){3}\d+)$/', $key, $matches);
+			$lldpremmanaddrs[$matches[1]] = $matches[2];
+		}
+
 		foreach ($lldpremchassisidsubtype as $key => $subtype)
 		{
 
@@ -556,6 +566,8 @@ class sl_lldpsnmp extends SNMP
 
 			if (empty ($chassisid))
 				continue;
+
+			$remmanaddr = isset ($lldpremmanaddrs[$key]) ? $lldpremmanaddrs[$key] : '';
 
 			usePreparedInsertBlade('LLDPCache', array(
 						'object_id' => $object_id,
@@ -569,7 +581,8 @@ class sl_lldpsnmp extends SNMP
 						'sysname' => (isset($lldpremsysname[$key]) ? strnormalize ($lldpremsysname[$key]) : ''),
 						'sysdesc' => (isset($lldpremsysdesc[$key]) ? strnormalize ($lldpremsysdesc[$key]) : ''),
 						'locportidsubtype' => $lldplocporttable["1.2.$localportnum"],
-						'locportid' => strnormalize($lldplocporttable["1.3.$localportnum"], 'port', $lldplocporttable["1.2.$localportnum"])
+						'locportid' => strnormalize($lldplocporttable["1.3.$localportnum"], 'port', $lldplocporttable["1.2.$localportnum"]),
+						'manaddr' => $remmanaddr
 						)
 			);
 		}
