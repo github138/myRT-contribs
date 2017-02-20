@@ -450,6 +450,7 @@ class sl_lldpsnmp extends SNMP
 
 		$this->quick_print = 1;
 		$this->oid_output_format = SNMP_OID_OUTPUT_NUMERIC;
+		$this->valueretrieval = SNMP_VALUE_LIBRARY;
 	}
 
 	/* lldp */
@@ -489,6 +490,7 @@ class sl_lldpsnmp extends SNMP
 				7 => 'local'
 				);
 
+		$oid_sysuptime =		'1.3.6.1.2.1.1.3.0';
 		//$oid_lldpmib =		'.1.0.8802.1.1.2'; //
 		$oid_lldpStatsRemTablesLastChangeTime =	'.1.0.8802.1.1.2.1.2.1.0';
 		$oid_lldplocchassisidsubtype =	'.1.0.8802.1.1.2.1.3.1.0';
@@ -511,7 +513,6 @@ class sl_lldpsnmp extends SNMP
 
 		// @ supprress warning
 		$lldplocchassis = @$this->get (array (
-							$oid_lldpStatsRemTablesLastChangeTime,
 							$oid_lldplocchassisidsubtype,
 							$oid_lldplocchassisid,
 							$oid_lldplocsysname,
@@ -547,9 +548,21 @@ class sl_lldpsnmp extends SNMP
 						)
 		);
 
-		$timemark = $lldplocchassis[$oid_lldpStatsRemTablesLastChangeTime];
+		$retrieval = $this->valueretrieval;
+		$this->valueretrieval = SNMP_VALUE_PLAIN;
+		$timemark = $this->get ($oid_lldpStatsRemTablesLastChangeTime, TRUE);
+		$this->valueretrieval = $retrieval;
 
-		$lldpremchassisidsubtype = $this->walk("$oid_lldpremchassisidsubtype.$timemark", TRUE); // TimeFilter
+		$lldpremchassisidsubtype = @$this->walk("$oid_lldpremchassisidsubtype.$timemark", TRUE); // TimeFilter
+
+		if (!$lldpremchassisidsubtype)
+		{
+			echo "Change TimeFilter from $timemark to 0!";
+			$timemark = 0;
+
+			$lldpremchassisidsubtype = $this->walk("$oid_lldpremchassisidsubtype.$timemark", TRUE); // TimeFilter
+		}
+
 		$lldpremchassisid = $this->walk("$oid_lldpremchassisid.$timemark", TRUE);
 		$lldpremportidsubtype = $this->walk("$oid_lldpremportidsubtype.$timemark", TRUE);
 		$lldpremportid = $this->walk("$oid_lldpremportid.$timemark", TRUE);
@@ -557,11 +570,13 @@ class sl_lldpsnmp extends SNMP
 		$lldpremsysname = $this->walk("$oid_lldpremsysname.$timemark", TRUE);
 		$lldpremsysdesc = $this->walk("$oid_lldpremsysdesc.$timemark", TRUE);
 
-		$lldpremmanaddrifsubtype = $this->walk ($oid_lldpremmanaddrifsubtype, FALSE);
+		$lldpremmanaddrifsubtype = $this->walk ("$oid_lldpremmanaddrifsubtype.$timemark", TRUE);
 		$lldpremmanaddrs = array();
-		foreach ($lldpremmanaddrifsubtype as $key => $subtype)
+		foreach ($lldpremmanaddrifsubtype as $oid => $subtype)
 		{
-			preg_match('/\.(\d+\.\d+)\.\d+\.\d+\.((?:\d+\.){3}\d+)$/', $key, $matches);
+			// .remlocalportnum.remindex.remmanaddrsubtype.?addrlen?.remmanaddr
+			// http://www.iana.org/assignments/address-family-numbers/address-family-numbers.xhtml
+			preg_match('/(\d+\.\d+)\.\d+\.\d+\.((?:\d+\.){3}\d+)$/', $oid, $matches);
 			$lldpremmanaddrs[$matches[1]] = $matches[2];
 		}
 
