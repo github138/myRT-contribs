@@ -73,15 +73,14 @@ function snmplldp_tabtrigger() {
 
 function snmplldp_tabhandler($object_id)
 {
+	$debug = isset ($_REQUEST['debug']) ? genericAssertion ('debug', 'uint0') : 0;
 
-	if(isset($_GET['debug']))
-		$debug = $_GET['debug'];
-	else
-		$debug = 0;
+	$refresh = isset ($_REQUEST['refresh']) ? genericAssertion ('refresh', 'uint0') : 0;
 
 	$object = spotEntity('object', $object_id);
 
-	lldp_getsnmp($object, $debug);
+	if ($refresh)
+		lldp_getsnmp($object, $debug);
 
 	printlldp($object);
 
@@ -117,6 +116,10 @@ function printlldp($object)
 		return FALSE;
 
 	startPortlet ("Local LLDP Data");
+	echo '<p><form method=post>'; // action='.makeHrefProcess (array ('page' => 'object', 'tab' => 'snmplldp')).'>';
+	echo '<button type=submit value=1 name=refresh>Refresh LLDP Cache</button>';
+	echo '</from></p>';
+
 	// local lldp data
 	$loc = array_shift ($ret);
 
