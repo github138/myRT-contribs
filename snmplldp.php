@@ -490,17 +490,16 @@ class sl_lldpsnmp extends SNMP
 		$oid_lldplocsysname =		'.1.0.8802.1.1.2.1.3.3.0';
 		$oid_lldplocsysdesc =		'.1.0.8802.1.1.2.1.3.4.0';
 		$oid_lldplocporttable =		'.1.0.8802.1.1.2.1.3.7';
-		//$oid_lldplocmanaddrtable =	'.1.0.8802.1.1.2.1.3.8';
-		$oid_lldplocmanaddroid =	'.1.0.8802.1.1.2.1.3.8.1.6.0';
+		$oid_lldplocmanaddrtable =	'.1.0.8802.1.1.2.1.3.8';
 
-		//$oid_lldpremtable =		'.1.0.8802.1.1.2.1.4.1';
+		//$oid_lldpremtable =		'.1.0.8802.1.1.2.1.4.1'; // !! uses TimeFilter
 		$oid_lldpremchassisidsubtype =	'.1.0.8802.1.1.2.1.4.1.1.4';
-		$oid_lldpremchassisid =		'.1.0.8802.1.1.2.1.4.1.1.5';
-		$oid_lldpremportidsubtype =	'.1.0.8802.1.1.2.1.4.1.1.6';
-		$oid_lldpremportid =		'.1.0.8802.1.1.2.1.4.1.1.7';
-		$oid_lldpremportdesc =		'.1.0.8802.1.1.2.1.4.1.1.8';
-		$oid_lldpremsysname =		'.1.0.8802.1.1.2.1.4.1.1.9';
-		$oid_lldpremsysdesc =		'.1.0.8802.1.1.2.1.4.1.1.10';
+		$oid_lldpremchassisid =		'.1.0.8802.1.1.2.1.4.1.1.5.0';
+		$oid_lldpremportidsubtype =	'.1.0.8802.1.1.2.1.4.1.1.6.0';
+		$oid_lldpremportid =		'.1.0.8802.1.1.2.1.4.1.1.7.0';
+		$oid_lldpremportdesc =		'.1.0.8802.1.1.2.1.4.1.1.8.0';
+		$oid_lldpremsysname =		'.1.0.8802.1.1.2.1.4.1.1.9.0';
+		$oid_lldpremsysdesc =		'.1.0.8802.1.1.2.1.4.1.1.10.0';
 		//$oid_lldpremaddrtable =	'.1.0.8802.1.1.2.1.4.2';
 
 		// @ supprress warning
@@ -517,9 +516,9 @@ class sl_lldpsnmp extends SNMP
 			return;
 		}
 
-		$lldplocmanaddroid = $this->get (array ($oid_lldplocmanaddroid), FALSE);
+		$lldplocmanaddrtable = $this->walk (array ($oid_lldplocmanaddrtable), FALSE);
 
-		$locmanaddr = preg_replace ('/.*?((\d+\.){3}\d+)$/', '$1', key ($lldplocmanaddroid));
+		$locmanaddr = preg_replace ('/.*?((\d+\.){3}\d+)$/', '$1', key ($lldplocmanaddrtable));
 
 		// clear LLDP cache for object
 		usePreparedDeleteBlade('LLDPCache', array ('object_id' => $object_id, 'src' => 'SNMP'));
@@ -541,7 +540,7 @@ class sl_lldpsnmp extends SNMP
 						)
 		);
 
-		$lldpremchassisidsubtype = $this->walk($oid_lldpremchassisidsubtype, TRUE);
+		$lldpremchassisidsubtype = $this->walk("$oid_lldpremchassisidsubtype.0", TRUE); // TimeFilter
 		$lldpremchassisid = $this->walk($oid_lldpremchassisid, TRUE);
 		$lldpremportidsubtype = $this->walk($oid_lldpremportidsubtype, TRUE);
 		$lldpremportid = $this->walk($oid_lldpremportid, TRUE);
@@ -552,7 +551,7 @@ class sl_lldpsnmp extends SNMP
 		foreach ($lldpremchassisidsubtype as $key => $subtype)
 		{
 
-			$localportnum = preg_replace('/\d+\.(\d+)\.\d+$/', '$1', $key);
+			$localportnum = preg_replace('/(\d+)\.\d+$/', '$1', $key);
 			$chassisid = strnormalize($lldpremchassisid[$key], 'chassis', $subtype);
 
 			if (empty ($chassisid))
