@@ -487,6 +487,7 @@ class sl_lldpsnmp extends SNMP
 				);
 
 		//$oid_lldpmib =		'.1.0.8802.1.1.2'; //
+		$oid_lldpStatsRemTablesLastChangeTime =	'.1.0.8802.1.1.2.1.2.1.0';
 		$oid_lldplocchassisidsubtype =	'.1.0.8802.1.1.2.1.3.1.0';
 		$oid_lldplocchassisid =		'1.0.8802.1.1.2.1.3.2.0';
 		$oid_lldplocsysname =		'.1.0.8802.1.1.2.1.3.3.0';
@@ -496,17 +497,18 @@ class sl_lldpsnmp extends SNMP
 
 		//$oid_lldpremtable =		'.1.0.8802.1.1.2.1.4.1'; // !! uses TimeFilter
 		$oid_lldpremchassisidsubtype =	'.1.0.8802.1.1.2.1.4.1.1.4';
-		$oid_lldpremchassisid =		'.1.0.8802.1.1.2.1.4.1.1.5.0';
-		$oid_lldpremportidsubtype =	'.1.0.8802.1.1.2.1.4.1.1.6.0';
-		$oid_lldpremportid =		'.1.0.8802.1.1.2.1.4.1.1.7.0';
-		$oid_lldpremportdesc =		'.1.0.8802.1.1.2.1.4.1.1.8.0';
-		$oid_lldpremsysname =		'.1.0.8802.1.1.2.1.4.1.1.9.0';
-		$oid_lldpremsysdesc =		'.1.0.8802.1.1.2.1.4.1.1.10.0';
+		$oid_lldpremchassisid =		'.1.0.8802.1.1.2.1.4.1.1.5';
+		$oid_lldpremportidsubtype =	'.1.0.8802.1.1.2.1.4.1.1.6';
+		$oid_lldpremportid =		'.1.0.8802.1.1.2.1.4.1.1.7';
+		$oid_lldpremportdesc =		'.1.0.8802.1.1.2.1.4.1.1.8';
+		$oid_lldpremsysname =		'.1.0.8802.1.1.2.1.4.1.1.9';
+		$oid_lldpremsysdesc =		'.1.0.8802.1.1.2.1.4.1.1.10';
 		//$oid_lldpremaddrtable =	'.1.0.8802.1.1.2.1.4.2'; // !! uses TimeFilter
-		$oid_lldpremmanaddrifsubtype=	'.1.0.8802.1.1.2.1.4.2.1.3.0';
+		$oid_lldpremmanaddrifsubtype=	'.1.0.8802.1.1.2.1.4.2.1.3';
 
 		// @ supprress warning
 		$lldplocchassis = @$this->get (array (
+							$oid_lldpStatsRemTablesLastChangeTime,
 							$oid_lldplocchassisidsubtype,
 							$oid_lldplocchassisid,
 							$oid_lldplocsysname,
@@ -542,13 +544,15 @@ class sl_lldpsnmp extends SNMP
 						)
 		);
 
-		$lldpremchassisidsubtype = $this->walk("$oid_lldpremchassisidsubtype.0", TRUE); // TimeFilter
-		$lldpremchassisid = $this->walk($oid_lldpremchassisid, TRUE);
-		$lldpremportidsubtype = $this->walk($oid_lldpremportidsubtype, TRUE);
-		$lldpremportid = $this->walk($oid_lldpremportid, TRUE);
-		$lldpremportdesc = $this->walk($oid_lldpremportdesc, TRUE);
-		$lldpremsysname = $this->walk($oid_lldpremsysname, TRUE);
-		$lldpremsysdesc = $this->walk($oid_lldpremsysdesc, TRUE);
+		$timemark = $lldplocchassis[$oid_lldpStatsRemTablesLastChangeTime];
+
+		$lldpremchassisidsubtype = $this->walk("$oid_lldpremchassisidsubtype.$timemark", TRUE); // TimeFilter
+		$lldpremchassisid = $this->walk("$oid_lldpremchassisid.$timemark", TRUE);
+		$lldpremportidsubtype = $this->walk("$oid_lldpremportidsubtype.$timemark", TRUE);
+		$lldpremportid = $this->walk("$oid_lldpremportid.$timemark", TRUE);
+		$lldpremportdesc = $this->walk("$oid_lldpremportdesc.$timemark", TRUE);
+		$lldpremsysname = $this->walk("$oid_lldpremsysname.$timemark", TRUE);
+		$lldpremsysdesc = $this->walk("$oid_lldpremsysdesc.$timemark", TRUE);
 
 		$lldpremmanaddrifsubtype = $this->walk ($oid_lldpremmanaddrifsubtype, FALSE);
 		$lldpremmanaddrs = array();
