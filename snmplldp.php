@@ -21,7 +21,7 @@
  * TODO
  *
  * - CDP
- * - remote address
+ * - detect links by remote address and port name
  * - better link checking (first-last port)
  *
  */
@@ -151,9 +151,33 @@ function printlldp($object)
 		$ret[$key]['remote_name'] = NULL;
 		$ret[$key]['link'] = NULL;
 		$ret[$key]['descr'] = NULL;
+		$ret[$key]['RT'] = NULL;
+
+		if (!$remotes)
+		{
+			showWarning("Chassis ${rem['chassisid']} not found");
+
+			if ($rem['manaddr'])
+			{
+				/* search links by remmanaddr and remportid */
+				$ip = getIPAddress (ip_parse ($rem['manaddr']));
+
+				if (isset ($ip['allocs'][0]))
+				{
+					if ($ip['allocs'][0]['object_id'])
+						$remotes[] = array ('object_id' => $ip['allocs'][0]['object_id']);
+
+					showWarning('Found Object "'.$ip['allocs'][0]['object_name'].'" for Chassis "'.$rem['chassisid'].'" by IP '.$rem['manaddr']);
+					$ret[$key]['RT'] = 'via manaddr';
+				}
+			}
+		}
 
 		foreach ($remotes as $chassis)
 		{
+			if (!isset ($ret[$key]['RT']))
+				$ret[$key]['RT'] = 'via LLDP chassisid';
+
 			$remote_object = spotEntity('object', $chassis['object_id']);
 			$ret[$key]['remote_name'] = $remote_object['name'];
 
@@ -274,6 +298,8 @@ function printlldp($object)
 				}
 			}
 
+
+
 			$ret[$key]['link'] = '<input type=checkbox name='.$loc_ports[0]['id'].' value='.$rem_ports[0]['id'].'>';
 			$ret[$key]['descr'] = 'linkable';
 
@@ -289,7 +315,8 @@ function printlldp($object)
 			array ('row_key' => 'sysname', 'th_text' => 'Remote LLDP System'),
 			array ('row_key' => 'manaddr', 'th_text' => 'ManAddr'),
 			array ('row_key' => 'link', 'th_text' => 'Link', 'td_escape' => FALSE),
-			array ('row_key' => 'descr')
+			array ('row_key' => 'descr'),
+			array ('row_key' => 'RT')
 		);
 
 	$ret[] = array (
@@ -300,7 +327,8 @@ function printlldp($object)
 			'sysname' => NULL,
 			'manaddr' => NULL,
 			'link' => '<input type=submit value=Link>',
-			'descr' => NULL
+			'descr' => NULL,
+			'RT' => NULL
 		);
 
 	startPortlet ("Remote LLDP Data");
