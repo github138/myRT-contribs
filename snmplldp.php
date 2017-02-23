@@ -118,7 +118,7 @@ function printlldp($object)
 	startPortlet ("Local LLDP Data");
 	echo '<p><form method=post>'; // action='.makeHrefProcess (array ('page' => 'object', 'tab' => 'snmplldp')).'>';
 	echo '<button type=submit value=1 name=refresh>Refresh LLDP Cache</button>';
-	echo '</from></p>';
+	echo '</form></p>';
 
 	// local lldp data
 	$loc = array_shift ($ret);
