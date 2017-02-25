@@ -2224,6 +2224,17 @@ function guessRToif_id($ifType,$ifDescr = NULL) {
 }
 
 /* --------------------------------------------------- */
+function sg_alreadyUsedL2Address ($address, $my_object_id)
+{
+        $result = usePreparedSelectBlade
+        (
+                'SELECT COUNT(*) FROM Port WHERE l2address = ? AND BINARY l2address = ? AND object_id != ?',
+                array ($address, $address, $my_object_id)
+        );
+        $row = $result->fetch (PDO::FETCH_NUM);
+        return $row[0] != 0;
+}
+
 
 function sg_commitUpdatePortl2address($object_id, $port_id, $port_l2address)
 {
@@ -2231,7 +2242,7 @@ function sg_commitUpdatePortl2address($object_id, $port_id, $port_l2address)
 
         global $dbxlink;
         $dbxlink->exec ('LOCK TABLES Port WRITE');
-        if (alreadyUsedL2Address ($db_l2address, $object_id))
+        if (sg_alreadyUsedL2Address ($db_l2address, $object_id))
         {
                 $dbxlink->exec ('UNLOCK TABLES');
                 // FIXME: it is more correct to throw InvalidArgException here
