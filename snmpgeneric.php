@@ -2260,7 +2260,7 @@ function snmpgeneric_processForm (&$data, $object)
 					'<input'.(!$action ? ' disabled="disabled"' : '').' readonly="readonly" type="text" size="15" name="ports['.$port['ifIndex'].'][ifDescr]" value="'.$port['ifDescr'].'">';
 
 		$data['ports'][$key]['ifAliascolumn'] =
-					'<input'.(!$action ? ' disabled="disabled"' : '').(empty ($port['ifAlias']) ? ' readonly="readonly"' : '').' type="text" size="15" name="ports['.$port['ifIndex'].'][ifAlias]" value="'.$port['ifAlias'].'">';
+					'<input'.(!$port['labelupdate'] && !$port['create'] ? ' disabled="disabled"' : '').' type="text" size="15" name="ports['.$port['ifIndex'].'][ifAlias]" value="'.$port['ifAlias'].'">';
 
 
 		$speed = $port['ifSpeed'];
