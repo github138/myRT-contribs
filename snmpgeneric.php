@@ -1921,7 +1921,7 @@ function snmpgeneric_process (&$data, &$object, &$snmpdev)
 		$data['sysObjectID']['port'][$name]['create'] = SG_BOX_CHECK;
 
 		if (array_key_exists (strtolower ($name),$object['ports']))
-			$data['sysObjectID']['port'][$name]['create'] = SG_BOX_UNCHECK;
+			$data['sysObjectID']['port'][$name]['create'] = SG_BOX_PROBLEM;
 
 		$comment = array ();
 
@@ -2192,17 +2192,18 @@ function snmpgeneric_processForm (&$data, $object)
 	/* vendor ports */
 	foreach ($data['sysObjectID']['port'] as $name => $port)
 	{
+		// TODO update ?
 
 		$data['sysObjectID']['port'][$name]['boxcolumn'] =
 			'<b style="background-color:'.($port['create'] & SG_BOX_PROBLEM ? '#ff0000' : '#00ff00')
 			.'"><input style="background-color:'.($port['create'] & SG_BOX_PROBLEM ? '#ff0000' : '#00ff00')
 			.'" class="moreport" type="checkbox" name="sysObjectID[port][vendor_'.$name.'][create]" value="'.SG_BOX_CHECK.'"'
-			.(!$port['create'] ? ' disabled="disabled"' : ($port['create'] & SG_BOX_CHECK ? 'checked="checked"' : '')).'></b>'
+			.($port['create'] & SG_BOX_PROBLEM ? ' disabled="disabled"' : ($port['create'] & SG_BOX_CHECK ? 'checked="checked"' : '')).'></b>'
 			.'<input type="hidden" name="sysObjectID[port][vendor_'.$name.'][ifName]" value="'.$name.'">';
 
 		// label ?
 
-		if (0 && isset ($port['exists']))
+		if ($port['create'] & SG_BOX_PROBLEM)
 		{
 			$disabledselect = array ('disabled' => "disabled");
 		} else
