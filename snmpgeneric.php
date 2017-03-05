@@ -1,8 +1,10 @@
 <?php
-
 /********************************************
  *
- * RackTables 0.20.x snmpgeneric extension
+ * RackTables 0.20.x snmpgeneric extension v0.1
+ *
+ * needs PHP 5 >= 5.4.0 (SNMP Class)
+ *
  *
  *	sync an RackTables object with an SNMP device.
  *
@@ -21,8 +23,9 @@
  *		- create networks
  *		- create ports
  *		- add and bind ip addresses
- *		- create as new object
+ *		- create new objects
  *		- save snmp settings per object (uses comment field)
+ *		- scriptable (e.g. crontab)
  *
  *	Known to work with:
  *		- Enterasys SecureStacks, S-Series
@@ -41,12 +44,10 @@
  *		7. repeat step 1. to 6. as often as you like / need
  *
  *
- * needs PHP 5
+ * TESTED on FreeBSD 10.3, nginx/1.8.0, php 7, NET-SNMP 5.7.3
+ *	and RackTables 0.20.12
  *
- * TESTED on FreeBSD 9.0, nginx/1.0.12, php 5.3.10, NET-SNMP 5.7.1
- *	and RackTables <= 0.20.3
- *
- * (c)2015 Maik Ehinger <m.ehinger@ltur.de>
+ * (c)2017 Maik Ehinger <m.ehinger@ltur.de>
  */
 
 /****
@@ -56,6 +57,16 @@
  *	Increase max_input_vars in php.ini if not all ports were added on one run.
  *
  */
+
+/***************************
+ * Change Log
+ *
+ *	v0.1	restructure plugin
+ *		scriptable
+ *		use PHP SNMP Class
+ *		use more RackTables functions
+ *
+ ***************************/
 
 /**
  * The newest version of this plugin can be found at:
@@ -75,14 +86,24 @@
  *  - set more Object attributs / fields
  *
  *  - Input variables exceeded 1000
- *  - update iftypes
  *
  */
 
 /* RackTables Debug Mode */
 //$debug_mode=1;
 
-require_once('inc/snmp.php');
+if (php_sapi_name () == 'cli')
+{
+	$script_mode = true;
+
+	session_start ();
+        session_write_close ();
+
+	require_once ('inc/init.php');
+	require_once ('inc/interface.php'); // renderTableViewer
+}
+
+require_once ('inc/snmp.php');
 
 $tab['object']['snmpgeneric'] = 'SNMP Generic sync';
 $tabhandler['object']['snmpgeneric'] = 'snmpgeneric_tabhandler';
@@ -97,7 +118,7 @@ $sg_cmd_snmptranslate = '/usr/local/bin/snmptranslate';
 $sg_create_noconnector_ports = FALSE;
 
 /* deselect add port for this snmp port types */
-$sg_ifType_ignore = array(
+$sg_ifType_ignore = array (
 	  '1',	/* other */
 	 '24',	/* softwareLoopback */
 	 '23',	/* ppp */
@@ -112,7 +133,7 @@ $sg_ifType_ignore = array(
 );
 
 /* ifType to RT oif_id mapping */
-$sg_ifType2oif_id = array(
+$sg_ifType2oif_id = array (
 	/* 440 causes SQLSTATE[23000]: Integrity constraint violation:
 	 *				1452 Cannot add or update a child row:
 	 *					a foreign key constraint fails
@@ -141,21 +162,21 @@ $sg_known_sysObjectIDs = array
 	'default' => array
 	(
 	//	'text' => 'default',
-		'pf' => array('snmpgeneric_pf_entitymib'),
+		'pf' => array ('snmpgeneric_pf_entitymib'),
 		'attr' => array
 		(
-			 2 => array('pf' => 'snmpgeneric_pf_hwtype'),					/* HW Typ*/
-			 3 => array('oid' => 'sysName.0'),
+			 2 => array ('pf' => 'snmpgeneric_pf_hwtype'),					/* HW Typ*/
+			 3 => array ('oid' => 'sysName.0'),
 				/* FQDN check only if regex matches */
-			 //3 => array('oid' => 'sysName.0', 'regex' => '/^[^ .]+(\.[^ .]+)+\.?/', 'uncheck' => 'no FQDN'),
-			 4 => array('pf' => 'snmpgeneric_pf_swtype', 'uncheck' => 'experimental'),	/* SW type */
-			 14 => array('oid' => 'sysContact.0'),						/* Contact person */
-			// 1235 => array('value' => 'Constant'),
+			 //3 => array ('oid' => 'sysName.0', 'regex' => '/^[^ .]+(\.[^ .]+)+\.?/', 'uncheck' => 'no FQDN'),
+			 4 => array ('pf' => 'snmpgeneric_pf_swtype', 'uncheck' => 'experimental'),	/* SW type */
+			 14 => array ('oid' => 'sysContact.0'),						/* Contact person */
+			// 1235 => array ('value' => 'Constant'),
 		),
 		'port' => array
 		(
-			// 'AC-in' => array('porttypeid' => '1-16', 'uncheck' => 'uncheck reason/comment'),
-			// 'name' => array('porttypeid' => '1-24', 'ifDescr' => 'visible label'),
+			// 'AC-in' => array ('porttypeid' => '1-16', 'uncheck' => 'uncheck reason/comment'),
+			// 'name' => array ('porttypeid' => '1-24', 'ifDescr' => 'visible label'),
 		),
 	),
 
@@ -168,9 +189,9 @@ $sg_known_sysObjectIDs = array
 	'9.1' => array
 	(
 		'text' => 'ciscoProducts',
-		'attr' => array(
-				4 => array('pf' => 'snmpgeneric_pf_catalyst'), /* SW type/version */
-				16 => array('pf' => 'snmpgeneric_pf_ciscoflash'), /*  flash memory */
+		'attr' => array (
+				4 => array ('pf' => 'snmpgeneric_pf_catalyst'), /* SW type/version */
+				16 => array ('pf' => 'snmpgeneric_pf_ciscoflash'), /*  flash memory */
 
 				),
 
@@ -179,16 +200,16 @@ $sg_known_sysObjectIDs = array
 	'311' => array
 	(
 		'text' => 'Microsoft',
-		'attr' => array(
-				4 => array('pf' => 'snmpgeneric_pf_swtype', 'oid' => 'sysDescr.0', 'regex' => '/.* Windows Version (.*?) .*/', 'replacement' => 'Windows \\1', 'uncheck' => 'TODO RT matching'), /*SW type */
+		'attr' => array (
+				4 => array ('pf' => 'snmpgeneric_pf_swtype', 'oid' => 'sysDescr.0', 'regex' => '/.* Windows Version (.*?) .*/', 'replacement' => 'Windows \\1', 'uncheck' => 'TODO RT matching'), /*SW type */
 				),
 	),
 	/* ------------ Enterasys --------------- */
 	'5624' => array
 	(
 		'text' => 'Enterasys',
-		'attr' => array(
-				4 => array('pf' => 'snmpgeneric_pf_enterasys'), /* SW type/version */
+		'attr' => array (
+				4 => array ('pf' => 'snmpgeneric_pf_enterasys'), /* SW type/version */
 				),
 	),
 
@@ -267,7 +288,7 @@ $sg_known_sysObjectIDs = array
 	(
 		'text' => 'net-snmp',
 		'attr' => array(
-				4 => array('pf' => 'snmpgeneric_pf_swtype', 'oid' => 'sysDescr.0', 'regex' => '/(.*?) .*? (.*?) .*/', 'replacement' => '\\1 \\2', 'uncheck' => 'TODO RT matching'), /*SW type */
+				4 => array ('pf' => 'snmpgeneric_pf_swtype', 'oid' => 'sysDescr.0', 'regex' => '/(.*?) .*? (.*?) .*/', 'replacement' => '\\1 \\2', 'uncheck' => 'TODO RT matching'), /*SW type */
 				),
 	),
 
@@ -275,8 +296,8 @@ $sg_known_sysObjectIDs = array
 	'12325' => array
 	(
 		'text' => 'Fraunhofer FOKUS',
-		'attr' => array(
-				4 => array('pf' => 'snmpgeneric_pf_swtype', 'oid' => 'sysDescr.0', 'regex' => '/.*? .*? (.*? .*).*/', 'replacement' => '\\1', 'uncheck' => 'TODO RT matching'), /*SW type */
+		'attr' => array (
+				4 => array ('pf' => 'snmpgeneric_pf_swtype', 'oid' => 'sysDescr.0', 'regex' => '/.*? .*? (.*? .*).*/', 'replacement' => '\\1', 'uncheck' => 'TODO RT matching'), /*SW type */
 				),
 	),
 
@@ -293,20 +314,21 @@ $sg_known_sysObjectIDs = array
 /*
  * Sample Precessing Function (pf)
  */
-function snmpgeneric_pf_sample(&$snmp, &$sysObjectID, $attr_id) {
+function snmpgeneric_pf_sample (&$snmp, &$sysObjectID, $attr_id)
+{
 
 	$object = &$sysObjectID['object'];
 	$attr = &$sysObjectID['attr'][$attr_id];
 
-	if(!isset($attr['oid']))
+	if (!isset ($attr['oid']))
 		return;
 
 	/* output success banner */
-	showSuccess('Found sysObjectID '.$sysObjectID['value']);
+	showSuccess ('Found sysObjectID '.$sysObjectID['value']);
 
 	/* access attribute oid setting and do snmpget */
 	$oid = $attr['oid'];
-	$value = $snmp->get($oid);
+	$value = $snmp->get ($oid);
 
 	/* set new attribute value */
 	$attr['value'] = $value;
@@ -318,7 +340,7 @@ function snmpgeneric_pf_sample(&$snmp, &$sysObjectID, $attr_id) {
 	$attr['comment'] = "comment";
 
 	/* add additional ports */
- //	$sysObjectID['port']['name'] = array('porttypeid' => '1-24', 'ifPhysAddress' => '001122334455', 'ifDescr' => 'visible label', 'uncheck' => 'comment', 'disabled' => 'porttypeid select disabled');
+ //	$sysObjectID['port']['name'] = array ('porttypeid' => '1-24', 'ifPhysAddress' => '001122334455', 'ifDescr' => 'visible label', 'uncheck' => 'comment', 'disabled' => 'porttypeid select disabled');
 
 	/* set other attribute */
 //	$sysObjectID['attr'][1234]['value'] = 'attribute value';
@@ -327,17 +349,19 @@ function snmpgeneric_pf_sample(&$snmp, &$sysObjectID, $attr_id) {
 
 /* ------------ Enterasys --------------- */
 
-function snmpgeneric_pf_enterasys(&$snmp, &$sysObjectID, $attr_id) {
+function snmpgeneric_pf_enterasys (&$snmp, &$sysObjectID, $attr_id)
+{
 
 		$attrs = &$sysObjectID['attr'];
 
-		//snmpgeneric_pf_entitymib($snmp, $sysObjectID, $attr_id);
+		//snmpgeneric_pf_entitymib ($snmp, $sysObjectID, $attr_id);
 
 		/* TODO find correct way to get Bootroom and Firmware versions */
 
 		/* Model */
-		/*if(preg_match('/.*\.([^.]+)$/', $sysObjectID['value'], $matches)) {
-		 *	showNotice('Device '.$matches[1]);
+		/*if (preg_match ('/.*\.([^.]+)$/', $sysObjectID['value'], $matches))
+		 *{
+		 *	showNotice ('Device '.$matches[1]);
 		 *}
 		 */
 
@@ -346,32 +370,36 @@ function snmpgeneric_pf_enterasys(&$snmp, &$sysObjectID, $attr_id) {
 		$attrs[4]['key'] = '0'; /* SW type dict key 0 = NOT SET*/
 
 		/* set SW version only if not already set by entitymib */
-		if(isset($attrs[5]['value']) && !empty($attrs[5]['value'])) {
+		if (isset ($attrs[5]['value']) && !empty ($attrs[5]['value']))
+		{
 
 			/* SW version from sysDescr */
-			if(preg_match('/^Enterasys .* Inc\. (.+) [Rr]ev ([^ ]+) ?(.*)$/', $snmp->sysDescr, $matches)) {
+			if (preg_match ('/^Enterasys .* Inc\. (.+) [Rr]ev ([^ ]+) ?(.*)$/', $snmp->get ('sysDescr.0'), $matches))
+			{
 
 				$attrs[5]['value'] = $matches[2]; /* SW version */
 
-			//	showSuccess("Found Enterasys Model ".$matches[1]);
+			//	showSuccess ("Found Enterasys Model ".$matches[1]);
 			}
 
 		} /* SW version */
 
 		/* add serial port */
-		//$sysObjectID['port']['console'] = array('porttypeid' => '1-29',  'ifDescr' => 'console', 'disabled' => 'disabled');
+		//$sysObjectID['port']['console'] = array ('porttypeid' => '1-29',  'ifDescr' => 'console', 'disabled' => 'disabled');
 
 }
 
 /* ------------ Cisco --------------- */
 
 /* logic from snmp.php */
-function snmpgeneric_pf_catalyst(&$snmp, &$sysObjectID, $attr_id) {
+function snmpgeneric_pf_catalyst (&$snmp, &$sysObjectID, $attr_id)
+{
 		$attrs = &$sysObjectID['attr'];
 		$ports = &$sysObjectID['port'];
 
 		/* sysDescr multiline on C5200 */
-                if(preg_match ('/.*, Version ([^ ]+), .*/', $snmp->sysDescr, $matches)) {
+                if (preg_match ('/.*, Version ([^ ]+), .*/', $snmp->sysDescr, $matches))
+		{
 			$exact_release = $matches[1];
 		$major_line = preg_replace ('/^([[:digit:]]+\.[[:digit:]]+)[^[:digit:]].*/', '\\1', $exact_release);
 
@@ -396,21 +424,22 @@ function snmpgeneric_pf_catalyst(&$snmp, &$sysObjectID, $attr_id) {
                 if ($sysChassi !== FALSE or $sysChassi !== NULL)
 			$attrs[1]['value'] = str_replace ('"', '', $sysChassi);
 
-		$ports['con0'] = array('porttypeid' => '1-29',  'ifDescr' => 'console'); // RJ-45 RS-232 console
+		$ports['con0'] = array ('porttypeid' => '1-29',  'ifDescr' => 'console'); // RJ-45 RS-232 console
 
 		if (preg_match ('/Cisco IOS Software, C2600/', $snmp->sysDescr))
-			$ports['aux0'] = array('porttypeid' => '1-29', 'ifDescr' => 'auxillary'); // RJ-45 RS-232 aux port
+			$ports['aux0'] = array ('porttypeid' => '1-29', 'ifDescr' => 'auxillary'); // RJ-45 RS-232 aux port
 
                 // blade devices are powered through internal circuitry of chassis
                 if ($sysObjectID['value'] != '9.1.749' and $sysObjectID['value'] != '9.1.920')
-                {
-			$ports['AC-in'] = array('porttypeid' => '1-16');
-                }
+		{
+			$ports['AC-in'] = array ('porttypeid' => '1-16');
+		}
 
 } /* snmpgeneric_pf_catalyst */
 
 /* -------------------------------------------------- */
-function snmpgeneric_pf_ciscoflash(&$snmp, &$sysObjectID, $attr_id) {
+function snmpgeneric_pf_ciscoflash (&$snmp, &$sysObjectID, $attr_id)
+{
 	/*
 	 * ciscoflashMIB = 1.3.6.1.4.1.9.9.10
 	 */
@@ -419,23 +448,24 @@ function snmpgeneric_pf_ciscoflash(&$snmp, &$sysObjectID, $attr_id) {
 	*/
 	$attrs = &$sysObjectID['attr'];
 
-	$ciscoflash = $snmp->walk('1.3.6.1.4.1.9.9.10.1.1.2'); /* ciscoFlashDeviceTable */
+	$ciscoflash = $snmp->walk ('1.3.6.1.4.1.9.9.10.1.1.2'); /* ciscoFlashDeviceTable */
 
-	if(!$ciscoflash)
+	if (!$ciscoflash)
 		return;
 
-	$flash = array_keys($ciscoflash, 'flash');
+	$flash = array_keys ($ciscoflash, 'flash');
 
-	foreach($flash as $oid) {
-		if(!preg_match('/(.*)?\.[^\.]+\.([^\.]+)$/',$oid,$matches))
+	foreach ($flash as $oid)
+	{
+		if (!preg_match ('/(.*)?\.[^\.]+\.([^\.]+)$/',$oid,$matches))
 			continue;
 
 		$index = $matches[2];
 		$prefix = $matches[1];
 
-		showSuccess("Found Flash: ".$ciscoflash[$prefix.'.8.'.$index]." ".$ciscoflash[$prefix.'.2.'.$index]." bytes");
+		showSuccess ("Found Flash: ".$ciscoflash[$prefix.'.8.'.$index]." ".$ciscoflash[$prefix.'.2.'.$index]." bytes");
 
-		$attrs[16]['value'] = ceil($ciscoflash[$prefix.'.2.'.$index] / 1024 / 1024); /* ciscoFlashDeviceSize */
+		$attrs[16]['value'] = ceil ($ciscoflash[$prefix.'.2.'.$index] / 1024 / 1024); /* ciscoFlashDeviceSize */
 
 	}
 
@@ -445,16 +475,19 @@ function snmpgeneric_pf_ciscoflash(&$snmp, &$sysObjectID, $attr_id) {
 	 *		ciscoMemoryPoolFree .1.1.1.6
 	 */
 
-	$ciscomem = $snmp->walk('1.3.6.1.4.1.9.9.48');
+	$ciscomem = $snmp->walk ('1.3.6.1.4.1.9.9.48');
 
-	if(!empty($ciscomem)) {
+	if (!empty ($ciscomem))
+	{
 
 		$used = 0;
 		$free = 0;
 
-		foreach($ciscomem as $oid => $value) {
+		foreach ($ciscomem as $oid => $value)
+		{
 
-			switch(preg_replace('/.*?(\.1\.1\.1\.[^\.]+)\.[^\.]+$/','\\1',$oid)) {
+			switch (preg_replace ('/.*?(\.1\.1\.1\.[^\.]+)\.[^\.]+$/','\\1',$oid))
+			{
 				case '.1.1.1.5':
 					$used += $value;
 					break;
@@ -465,7 +498,7 @@ function snmpgeneric_pf_ciscoflash(&$snmp, &$sysObjectID, $attr_id) {
 
 		}
 
-		$attrs[17]['value'] = ceil(($free + $used) / 1024 / 1024); /* RAM, MB */
+		$attrs[17]['value'] = ceil (($free + $used) / 1024 / 1024); /* RAM, MB */
 	}
 
 } /* snmpgeneric_pf_ciscoflash */
@@ -474,21 +507,25 @@ function snmpgeneric_pf_ciscoflash(&$snmp, &$sysObjectID, $attr_id) {
 /* -------------------------------------------------- */
 
 /* HW Type processor function */
-function snmpgeneric_pf_hwtype(&$snmp, &$sysObjectID, $attr_id) {
+function snmpgeneric_pf_hwtype (&$snmp, &$sysObjectID, $attr_id)
+{
 
 	$attr = &$sysObjectID['attr'][$attr_id];
 
-	if (isset($sysObjectID['dict_key'])) {
+	if (isset ($sysObjectID['dict_key']))
+	{
 
 		$value = $sysObjectID['dict_key'];
-		showSuccess("Found HW type dict_key: $value");
+		showSuccess ("Found HW type dict_key: $value");
 
 		/* return array of attr_id => attr_value) */
 		$attr['value'] = $value;
 		$attr['key'] = $value;
 
-	} else {
-		showNotice("HW type dict_key not set - Unknown OID");
+	}
+	else
+	{
+		showNotice ("HW type dict_key not set - Unknown OID");
 	}
 
 } /* snmpgeneric_pf_hwtype */
@@ -498,7 +535,8 @@ function snmpgeneric_pf_hwtype(&$snmp, &$sysObjectID, $attr_id) {
 /* SW type processor function */
 /* experimental */
 /* Find a way to match RT SW types !? */
-function snmpgeneric_pf_swtype(&$snmp, &$sysObjectID, $attr_id) {
+function snmpgeneric_pf_swtype (&$snmp, &$sysObjectID, $attr_id)
+{
 
 	/* 4 = SW type */
 
@@ -508,32 +546,36 @@ function snmpgeneric_pf_swtype(&$snmp, &$sysObjectID, $attr_id) {
 
 	$objtype_id = $object['objtype_id'];
 
-	if(isset($attr['oid']))
+	if (isset ($attr['oid']))
 		$oid = $attr['oid'];
 	else
 		$oid = 'sysDescr.0';
 
-	$raw_value = $snmp->get($oid);
+	$raw_value = $snmp->get ($oid);
 
 	$replacement = '\\1';
 
-	if(isset($attr['regex'])) {
+	if (isset ($attr['regex']))
+	{
 		$regex = $attr['regex'];
 
-		if(isset($attr['replacement']))
+		if (isset ($attr['replacement']))
 			$replacement = $attr['replacement'];
 
-	} else {
-		$list = array('bsd','linux','centos','suse','fedora','ubuntu','windows','solaris','vmware');
+	}
+	else
+	{
+		$list = array ('bsd','linux','centos','suse','fedora','ubuntu','windows','solaris','vmware');
 
-		$regex = '/.* ([^ ]*('.implode($list,'|').')[^ ]*) .*/i';
+		$regex = '/.* ([^ ]*('.implode ($list,'|').')[^ ]*) .*/i';
 		$replacement = '\\1';
 	}
 
-	$value = preg_replace($regex, $replacement, $raw_value, -1, $count);
+	$value = preg_replace ($regex, $replacement, $raw_value, -1, $count);
 	//$attr['value'] = $value;
 
-	if(!empty($value) && $count > 0) {
+	if (!empty ($value) && $count > 0)
+	{
 		/* search dict_key for value in RT Dictionary */
 		/* depends on object type server(13)/switch(14)/router(15) */
 		$result = usePreparedSelectBlade
@@ -541,28 +583,29 @@ function snmpgeneric_pf_swtype(&$snmp, &$sysObjectID, $attr_id) {
 			'SELECT dict_key,dict_value FROM Dictionary WHERE chapter_id in (13,14,15) and dict_value like ? order by dict_key desc limit 1',
 			array ('%'.$value.'%')
 		);
-		$row = $result->fetchAll(PDO::FETCH_GROUP|PDO::FETCH_UNIQUE|PDO::FETCH_COLUMN);
+		$row = $result->fetchAll (PDO::FETCH_GROUP|PDO::FETCH_UNIQUE|PDO::FETCH_COLUMN);
 
-		if(!empty($row)) {
-			$RTvalue = key($row);
+		if (!empty ($row))
+		{
+			$RTvalue = key ($row);
 
-			if(isset($attr['comment']))
+			if (isset ($attr['comment']))
 				$attr['comment'] .= ", $value ($RTvalue) ".$row[$RTvalue];
 			else
 				$attr['comment'] = "$value ($RTvalue) ".$row[$RTvalue];
 
-			showSuccess("Found SW type: $value ($RTvalue) ".$row[$RTvalue]);
+			showSuccess ("Found SW type: $value ($RTvalue) ".$row[$RTvalue]);
 			$value = $RTvalue;
 		}
 
 		/* set attr value */
 		$attr['value'] = $value;
 		$attr['key'] = $value;
-	//	unset($attr['uncheck']);
+	//	unset ($attr['uncheck']);
 
 	}
 
-	if(isset($attr['comment']))
+	if (isset ($attr['comment']))
 		$attr['comment'] .= ' (experimental)';
 	else
 		$attr['comment'] = '(experimental)';
@@ -575,19 +618,22 @@ function snmpgeneric_pf_swtype(&$snmp, &$sysObjectID, $attr_id) {
  *
  */
 /* needs more testing */
-function snmpgeneric_pf_entitymib(&$snmp, &$sysObjectID, $attr_id) {
+function snmpgeneric_pf_entitymib (&$snmp, &$sysObjectID, $attr_id)
+{
+
+	global $script_mode;
 
 	/* $attr_id == NULL -> device pf */
 
 	$attrs = &$sysObjectID['attr'];
 	$ports = &$sysObjectID['port'];
 
-	$entPhysicalClass = $snmp->walk('.1.3.6.1.2.1.47.1.1.1.1.5'); /* entPhysicalClass */
+	$entPhysicalClass = $snmp->walk ('.1.3.6.1.2.1.47.1.1.1.1.5'); /* entPhysicalClass */
 
-	if(empty($entPhysicalClass))
+	if (empty ($entPhysicalClass))
 		return;
 
-	showNotice("Found Entity Table (Experimental)");
+	showNotice ("Found Entity Table (Experimental)");
 
 /*		PhysicalClass
  *		1:other
@@ -607,30 +653,32 @@ function snmpgeneric_pf_entitymib(&$snmp, &$sysObjectID, $attr_id) {
 	/* chassis */
 
 	/* always index = 1 ??? */
-	$chassis = array_keys($entPhysicalClass, '3'); /* 3 chassis */
+	$chassis = array_keys ($entPhysicalClass, '3'); /* 3 chassis */
 
-	if(0)
-	if(!empty($chassis)) {
+	if (0)
+	if (!empty ($chassis))
+	{
 		echo '<table>';
 
-		foreach($chassis as $key => $oid) {
+		foreach ($chassis as $key => $oid)
+		{
 			/* get index */
-			if(!preg_match('/\.(\d+)$/',$oid, $matches))
+			if (!preg_match ('/\.(\d+)$/',$oid, $matches))
 				continue;
 
 			$index = $matches[1];
 
-			$name = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.7.$index");
-			$serialnum = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.11.$index");
-			$mfgname = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.12.$index");
-			$modelname = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.13.$index");
+			$name = $snmp->get (".1.3.6.1.2.1.47.1.1.1.1.7.$index");
+			$serialnum = $snmp->get (".1.3.6.1.2.1.47.1.1.1.1.11.$index");
+			$mfgname = $snmp->get (".1.3.6.1.2.1.47.1.1.1.1.12.$index");
+			$modelname = $snmp->get (".1.3.6.1.2.1.47.1.1.1.1.13.$index");
 
-			//showNotice("$name $mfgname $modelname $serialnum");
+			//showNotice ("$name $mfgname $modelname $serialnum");
 
-			echo("<tr><td>$name</td><td>$mfgname</td><td>$modelname</td><td>$serialnum</td>");
+			echo ("<tr><td>$name</td><td>$mfgname</td><td>$modelname</td><td>$serialnum</td>");
 		}
-		unset($key);
-		unset($oid);
+		unset ($key);
+		unset ($oid);
 
 		echo '</table>';
 	} /* chassis */
@@ -639,68 +687,85 @@ function snmpgeneric_pf_entitymib(&$snmp, &$sysObjectID, $attr_id) {
 
 	/* modules */
 
-	$modules = array_keys($entPhysicalClass, '9'); /* 9 Modules */
+	$modules = array_keys ($entPhysicalClass, '9'); /* 9 Modules */
 
-	if(!empty($modules)) {
+	if (!empty ($modules))
+	{
 
-		echo '<br><br>Modules<br><table>';
-		echo("<tr><th>Name</th><th>MfgName</th><th>ModelName</th><th>HardwareRev</th><th>FirmwareRev</th><th>SoftwareRev</th><th>SerialNum</th>");
-
-		foreach($modules as $key => $oid) {
+		$rows = array ();
+		foreach ($modules as $key => $oid)
+		{
 
 			/* get index */
-			if(!preg_match('/\.(\d+)$/',$oid, $matches))
+			if (!preg_match ('/\.(\d+)$/',$oid, $matches))
 				continue;
 
 			$index = $matches[1];
 
-			$name = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.7.$index");
+			$row['name'] = $snmp->get (".1.3.6.1.2.1.47.1.1.1.1.7.$index");
 
-			if(!$name)
+			if (!$row['name'])
 				continue;
 
-			$hardwarerev = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.8.$index");
-			$firmwarerev = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.9.$index");
-			$softwarerev = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.10.$index");
-			$serialnum = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.11.$index");
-			$mfgname = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.12.$index");
-			$modelname = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.13.$index");
-
-			//showNotice("$name $mfgname $modelname $hardwarerev $firmwarerev $softwarerev $serialnum");
-
-			echo("<tr><td>".(empty($name) ? '-' : $name )."</td><td>$mfgname</td><td>$modelname</td><td>$hardwarerev</td><td>$firmwarerev</td><td>$softwarerev</td><td>$serialnum</td>");
+			$row['hardwarerev'] = $snmp->get (".1.3.6.1.2.1.47.1.1.1.1.8.$index");
+			$row['firmwarerev'] = $snmp->get (".1.3.6.1.2.1.47.1.1.1.1.9.$index");
+			$row['softwarerev'] = $snmp->get (".1.3.6.1.2.1.47.1.1.1.1.10.$index");
+			$row['serialnum'] = $snmp->get (".1.3.6.1.2.1.47.1.1.1.1.11.$index");
+			$row['mfgname'] = $snmp->get (".1.3.6.1.2.1.47.1.1.1.1.12.$index");
+			$row['modelname'] = $snmp->get (".1.3.6.1.2.1.47.1.1.1.1.13.$index");
 
 			/* set SW version to first module software version */
-			if($key == 0 ) {
+			if ($key == 0 )
+			{
 
-				$attrs[5]['value'] = $softwarerev; /* SW version */
+				$attrs[5]['value'] = $row['softwarerev']; /* SW version */
 				$attrs[5]['comment'] = 'entity MIB';
 			}
 
-		}
-		unset($key);
-		unset($oid);
+			$rows[] = $row;
 
-		echo '</table>';
+		}
+		unset ($key);
+		unset ($oid);
+
+
+		if (!$script_mode)
+		{
+			startPortlet ('Modules');
+
+			$columns = array (
+				array ('row_key' => 'name', 'th_text' => 'Name'),
+				array ('row_key' => 'mfgname', 'th_text' => 'MfgName'),
+				array ('row_key' => 'modelname', 'th_text' => 'ModelName'),
+				array ('row_key' => 'hardwarerev', 'th_text' => 'HardwareRev'),
+				array ('row_key' => 'firmwarerev', 'th_text' => 'FirmwareRev'),
+				array ('row_key' => 'softwarerev', 'th_text' => 'SoftwareRev'),
+				array ('row_key' => 'serialnum', 'th_text' => 'SerialNum')
+			);
+
+			renderTableViewer ($columns, $rows);
+			finishPortlet ();
+		}
 	}
 
 
 	/* add AC ports */
-	$powersupply = array_keys($entPhysicalClass, '6'); /* 6 powerSupply */
+	$powersupply = array_keys ($entPhysicalClass, '6'); /* 6 powerSupply */
 	$count = 1;
-	foreach($powersupply as $oid) {
+	foreach ($powersupply as $oid)
+	{
 
 		/* get index */
-		if(!preg_match('/\.(\d+)$/',$oid, $matches))
+		if (!preg_match ('/\.(\d+)$/',$oid, $matches))
 			continue;
 
 		$index = $matches[1];
-		$descr = $snmp->get(".1.3.6.1.2.1.47.1.1.1.1.2.$index");
+		$descr = $snmp->get (".1.3.6.1.2.1.47.1.1.1.1.2.$index");
 
-		$ports['AC-'.$count] = array('porttypeid' => '1-16', 'ifDescr' => $descr, 'comment' => 'entity MIB', 'uncheck' => '');
+		$ports['AC-'.$count] = array ('porttypeid' => '1-16', 'ifDescr' => $descr, 'comment' => 'entity MIB', 'uncheck' => '');
 		$count++;
 	}
-	unset($oid);
+	unset ($oid);
 }
 
 /* -------------------------------------------------- */
@@ -710,24 +775,26 @@ function snmpgeneric_pf_entitymib(&$snmp, &$sysObjectID, $attr_id) {
  * needs 'oid' and  'regex'
  * uses first back reference as attribute value
  */
-function snmpgeneric_pf_regex(&$snmp, &$sysObjectID, $attr_id) {
+function snmpgeneric_pf_regex (&$snmp, &$sysObjectID, $attr_id)
+{
 
 	$attr = &$sysObjectID['attr'][$attr_id];
 
-	if (isset($attr['oid']) && isset($attr['regex'])) {
+	if (isset ($attr['oid']) && isset ($attr['regex']))
+	{
 
 		$oid = $attr['oid'];
 		$regex = $attr['regex'];
 
-		$raw_value = $snmp->get($oid);
+		$raw_value = $snmp->get ($oid);
 
 
-		if(isset($attr['replacement']))
+		if (isset ($attr['replacement']))
 			$replace = $attr['replacement'];
 		else
 			$replace = '\\1';
 
-		$value = preg_replace($regex,$replace, $raw_value);
+		$value = preg_replace ($regex,$replace, $raw_value);
 
 		/* return array of attr_id => attr_value) */
 		$attr['value'] = $value;
@@ -739,39 +806,168 @@ function snmpgeneric_pf_regex(&$snmp, &$sysObjectID, $attr_id) {
 
 /* -------------------------------------------------- */
 
-$sg_portiifoptions= getPortIIFOptions();
+$sg_portiifoptions= getPortIIFOptions ();
 $sg_portiifoptions[-1] = 'sfp'; /* generic sfp */
 
-$sg_portoifoptions= getPortOIFOptions();
+$sg_portoifoptions= getPortOIFOptions ();
 
 /* -------------------------------------------------- */
+
+const SG_BOX_IGNORE	= 0;
+const SG_BOX_UNCHECK	= 1;
+const SG_BOX_CHECK	= 2;
+const SG_BOX_PROBLEM	= 4;
+
 /* -------------------------------------------------- */
 
-function snmpgeneric_tabhandler($object_id) {
+/* ------------- CLI -----------------*/
 
-//	sg_var_dump_html($_POST);
+function print_help ()
+{
+	echo "\n";
+	echo "-o object id\n";
+	echo "-n dry-run\n";
+	echo "-p create ports\n";
+	echo "-u update ports\n";
+	echo "-s add ip spaces\n";
+	echo "-i allocate ips\n";
+	echo "-a update attributes\n";
+	echo "\n";
+	echo "--all same as -aisup\n";
+	echo "-h Print help\n";
+	echo "\n";
+}
 
-	if(isset($_POST['asnewobject']) && $_POST['asnewobject'] == "1")
+/* set default args for html */
+$sg_args = array (
+		'p' => TRUE,
+		'u' => TRUE,
+		's' => TRUE,
+		'i' => TRUE,
+		'a' => TRUE
+);
+
+function sg_checkArgs ($argname, $msg = NULL, $dryrunarg = 'n')
+{
+	global $sg_args, $script_mode;
+
+	if (isset ($sg_args[$argname]) && $script_mode && $msg)
+			echo "$msg\n";
+
+	return isset ($sg_args[$argname]) && !isset ($sg_args[$dryrunarg]);
+}
+
+if ($script_mode)
+{
+	array_shift ($argv);
+
+	$object_id = NULL;
+
+	$sg_args = array ();
+
+	$arg = array_shift ($argv);
+
+	while ($arg)
+	{
+		switch ($arg)
+		{
+			case '--all':
+				$arg = 'aisup';
+			default:
+				$args = str_split ($arg);
+
+				foreach ($args as $option)
+				{
+					switch ($option)
+					{
+						case '-':
+							continue;
+							break;
+						case 'h':
+							print_help ();
+							exit;
+							break;
+						case 'o':
+							$object_id = array_shift ($argv);
+							break;
+						case 'n':
+						case 'p':
+						case 'u':
+						case 's':
+						case 'i':
+						case 'a':
+							$sg_args[$option] = TRUE;
+							break;
+						default:
+							echo "unknown option \"$option\"\n";
+					}
+				}
+		}
+
+		$arg = array_shift ($argv);
+	}
+
+	if (!$object_id || !is_numeric ($object_id))
+	{
+		echo "Missing Argument Object_id\n";
+		exit;
+	}
+
+	$object = spotEntity ('object', $object_id);
+
+	echo "found object: \"${object['name']}\" object_id: $object_id\n";
+
+	if (!considerConfiguredConstraint ($object, 'IPV4OBJ_LISTSRC'))
+	{
+		echo "no IP object\n";
+		exit;
+	}
+
+	sg_checkArgs ('n', 'Running in dry-run mode!', NULL);
+
+	$snmpconfig = snmpgeneric_getSNMPconfig ($object);
+
+	$snmpdev = NULL;
+
+	$data = snmpgeneric_getsnmp ($snmpconfig, $snmpdev);
+
+	snmpgeneric_process ($data, $object, $snmpdev);
+
+	$count = snmpgeneric_datacreate ($object['id'], $data);
+
+	echo "$count changes\n";
+
+	sg_checkArgs ('n', 'Dry-run Mode! No changes made!', NULL);
+
+	/* return number of changes */
+	exit ($count);
+} /* script_mode */
+
+/* ----------------------- HTML --------------------------- */
+
+function snmpgeneric_tabhandler ($object_id)
+{
+	if (isset ($_POST['asnewobject']) && $_POST['asnewobject'] == "1")
 	{
 		$newobject_name = $_POST['object_name'];
 		$newobject_label = $_POST['object_label'];
 		$newobject_type_id = $_POST['object_type_id'];
 		$newobject_asset_no = $_POST['object_asset_no'];
 
-		if(sg_checkObjectNameUniqueness($newobject_name, $newobject_type_id))
+		if (sg_checkObjectNameUniqueness ($newobject_name, $newobject_type_id))
 		{
 
-			$object_id = commitAddObject($newobject_name, $newobject_label, $newobject_type_id, $newobject_asset_no);
+			$object_id = commitAddObject ($newobject_name, $newobject_label, $newobject_type_id, $newobject_asset_no);
 
 			$_POST['asnewobject'] = "0";
 
-			parse_str($_SERVER['QUERY_STRING'],$query_string);
+			parse_str ($_SERVER['QUERY_STRING'],$query_string);
 
 			$query_string['object_id'] = $object_id;
 
-			$_SERVER['QUERY_STRING'] = http_build_query($query_string);
+			$_SERVER['QUERY_STRING'] = http_build_query ($query_string);
 
-			list($path, $qs) = explode('?',$_SERVER['REQUEST_URI'],2);
+			list ($path, $qs) = explode ('?',$_SERVER['REQUEST_URI'],2);
 			$_SERVER['REQUEST_URI'] = $path.'?'.$_SERVER['QUERY_STRING'];
 
 
@@ -781,7 +977,7 @@ function snmpgeneric_tabhandler($object_id) {
 
 			echo '<form method=POST id=newobject action='.$_SERVER['REQUEST_URI'].'>';
 
-			foreach($_POST as $name => $value)
+			foreach ($_POST as $name => $value)
 			{
 				echo "<input type=hidden name=$name value=$value>";
 			}
@@ -792,35 +988,35 @@ function snmpgeneric_tabhandler($object_id) {
 		}
 		else
 		{
-			showError("Object with name: \"$newobject_name\" already exists!!!");
+			showError ("Object with name: \"$newobject_name\" already exists!!!");
 			$_POST['snmpconfig'] = "0";
 		}
 	}
 
 	// save snmp settings
-	if(isset($_POST['save']) && $_POST['save'] == "1")
+	if (isset ($_POST['save']) && $_POST['save'] == "1")
 	{
 		// TODO save only on success !!
 
-		$object = spotEntity('object', $object_id);
+		$object = spotEntity ('object', $object_id);
 
 		$snmpvalues[0] = 'SNMP';
-		$snmpnames = array('host', 'version', 'community');
-		if($_POST['version'] == "v3")
-			$snmpnames = array_merge($snmpnames, array('sec_level','auth_protocol','auth_passphrase','priv_protocol','priv_passphrase'));
+		$snmpnames = array ('host', 'version', 'community');
+		if ($_POST['version'] == "v3")
+			$snmpnames = array_merge ($snmpnames, array ('sec_level','auth_protocol','auth_passphrase','priv_protocol','priv_passphrase'));
 
-		foreach($snmpnames as $key => $value)
+		foreach ($snmpnames as $key => $value)
 		{
-			if(isset($_POST[$value]))
+			if (isset ($_POST[$value]))
 			{
-				switch($value)
+				switch ($value)
 				{
 					case "host":
-						$snmpvalues[$key + 1] = str_replace(':', '#', $_POST[$value]);
+						$snmpvalues[$key + 1] = str_replace (':', '#', $_POST[$value]);
 						break;
 					case "auth_passphrase":
 					case "priv_passphrase":
-						$snmpvalues[$key + 1] = base64_encode($_POST[$value]);
+						$snmpvalues[$key + 1] = base64_encode ($_POST[$value]);
 						break;
 
 					default: $snmpvalues[$key + 1] = $_POST[$value];
@@ -828,64 +1024,121 @@ function snmpgeneric_tabhandler($object_id) {
 			}
 		}
 
-	//	sg_var_dump_html($snmpvalues);
+		$newsnmpstr = implode ($snmpvalues,":");
 
-		$newsnmpstr = implode($snmpvalues,":");
+		$snmpstr = strtok ($object['comment'],"\n\r");
 
-		$snmpstr = strtok($object['comment'],"\n\r");
-
-		$snmpstrarray = explode(':', $snmpstr);
+		$snmpstrarray = explode (':', $snmpstr);
 
 		$setcomment = "set";
-                if($snmpstrarray[0] == "SNMP")
+                if ($snmpstrarray[0] == "SNMP")
 		{
-			if($newsnmpstr == $snmpstr)
+			if ($newsnmpstr == $snmpstr)
 				$setcomment = "ok";
 			else
 				$setcomment = "update";
 		}
 
-		if($setcomment != "ok")
+		if ($setcomment != "ok")
 		{
 
-			if($setcomment == "update")
-				$comment = str_replace($snmpstr,$newsnmpstr, $object['comment']);
+			if ($setcomment == "update")
+				$comment = str_replace ($snmpstr,$newsnmpstr, $object['comment']);
 			else
 				$comment = "$newsnmpstr\n".$object['comment'];
 
 		//	echo "$snmpnewstr ".$object['comment']." --> $comment";
 
-			commitUpdateObject($object_id, $object['name'], NULL, $object['has_problems'], NULL, $comment );
-			showNotice("$setcomment SNMP Settings: $newsnmpstr");
+			commitUpdateObject ($object_id, $object['name'], NULL, $object['has_problems'], NULL, $comment );
+			showNotice ("$setcomment SNMP Settings: $newsnmpstr");
 
 		}
 
 	}
 
-	if(isset($_POST['snmpconfig']) && $_POST['snmpconfig'] == '1') {
-		snmpgeneric_list($object_id);
-	} else {
-		snmpgeneric_snmpconfig($object_id);
+	if (isset ($_POST['snmpconfig']) && $_POST['snmpconfig'] == '1')
+	{
+		snmpgeneric_list ($object_id);
+	}
+	else
+	{
+		snmpgeneric_snmpconfig ($object_id);
 	}
 } /* snmpgeneric_tabhandler */
 
 /* -------------------------------------------------- */
 
-function snmpgeneric_tabtrigger() {
+function snmpgeneric_tabtrigger ()
+{
 	// display tab only on IPv4 Objects
-	return considerConfiguredConstraint (spotEntity ('object', getBypassValue()), 'IPV4OBJ_LISTSRC') ? 'std' : '';
+	return considerConfiguredConstraint (spotEntity ('object', getBypassValue ()), 'IPV4OBJ_LISTSRC') ? 'std' : '';
 } /* snmpgeneric_tabtrigger */
 
 /* -------------------------------------------------- */
+function snmpgeneric_getSNMPconfig ($object)
+{
+	$snmpstr = strtok ($object['comment'],"\n\r");
+	$snmpstrarray = explode (':', $snmpstr);
 
-function snmpgeneric_snmpconfig($object_id) {
+	if ($snmpstrarray[0] == "SNMP")
+	{
+		/* keep it compatible with older version */
+		switch ($snmpstrarray[2])
+		{
+			case "1":
+				$snmpstrarray[2] = 'v1';
+				break;
+			case "2":
+			case "v2C":
+				$snmpstrarray[2] = 'v2c';
+				break;
+			case "3":
+				$snmpstrarray[2] = 'v3';
+				break;
+		}
 
+		$snmpnames = array ('SNMP','host', 'version', 'community');
+		if ($snmpstrarray[2] == "v3")
+			$snmpnames = array_merge ($snmpnames, array ('sec_level','auth_protocol','auth_passphrase','priv_protocol','priv_passphrase'));
+
+		$snmpvalues = array ();
+		foreach ($snmpnames as $key => $value)
+		{
+			if (isset ($snmpstrarray[$key]))
+			{
+				switch ($key)
+				{
+					case 1:
+						$snmpvalues[$value] = str_replace ('#', ':', $snmpstrarray[$key]);
+						break;
+					case 6:
+					case 8:
+						$snmpvalues[$value] = base64_decode ($snmpstrarray[$key]);
+						break;
+
+					default: $snmpvalues[$value] = $snmpstrarray[$key];
+				}
+			}
+		}
+
+		unset ($snmpvalues['SNMP']);
+
+		return $snmpvalues;
+	}
+	else
+		return array ();
+} /* snmpgeneric_getSNMPconfig */
+
+
+function snmpgeneric_snmpconfig ($object_id)
+{
 
 	$object = spotEntity ('object', $object_id);
-	//$object['attr'] = getAttrValues($object_id);
+	//$object['attr'] = getAttrValues ($object_id);
         $endpoints = findAllEndpoints ($object_id, $object['name']);
 
-	addJS('function showsnmpv3(element) {
+	addJS ('function showsnmpv3(element)
+	{
 				var style;
 				if(element.value != \'v3\') {
 					style = \'none\';
@@ -901,7 +1154,8 @@ function snmpgeneric_snmpconfig($object_id) {
 				}
 			};',TRUE);
 
-	addJS('function shownewobject(element) {
+	addJS ('function shownewobject(element)
+	{
 				var style;
 
 				if(element.checked) {
@@ -916,7 +1170,7 @@ function snmpgeneric_snmpconfig($object_id) {
 				}
 			};',TRUE);
 
-	addJS('function checkInput() {
+	addJS ('function checkInput() {
 				var host = document.getElementById(\'host\');
 
 				if(host.value == "-1") {
@@ -935,148 +1189,99 @@ function snmpgeneric_snmpconfig($object_id) {
 
 	echo '<body onload="document.getElementById(\'submitbutton\').focus(); showsnmpv3(document.getElementById(\'snmpversion\')); shownewobject(document.getElementById(\'asnewobject\'));">';
 
-	foreach( $endpoints as $key => $value) {
+	foreach ($endpoints as $key => $value)
+	{
 		$endpoints[$value] = $value;
-		unset($endpoints[$key]);
+		unset ($endpoints[$key]);
 	}
-	unset($key);
-	unset($value);
+	unset ($key);
+	unset ($value);
 
-	foreach( getObjectIPv4Allocations($object_id) as $ip => $value) {
+	foreach (getObjectIPv4Allocations ($object_id) as $ip => $value)
+	{
 
-		$ip = ip_format($ip);
+		$ip = ip_format ($ip);
 
-		if(!in_array($ip, $endpoints))
+		if (!in_array ($ip, $endpoints))
 			$endpoints[$ip] = $ip;
 	}
-	unset($ip);
-	unset($value);
+	unset ($ip);
+	unset ($value);
 
-	foreach( getObjectIPv6Allocations($object_id) as $value) {
-		$ip = ip_format(ip_parse($value['addrinfo']['ip']));
+	foreach (getObjectIPv6Allocations ($object_id) as $value)
+	{
+		$ip = ip_format (ip_parse ($value['addrinfo']['ip']));
 
-		if(!in_array($ip, $endpoints))
+		if (!in_array ($ip, $endpoints))
 			$endpoints[$ip] = $ip;
 	}
-	unset($value);
+	unset ($value);
 
-	/* ask for ip/host name on submit see js checkInput() */
+	/* ask for ip/host name on submit see js checkInput () */
 	$endpoints['-1'] = 'ask me';
 
 	// saved snmp settings
-	$snmpstr = strtok($object['comment'],"\n\r");
-	$snmpstrarray = explode(':', $snmpstr);
-
-	if($snmpstrarray[0] == "SNMP")
-	{
-		/* keep it compatible with older version */
-		switch($snmpstrarray[2])
-		{
-			case "1":
-				$snmpstrarray[2] = 'v1';
-				break;
-			case "2":
-			case "v2C":
-				$snmpstrarray[2] = 'v2c';
-				break;
-			case "3":
-				$snmpstrarray[2] = 'v3';
-				break;
-		}
-
-		$snmpnames = array('SNMP','host', 'version', 'community');
-		if($snmpstrarray[2] == "v3")
-			$snmpnames = array_merge($snmpnames, array('sec_level','auth_protocol','auth_passphrase','priv_protocol','priv_passphrase'));
-
-		$snmpvalues = array();
-		foreach($snmpnames as $key => $value)
-		{
-			if(isset($snmpstrarray[$key]))
-			{
-				switch($key)
-				{
-					case 1:
-						$snmpvalues[$value] = str_replace('#', ':', $snmpstrarray[$key]);
-						break;
-					case 6:
-					case 8:
-						$snmpvalues[$value] = base64_decode($snmpstrarray[$key]);
-						break;
-
-					default: $snmpvalues[$value] = $snmpstrarray[$key];
-				}
-			}
-		}
-
-		unset($snmpvalues['SNMP']);
-
-		$snmpconfig = $snmpvalues;
-	}
-	else
-		$snmpconfig = array();
+	$snmpconfig = snmpgeneric_getSNMPconfig ($object);
 
 	$snmpconfig += $_POST;
 
-	if(!isset($snmpconfig['host'])) {
+	if (!isset ($snmpconfig['host']))
+	{
 		$snmpconfig['host'] = -1;
 
 		/* try to find first FQDN or IP */
-		foreach($endpoints as $value) {
-			if(preg_match('/^[^ .]+(\.[^ .]+)+\.?/',$value)) {
+		foreach ($endpoints as $value)
+		{
+			if (preg_match ('/^[^ .]+(\.[^ .]+)+\.?/',$value))
+			{
 				$snmpconfig['host'] = $value;
 				break;
 			}
 		}
-		unset($value);
+		unset ($value);
 	}
 
-//	sg_var_dump_html($endpoints);
-
-	if(!isset($snmpconfig['version']))
+	if (!isset ($snmpconfig['version']))
 		$snmpconfig['version'] = mySNMP::SNMP_VERSION;
 
-	if(!isset($snmpconfig['community']))
-		$snmpconfig['community'] = getConfigVar('DEFAULT_SNMP_COMMUNITY');
+	if (!isset ($snmpconfig['community']))
+		$snmpconfig['community'] = getConfigVar ('DEFAULT_SNMP_COMMUNITY');
 
-	if(empty($snmpconfig['community']))
+	if (empty ($snmpconfig['community']))
 		$snmpconfig['community'] = mySNMP::SNMP_COMMUNITY;
 
-	if(!isset($snmpconfig['sec_level']))
+	if (!isset ($snmpconfig['sec_level']))
 		$snmpconfig['sec_level'] = NULL;
 
-	if(!isset($snmpconfig['auth_protocol']))
+	if (!isset ($snmpconfig['auth_protocol']))
 		$snmpconfig['auth_protocol'] = NULL;
 
-	if(!isset($snmpconfig['auth_passphrase']))
+	if (!isset ($snmpconfig['auth_passphrase']))
 		$snmpconfig['auth_passphrase'] = NULL;
 
-	if(!isset($snmpconfig['priv_protocol']))
+	if (!isset ($snmpconfig['priv_protocol']))
 		$snmpconfig['priv_protocol'] = NULL;
 
-	if(!isset($snmpconfig['priv_passphrase']))
+	if (!isset ($snmpconfig['priv_passphrase']))
 		$snmpconfig['priv_passphrase'] = NULL;
 
-	if(!isset($snmpconfig['asnewobject']))
+	if (!isset ($snmpconfig['asnewobject']))
 		$snmpconfig['asnewobject'] = NULL;
 
-	if(!isset($snmpconfig['object_type_id']))
+	if (!isset ($snmpconfig['object_type_id']))
 		$snmpconfig['object_type_id'] = '8';
 
-	if(!isset($snmpconfig['object_name']))
+	if (!isset ($snmpconfig['object_name']))
 		$snmpconfig['object_name'] = NULL;
 
-	if(!isset($snmpconfig['object_label']))
+	if (!isset ($snmpconfig['object_label']))
 		$snmpconfig['object_label'] = NULL;
 
-	if(!isset($snmpconfig['object_asset_no']))
+	if (!isset ($snmpconfig['object_asset_no']))
 		$snmpconfig['object_asset_no'] = NULL;
 
-	if(!isset($snmpconfig['save']))
+	if (!isset ($snmpconfig['save']))
 		$snmpconfig['save'] = true;
-
-//	sg_var_dump_html($snmpconfig);
-
-//	$snmpv3displaystyle = ($snmpconfig['version'] == "3" ? "style=\"\"" : "style=\"display:none;\"");
 
 	echo '<h1 align=center>SNMP Config</h1>';
 	echo '<form method=post name="snmpconfig" onsubmit="return checkInput()" action='.$_SERVER['REQUEST_URI'].' />';
@@ -1084,8 +1289,8 @@ function snmpgeneric_snmpconfig($object_id) {
         echo '<table cellspacing=0 cellpadding=5 align=center class=widetable>
 	<tr><th class=tdright>Host:</th><td>';
 
-	//if($snmpconfig['asnewobject'] == '1' )
-	if($snmpconfig['host'] != '-1' and !isset($endpoints[$snmpconfig['host']]))
+	//if ($snmpconfig['asnewobject'] == '1' )
+	if ($snmpconfig['host'] != '-1' and !isset ($endpoints[$snmpconfig['host']]))
 		$endpoints[$snmpconfig['host']] = $snmpconfig['host'];
 
 	echo getSelect ($endpoints, array ('id' => 'host','name' => 'host'), $snmpconfig['host'], FALSE);
@@ -1095,7 +1300,7 @@ function snmpgeneric_snmpconfig($object_id) {
                 <th class=tdright><label for=snmpversion>Version:</label></th>
                 <td class=tdleft>';
 
-	echo getSelect (array("v1" => 'v1', "v2c" => 'v2c', "v3" => 'v3'),
+	echo getSelect (array ("v1" => 'v1', "v2c" => 'v2c', "v3" => 'v3'),
 			 array ('name' => 'version', 'id' => 'snmpversion', 'onchange' => 'showsnmpv3(this)'),
 			 $snmpconfig['version'], FALSE);
 
@@ -1113,7 +1318,7 @@ function snmpgeneric_snmpconfig($object_id) {
                 <th class=tdright><label">Security Level:</label></th>
                 <td class=tdleft>';
 
-	echo getSelect (array('noAuthNoPriv' => 'no Auth and no Priv', 'authNoPriv'=> 'auth without Priv', 'authPriv' => 'auth with Priv'),
+	echo getSelect (array ('noAuthNoPriv' => 'no Auth and no Priv', 'authNoPriv'=> 'auth without Priv', 'authPriv' => 'auth with Priv'),
 			 array ('name' => 'sec_level'),
 			 $snmpconfig['sec_level'], FALSE);
 
@@ -1183,37 +1388,35 @@ function snmpgeneric_snmpconfig($object_id) {
 
 } /* snmpgeneric_snmpconfig */
 
-function snmpgeneric_list($object_id) {
+/*---------------------------------------------------------------*/
 
-	global $sg_create_noconnector_ports, $sg_known_sysObjectIDs, $sg_portoifoptions, $sg_ifType_ignore;
+/* get all needed SNMP data
+   return merged port array
+*/
+function snmpgeneric_getsnmp ($snmpconfig, &$snmpdev)
+{
+	switch ($snmpconfig['version'])
+	{
+		case '1':
+		case 'v1':
+			$version = SNMP::VERSION_1;
+			break;
+		case '2':
+		case 'v2C':
+		case 'v2c':
+			$version = SNMP::VERSION_2c;
+			break;
+		case '3':
+		case 'v3':
+			$version = SNMP::VERSION_3;
+			break;
+	};
 
-	if(isset($_POST['snmpconfig'])) {
-		$snmpconfig = $_POST;
-	} else {
-		showError("Missing SNMP Config");
-		return;
-	}
+	$snmpdev = new SNMP ($version, $snmpconfig['host'], $snmpconfig['community']);
 
-//	sg_var_dump_html($snmpconfig);
-
-	echo '<body onload="document.getElementById(\'createbutton\').focus();">';
-
-	addJS('function setchecked(classname) { var boxes = document.getElementsByClassName(classname);
-				 var value = document.getElementById(classname).checked;
-				 for(i=0;i<boxes.length;i++) {
-					if(boxes[i].disabled == false)
-						boxes[i].checked=value;
-				 }
-		};', TRUE);
-
-	$object = spotEntity ('object', $object_id);
-
-	$object['attr'] = getAttrValues($object_id);
-
-	$snmpdev = new mySNMP($snmpconfig['version'], $snmpconfig['host'], $snmpconfig['community']);
-
-	if($snmpconfig['version'] == "v3" ) {
-		$snmpdev->setSecurity( $snmpconfig['sec_level'],
+	if ($snmpconfig['version'] == "v3" )
+	{
+		$snmpdev->setSecurity ($snmpconfig['sec_level'],
 					$snmpconfig['auth_protocol'],
 					$snmpconfig['auth_passphrase'],
 					$snmpconfig['priv_protocol'],
@@ -1221,29 +1424,44 @@ function snmpgeneric_list($object_id) {
 					);
 	}
 
-	$snmpdev->init();
-
-	if($snmpdev->getErrno()) {
-		showError($snmpdev->getError());
+	if($snmpdev->getErrno ())
+	{
+		showError ($snmpdev->getError ());
 		return;
 	}
 
 	/* SNMP connect successfull */
 
-	showSuccess("SNMP ".$snmpconfig['version']." connect to ${snmpconfig['host']} successfull");
+	$snmpdev->oid_output_format = SNMP_OID_OUTPUT_NUMERIC;
+	$snmpdev->valueretrieval = SNMP_VALUE_PLAIN;
+	//$snmpdev->valueretrieval = SNMP_VALUE_LIBRARY;
+	//$snmpdev->quick_print = 1;
 
-	echo '<form name=CreatePorts method=post action='.$_SERVER['REQUEST_URI'].'&module=redirect&op=create>';
+	showSuccess ("SNMP ".$snmpconfig['version']." connect to ${snmpconfig['host']} successfull");
 
-	echo "<strong>System Informations</strong>";
-	echo "<table>";
-//	echo "<tr><th>OID</th><th>Value</th></tr>";
+	$snmpdata = array ();
 
-	$systemoids = array('sysDescr', 'sysObjectID', 'sysUpTime', 'sysContact', 'sysName', 'sysLocation');
-	foreach ($systemoids as $shortoid) {
+	/* get system data */
+	$systemoids = array (
+			'sysDescr' =>		'.1.3.6.1.2.1.1.1.0',
+			'sysObjectID' =>	'.1.3.6.1.2.1.1.2.0',
+			'sysUpTime' =>		'.1.3.6.1.2.1.1.3.0',
+			'sysContact' =>		'.1.3.6.1.2.1.1.4.0',
+			'sysName' =>		'.1.3.6.1.2.1.1.5.0',
+			'sysLocation' =>	'.1.3.6.1.2.1.1.6.0',
 
-		$value = $snmpdev->{$shortoid};
+			'ifNumber' =>		'.1.3.6.1.2.1.2.1.0'
+			);
 
-		if($shortoid == 'sysUpTime') {
+	$system = $snmpdev->get (array_values ($systemoids));
+
+	foreach ($systemoids as $shortoid => $oid)
+	{
+
+		$value = $system[$oid];
+
+		if ($shortoid == 'sysUpTime')
+		{
 			/* in hundredths of a second */
 			$secs = (int)($value / 100);
 			$days = (int)($secs / (60 * 60 * 24));
@@ -1255,60 +1473,283 @@ function snmpgeneric_list($object_id) {
 			$value = "$value ($days $hours:$mins:$secs)";
 		}
 
-		echo "<tr><td title=\"".$snmpdev->lastgetoid."\" align=\"right\">$shortoid: </td><td>$value</td></tr>";
+		$snmpdata['system'][$shortoid]['oid'] = $oid;
+		$snmpdata['system'][$shortoid]['shortoid'] = $shortoid;
+		$snmpdata['system'][$shortoid]['value'] = $value;
 
 	}
-	unset($shortoid);
+	unset ($shortoid);
 
-	echo "</table>";
+	/* snmp iftable */
 
-	/* sysObjectID Attributes and Ports */
-	$sysObjectID['object'] = &$object;
+	$ifoids = array (
+		//	'ifEntry' =>		'.1.3.6.1.2.1.2.2.1',
+			'ifIndex' =>		'.1.3.6.1.2.1.2.2.1.1',
+			'ifDescr' =>		'.1.3.6.1.2.1.2.2.1.2',
+			'ifType' =>		'.1.3.6.1.2.1.2.2.1.3',
+			'ifSpeed' =>		'.1.3.6.1.2.1.2.2.1.5', // bit
+			'ifPhysAddress' =>	'.1.3.6.1.2.1.2.2.1.6',
+			'ifOperStatus' =>	'.1.3.6.1.2.1.2.2.1.8',
+			'ifInOctets' =>		'.1.3.6.1.2.1.2.2.1.10',
+			'ifOutOctets' =>	'.1.3.6.1.2.1.2.2.1.16',
 
-	/* get sysObjectID */
-	$sysObjectID['raw_value'] = $snmpdev->sysObjectID;
-	//$sysObjectID['raw_value'] = 'NET-SNMP-MIB::netSnmpAgentOIDs.10';
+			// ifXTable
+		//	'ifXTable' =>		'.1.3.6.1.2.1.31.1.1',
+		//	'ifXEntry' =>		'.1.3.6.1.2.1.31.1.1.1',
+			'ifName' =>		'.1.3.6.1.2.1.31.1.1.1.1',
+			'ifHighSpeed' =>	'.1.3.6.1.2.1.31.1.1.1.15', // Mbit
+			'ifConnectorPresent' =>	'.1.3.6.1.2.1.31.1.1.1.17',
+			'ifAlias' =>		'.1.3.6.1.2.1.31.1.1.1.18',
+			);
 
-	$sysObjectID['value'] = preg_replace('/^.*enterprises\.([\.[:digit:]]+)$/','\\1', $sysObjectID['raw_value']);
 
-	/* try snmptranslate to numeric */
-	if(preg_match('/[^\.0-9]+/',$sysObjectID['value'])) {
-		$numeric_value = $snmpdev->translatetonumeric($sysObjectID['value']);
+	$iftable = array ();
 
-		if(!empty($numeric_value)) {
-			showSuccess("sysObjectID: ".$sysObjectID['value']." translated to $numeric_value");
-			$sysObjectID['value'] = preg_replace('/^.1.3.6.1.4.1.([\.[:digit:]]+)$/','\\1', $numeric_value);
+	/* get oids */
+	foreach ($ifoids as $shortoid => $oid)
+		$iftable[$shortoid] = $snmpdev->walk ($oid, TRUE);
+
+	$snmpdata['ifcount'] = $snmpdata['system']['ifNumber']['value'];
+
+	foreach ($iftable['ifIndex'] as $ifindex)
+	{
+		$row = array ('ip' => array ());
+		foreach ($ifoids as $shortoid => $oid)
+		{
+			if (isset ($iftable[$shortoid][$ifindex]))
+				$value = $iftable[$shortoid][$ifindex];
+			else
+				$value = NULL;
+
+			switch ($shortoid)
+			{
+				case 'ifPhysAddress':
+					/* format MAC Address */
+					if (strlen ($value) == 6 )
+					{
+						$retval =  unpack ('H12',$value);
+						$value = strtoupper ($retval[1]);
+					}
+					break;
+			}
+			$row[$shortoid] = $value;
+		}
+
+		$snmpdata['ports'][$ifindex] = $row;
+	}
+
+	/* END iftable */
+
+	function getNetwork ($ipaddr, $netmask)
+	{
+		if ($netmask == '0.0.0.0')
+			return NULL;
+
+		$ret['maskbits'] = 32-log ((ip2long ($netmask) ^ 0xffffffff)+1,2);
+		$ret['net'] = ip2long ($ipaddr) & ip2long ($netmask);
+		$ret['bcast'] = $ret['net'] | ( ip2long ($netmask) ^ 0xffffffff);
+
+		$ret['maskbits'] = intval ($ret['maskbits']);
+		$ret['net'] = long2ip ($ret['net']);
+		$ret['bcast'] = long2ip ($ret['bcast']);
+
+		return $ret;
+	}
+
+	$snmpdata['ipspaces'] = array ();
+
+	/* ipAddrTable ipv4 only (deprecated) */
+	$ipAdEntIfIndex = $snmpdev->walk ('1.3.6.1.2.1.4.20.1.2', TRUE);
+	if (!empty ($ipAdEntIfIndex))
+	{
+		$ipAdEntNetMask =  $snmpdev->walk ('1.3.6.1.2.1.4.20.1.3', TRUE);;
+
+		foreach ($ipAdEntIfIndex as $ip => $ifindex)
+		{
+			$net = getNetwork ($ip, $ipAdEntNetMask[$ip]);
+
+			if ($net)
+			{
+				$net['src'] = 'ipAddrTable';
+				$net['addrtype'] = 'ipv4';
+
+				$snmpdata['ports'][$ifindex]['ip'][$ip] = $net;
+
+				$ipspace = $net['net'].'/'.$net['maskbits'];
+				$net['prefix'] = $ipspace;
+				if (!isset ($snmpdata['ipspaces'][$ipspace]))
+					$snmpdata['ipspaces'][$ipspace] = $net;
+			}
 		}
 	}
 
+	/* END ipAddrTable */
+
+	/* ipAddressIfIndex ipv4 and ipv6 */
+	/* overwrites ipv4 from ipaddrtable */
+
+	$InetAddressType = array (
+		0 => 'unknown',
+		1 => 'ipv4',
+		2 => 'ipv6',
+		3 => 'ipv4z',
+		4 => 'ipv6z',
+		16 => 'dns'
+	);
+
+	$ipAddressIfIndex = $snmpdev->walk ('.1.3.6.1.2.1.4.34.1.3', TRUE); // ipAddressIfIndex
+
+	if (!empty ($ipAddressIfIndex))
+	{
+		$ipAddressType =  $snmpdev->walk ('.1.3.6.1.2.1.4.34.1.4', TRUE); /* 1 unicast, 2 anycast, 3 braodcast */
+		$ipAddressPrefix =  $snmpdev->walk ('.1.3.6.1.2.1.4.34.1.5', TRUE);
+
+		/* ipAddressAddrType.(InetAddressPrefixLength).ipAddressAddr */
+		foreach ($ipAddressIfIndex as $oid => $ifindex)
+		{
+			list ($ipAddressAddrType, $InetAddressPrefixLength, $ipAddressAddr) = explode ('.', $oid, 3);
+
+			$prefixvalue = str_replace (
+						".1.3.6.1.2.1.4.32.1.5.$ifindex.$ipAddressAddrType.$InetAddressPrefixLength.",
+						'',
+						$ipAddressPrefix[$oid]
+					);
+
+			$bytes = explode ('.', $prefixvalue);
+			$maskbits = array_pop ($bytes);
+			$netaddr = implode ('.', $bytes);
+			$bcast = NULL;
+
+			$net = array ();
+			$net['addrtype'] = $InetAddressType[$ipAddressAddrType];
+			switch ($ipAddressAddrType)
+			{
+				case 1: // ipv4
+				case 3: // ipv4z
+
+					/* get broadcast address */
+					$intnetmask = (int)(0xffffffff << (32 - $maskbits));
+					$intnet = ip2long ($netaddr) & $intnetmask;
+					$intbcast = $intnet | ( $intnetmask ^ 0xffffffff);
+					$netaddr = long2ip ($intnet);
+					$bcast = long2ip ($intbcast);
+
+					break;
+				case 2: // ipv6
+				case 4: // ipv6z
+					break;
+			}
+
+			$net['maskbits'] = $maskbits;
+			$net['net'] = $netaddr;
+			$net['bcast'] = $bcast;
+			$net['src'] = 'ipAddressTable';
+
+			$snmpdata['ports'][$ifindex]['ip'][$ipAddressAddr] = $net;
+
+			$ipspace = $net['net'].'/'.$net['maskbits'];
+			$net['prefix'] = $ipspace;
+			if (!isset ($snmpdata['ipspaces'][$ipspace]) &&  $net['net'] != '0.0.0.0')
+				$snmpdata['ipspaces'][$ipspace] = $net;
+
+		}
+
+	} /* ipAddressIfIndex */
+
+	/* END ipAddressIfIndex */
+
+	/* ipv6 MIB  */
+	/* overwrites ipv6 from ipaddresstable */
+	$ipv6Interfaces = @$snmpdev->get ('.1.3.6.1.2.1.55.1.3.0');
+
+	if ($ipv6Interfaces)
+	{
+		$ipv6AddrAddress =  $snmpdev->walk ('.1.3.6.1.2.1.55.1.8.1.1');
+			if (!empty ($ipv6AddrAddress))
+			{
+				$ipv6AddrPfxLength = $snmpdev->walk ('.1.3.6.1.2.1.55.1.8.1.2');
+
+				foreach ($ipv6addraddress as $oid => $addr_bin)
+				{
+					$addr = ip_format ($addr_bin);
+
+					list ($ipAddrAddressType, $ifindex, $tmp) = explode ('.', $oid, 3);
+
+					$maskbits = $ipv6AddrPfxLength[$oid];
+
+					$range = constructIPRange ($addr_bin, $maskbits);
+
+					$net['net'] = ip_format ($range['ip_bin']);
+					$net['bcast'] = NULL;
+					$net['src'] = 'ipv6AddrTable';
+					$net['addrtype'] = 'ipv6'.($ipAddrAddressType == 4 ? 'z' : '');
+
+					$snmpdata['ports'][$ifindex]['ip'][$addr] = $net;
+
+					$ipspace = $net['net'].'/'.$net['maskbits'];
+					$net['prefix'] = $ipspace;
+					if (!isset ($snmpdata['ipspaces'][$ipspace]) &&  $net['net'] != '0.0.0.0')
+						$snmpdata['ipspaces'][$ipspace] = $net;
+
+				}
+
+			}
+	}
+	/* END ipv6 MIB */
+
+	return $snmpdata;
+
+} /*  snmpgeneric_getsnmp */
+
+/*
+ * check ports, ips, assignments, ...
+ */
+function snmpgeneric_process (&$data, &$object, &$snmpdev)
+{
+	global $sg_known_sysObjectIDs, $sg_ifType_ignore, $sg_create_noconnector_ports;
+
+	/* need for DeviceBreed */
+	$object['attr'] = getAttrValues ($object['id']);
+
+	/* sysObjectID Attributes and Vendor Ports */
+
+	/* get sysObjectID */
+	$sysObjectID['raw_value'] = $data['system']['sysObjectID']['value'];
+
+	$sysObjectID['value'] = preg_replace ('/^.*(\.1\.3\.6\.1\.4\.1\.|enterprises\.|joint-iso-ccitt\.)([\.[:digit:]]+)$/', '\\2', $sysObjectID['raw_value']);
+
 	/* array_merge doesn't work with numeric keys !! */
-	$sysObjectID['attr'] = array();
-	$sysObjectID['port'] = array();
+	$sysObjectID['attr'] = array ();
+	$sysObjectID['port'] = array ();
 
 	$sysobjid = $sysObjectID['value'];
 
+	/* check for known sysObjectIDs */
+
 	$count = 1;
 
-	while($count) {
+	while ($count)
+	{
 
-		if(isset($sg_known_sysObjectIDs[$sysobjid])) {
+		if (isset ($sg_known_sysObjectIDs[$sysobjid]))
+		{
 			$sysObjectID = $sysObjectID + $sg_known_sysObjectIDs[$sysobjid];
 
-			if(isset($sg_known_sysObjectIDs[$sysobjid]['attr']))
+			if (isset ($sg_known_sysObjectIDs[$sysobjid]['attr']))
 				$sysObjectID['attr'] = $sysObjectID['attr'] + $sg_known_sysObjectIDs[$sysobjid]['attr'];
 
-			if(isset($sg_known_sysObjectIDs[$sysobjid]['port']))
+			if (isset ($sg_known_sysObjectIDs[$sysobjid]['port']))
 				$sysObjectID['port'] = $sysObjectID['port'] + $sg_known_sysObjectIDs[$sysobjid]['port'];
 
-			if(isset($sg_known_sysObjectIDs[$sysobjid]['text'])) {
-				showSuccess("found sysObjectID ($sysobjid) ".$sg_known_sysObjectIDs[$sysobjid]['text']);
-			}
+			if (isset ($sg_known_sysObjectIDs[$sysobjid]['text']))
+				showSuccess ("found sysObjectID ($sysobjid) ".$sg_known_sysObjectIDs[$sysobjid]['text']);
 		}
 
-		$sysobjid = preg_replace('/\.[[:digit:]]+$/','',$sysobjid, 1, $count);
+		$sysobjid = preg_replace ('/\.[[:digit:]]+$/','',$sysobjid, 1, $count);
 
 		/* add default sysobjectid */
-		if($count == 0 && $sysobjid != 'default') {
+		if ($count == 0 && $sysobjid != 'default')
+		{
 			$sysobjid = 'default';
 			$count = 1;
 		}
@@ -1317,64 +1758,72 @@ function snmpgeneric_list($object_id) {
 	$sysObjectID['vendor_number'] = $sysobjid;
 
 	/* device pf */
-	if(isset($sysObjectID['pf']))
-		foreach($sysObjectID['pf'] as $function) {
-			if(function_exists($function)) {
+	if (isset ($sysObjectID['pf']))
+		foreach ($sysObjectID['pf'] as $function)
+		{
+			if (function_exists ($function))
+			{
 				/* call device pf */
-				$function($snmpdev, $sysObjectID, NULL);
-			} else {
-				showWarning("Missing processor function ".$function." for device $sysobjid");
+				$function ($snmpdev, $sysObjectID, NULL);
+			}
+			else
+			{
+				showWarning ("Missing processor function ".$function." for device $sysobjid");
 			}
 		}
 
 
 	/* sort attributes maintain numeric keys */
-	ksort($sysObjectID['attr']);
+	ksort ($sysObjectID['attr']);
 
-	/* DEBUG */
-	//sg_var_dump_html($sysObjectID['attr'], "Before processing");
+	$updateattr = array ();
 
 	/* needs PHP >= 5 foreach call by reference */
-	/* php 5.1.6 doesn't seem to work */
-	//foreach($sysObjectID['attr'] as $attr_id => &$attr)
-	foreach($sysObjectID['attr'] as $attr_id => $value) {
+	foreach ($sysObjectID['attr'] as $attr_id => $value)
+	{
 
 		$attr = &$sysObjectID['attr'][$attr_id];
 
-		if(isset($object['attr'][$attr_id])) {
+		$attr['id'] = $attr_id;
 
-			if(array_key_exists('key',$object['attr'][$attr_id]))
-				$attr['key'] = $object['attr'][$attr_id]['key'];
+		if (isset ($object['attr'][$attr_id]))
+		{
+			switch (TRUE)
+			{
 
-			switch(TRUE) {
-
-				case isset($attr['pf']):
-					if(function_exists($attr['pf'])) {
-
+				case isset ($attr['pf']):
+					if (function_exists ($attr['pf']))
+					{
 						$attr['pf']($snmpdev, $sysObjectID, $attr_id);
 
-					} else {
-						showWarning("Missing processor function ".$attr['pf']." for attribute $attr_id");
+					}
+					else
+					{
+						showWarning ("Missing processor function ".$attr['pf']." for attribute $attr_id");
 					}
 
 					break;
 
-				case isset($attr['oid']):
+				case isset ($attr['oid']):
+					$attrvalue = $snmpdev->get ($attr['oid']);
 
-					$attrvalue = $snmpdev->get($attr['oid']);
-
-					if(isset($attr['regex'])) {
+					if (isset ($attr['regex']))
+					{
 						$regex = $attr['regex'];
 
-						if(isset($attr['replacement'])) {
+						if (isset ($attr['replacement']))
+						{
 							$replacement = $attr['replacement'];
-							$attrvalue = preg_replace($regex, $replacement, $attrvalue);
-						} else {
-							if(!preg_match($regex, $attrvalue)) {
-								if(!isset($attr['uncheck']))
+							$attrvalue = preg_replace ($regex, $replacement, $attrvalue);
+						}
+						else
+						{
+							if (!preg_match ($regex, $attrvalue))
+							{
+								if (!isset ($attr['uncheck']))
 									$attr['uncheck'] = "regex doesn't match";
 							} else
-								unset($attr['uncheck']);
+								unset ($attr['uncheck']);
 						}
 					}
 
@@ -1382,718 +1831,931 @@ function snmpgeneric_list($object_id) {
 
 					break;
 
-				case isset($attr['value']):
+				case isset ($attr['value']):
 					break;
 
 				default:
-					showError("Error handling attribute id: $attr_id");
+					showError ("Error handling attribute id: $attr_id");
 
 			}
 
-		} else {
-			showWarning("Object has no attribute id: $attr_id");
-			unset($sysObjectID['attr'][$attr_id]);
-		}
+			$attr['name'] = $object['attr'][$attr_id]['name'];
 
-	}
-	unset($attr_id);
+			if (array_key_exists ('key',$object['attr'][$attr_id]))
+				$attr['old_key'] = $object['attr'][$attr_id]['key'];
 
-	/* sort again in case there where attribs added ,maintain numeric keys */
-	ksort($sysObjectID['attr']);
+			if (array_key_exists ('value', $object['attr'][$attr_id]))
+				$attr['old_value'] = $object['attr'][$attr_id]['value'];
 
-	/* print attributes */
-	echo '<br>Attributes<br><table>';
-	echo '<tr><th><input type="checkbox" id="attribute" checked="checked" onclick="setchecked(this.id)"></td>';
-	echo '<th>Name</th><th>Current Value</th><th>new value</th></tr>';
+			$comment = array ();
 
-	/* DEBUG */
-	//sg_var_dump_html($sysObjectID['attr'], "After processing");
-
-	foreach($sysObjectID['attr'] as $attr_id => &$attr) {
-
-		$attr['id'] = $attr_id;
-
-		if(isset($object['attr'][$attr_id]) && isset($attr['value'])) {
-
-			if($attr['value'] == $object['attr'][$attr_id]['value'])
-				$attr['uncheck'] = 'Current = new value';
-
-			if(isset($attr['key']) && isset($object['attr'][$attr_id]['key']))
+			if (isset ($attr['comment']))
 			{
-				if($attr['key'] == $object['attr'][$attr_id]['key'])
-					$attr['uncheck'] = 'Current = new key';
+				if (!empty ($attr['comment']))
+					$comment[] = $attr['comment'];
 			}
 
-			$value = $attr['value'];
-
-			$val_key = (isset($object['attr'][$attr_id]['key']) ? ' ('.$object['attr'][$attr_id]['key'].')' : '' );
-			$comment = '';
-
-			if(isset($attr['comment'])) {
-				if(!empty($attr['comment']))
-					$comment = $attr['comment'];
-			}
-
-			if(isset($attr['uncheck'])) {
-				$checked = '';
-				$comment .= ', '.$attr['uncheck'];
-			} else {
-				$checked = ' checked="checked"';
-			}
-
-			$updateattrcheckbox = '<b style="background-color:#00ff00">'
-					 .'<input style="background-color:#00ff00" class="attribute" type="checkbox" name="updateattr['.$attr_id.']" value="'.$value.'"'
-					.$checked.'></b>';
-
-			$comment = trim($comment,', ');
-
-			echo "<tr><td>$updateattrcheckbox</td><td title=\"id: $attr_id\">"
-				.$object['attr'][$attr_id]['name'].'</td><td style="background-color:#d8d8d8">'
-				.$object['attr'][$attr_id]['value'].$val_key.'</td><td>'.$value.'</td>'
-				.'<td style="color:#888888">'.$comment.'</td></tr>';
-		}
-	}
-	unset($attr_id);
-
-	echo '</table>';
-
-	$object['breed'] = sg_detectDeviceBreedByObject($sysObjectID);
-
-	if(!empty($object['breed']))
-		echo "Found Breed: ".$object['breed']."<br>";
-
-	/* ports */
-
-	/* get ports */
-	amplifyCell($object);
-
-	/* set array key to lowercase port name */
-	foreach($object['ports'] as $key => $values) {
-		$object['ports'][strtolower(shortenIfName($values['name'], $object['breed']))] = $values;
-		unset($object['ports'][$key]);
-	}
-
-	$newporttypeoptions = getNewPortTypeOptions();
-
-//	sg_var_dump_html($sysObjectID['port']);
-
-	if(!empty($sysObjectID['port'])) {
-
-		echo '<br>Vendor / Device specific ports<br>';
-		echo '<table><tr><th><input type="checkbox" id="moreport" checked="checked" onclick="setchecked(this.id)"></th><th>ifName</th><th>porttypeid</th></tr>';
-
-		foreach($sysObjectID['port'] as $name => $port) {
-
-			if(array_key_exists(strtolower($name),$object['ports']))
-				$disableport = TRUE;
-			else
-				$disableport = FALSE;
-
-			$comment = '';
-
-			if(isset($port['comment'])) {
-				if(!empty($port['comment']))
-					$comment = $port['comment'];
-			}
-			if(isset($port['uncheck'])) {
-				$checked = '';
-				$comment .= ', '.$port['uncheck'];
-			} else {
-				$checked = ' checked="checked"';
-			}
-
-			$portcreatecheckbox = '<b style="background-color:'.($disableport ? '#ff0000' : '#00ff00')
-					.'"><input style="background-color:'.($disableport ? '#ff0000' : '#00ff00').'" class="moreport" type="checkbox" name="portcreate['.$name.']" value="'.$name.'"'
-					.($disableport ? ' disabled="disbaled"' : $checked ).'></b>';
-
-			$formfield = '<input type="hidden" name="ifName['.$name.']" value="'.$name.'">';
-			echo "<tr>$formfield<td>$portcreatecheckbox</td><td>$name</td>";
-
-			if(isset($port['disabled'])) {
-				$disabledselect = array('disabled' => "disabled");
-			} else
-				$disabledselect = array();
-
-
-			foreach($port as $key => $value) {
-
-				if($key == 'uncheck' || $key == 'comment')
-					continue;
-
-				/* TODO iif_name */
-				if($key == 'porttypeid')
-					$displayvalue = getNiftySelect($newporttypeoptions,
-							 array('name' => "porttypeid[$name]") + $disabledselect, $value);
-											/* disabled formfied won't be submitted ! */
-				else
-					$displayvalue = $value;
-
-				$formfield = '<input type="hidden" name="'.$key.'['.$name.']" value="'.$value.'">';
-				echo "$formfield<td>$displayvalue</td>";
-			}
-
-			$comment = trim($comment,', ');
-			echo "<td style=\"color:#888888\">$comment</td></tr>";
-		}
-		unset($name);
-		unset($port);
-
-		echo '</table>';
-	}
-
-	/* snmp ports */
-
-	$ifsnmp = new ifSNMP($snmpdev);
-
-	// needed for shortenIfName()
-	$ifsnmp->object_breed = $object['breed'];
-
-	/* ip spaces */
-
-	$ipspace = NULL;
-	foreach($ifsnmp->ipaddress as $ifindex => $ipaddresses) {
-
-		foreach($ipaddresses as $ipaddr => $value) {
-			$addrtype = $value['addrtype'];
-			$netaddr = $value['net'];
-			$maskbits = $value['maskbits'];
-			$netid = NULL;
-			$linklocal = FALSE;
-
-			//echo "<br> - DEBUG: ipspace $ipaddr - $netaddr - $addrtype - $maskbits<br>";
-
-			/* check for ip space */
-			switch($addrtype) {
-				case 'ipv4':
-				case 'ipv4z':
-					if($maskbits == 32)
-						$netid = 'host';
-					else
-						$netid = getIPv4AddressNetworkId(ip_parse($ipaddr));
-					break;
-
-				case 'ipv6':
-
-					if(ip_checkparse($ipaddr) === false)
-					{
-						/* format ipaddr for ip6_parse */
-						$ipaddr =  preg_replace('/((..):(..))/','\\2\\3',$ipaddr);
-						$ipaddr =  preg_replace('/%.*$/','',$ipaddr);
-					}
-
-					if(ip_checkparse($ipaddr) === false)
-						continue(2); // 2 because of switch
-
-					$ip6_bin = ip6_parse($ipaddr);
-					$ip6_addr = ip_format($ip6_bin);
-					$netid = getIPv6AddressNetworkId($ip6_bin);
-
-					$node = constructIPRange($ip6_bin, $maskbits);
-
-					$netaddr = $node['ip'];
-					$linklocal = substr($ip6_addr,0,5) == "fe80:";
-
-					//echo "<br> - DEBUG: ipspace $ipaddr - $addrtype - $maskbits - $netaddr - >$linklocal<<br>";
-
-					break;
-
-				case 'ipv6z':
-					/* link local */
-					$netid = 'ignore';
-					break;
-				default:
-			}
-
-			if(empty($netid) && $netaddr != '::1' && $netaddr != '127.0.0.1' && $netaddr != '127.0.0.0' && $netaddr != '0.0.0.0' && !$linklocal) {
-
-				$netaddr .= "/$maskbits";
-				$ipspace[$netaddr] = array('addrtype' => $addrtype, 'checked' => ($maskbits > 0 ? true : false));
-			}
-		}
-		unset($ipaddr);
-		unset($value);
-		unset($addrtype);
-	}
-	unset($ifindex);
-	unset($ipaddresses);
-
-	/* print ip spaces table */
-	if(!empty($ipspace)) {
-		echo '<br><br>Create IP Spaces';
-		echo '<table><tr><th><input type="checkbox" id="ipspace" onclick="setchecked(this.id)" checked=\"checked\"></th>';
-		echo '<th>Type</th><th>prefix</th><th>name</th><th width=150 title="reserve network and router addresses">reserve network / router addresses</th></tr>';
-
-		$i = 1;
-		foreach($ipspace as $prefix => $ipspace) {
-
-			$netcreatecheckbox = '<b style="background-color:#00ff00">'
-				.'<input class="ipspace" style="background-color:#00ff00" type="checkbox" name="netcreate['
-				.$i.']" value="'.$ipspace['addrtype'].'"'.($ipspace['checked'] ? ' checked=\"checked\"' : '').'></b>';
-
-			$netprefixfield = '<input type="text" size=50 name="netprefix['.$i.']" value="'.$prefix.'">';
-
-			$netnamefield = '<input type="text" name="netname['.$i.']">';
-
-			$netreservecheckbox = '<input type="checkbox" name="netreserve['.$i.']" checked="checked">';
-
-			echo "<tr><td>$netcreatecheckbox</td><td style=\"color:#888888\">${ipspace['addrtype']}</td><td>$netprefixfield</td><td>$netnamefield</td><td>$netreservecheckbox</td></tr>";
-
-			$i++;
-		}
-		unset($prefix);
-		unset($addrtype);
-		unset($i);
-
-		echo '</table>';
-	}
-
-
-	echo "<br><br>ifNumber: ".$ifsnmp->ifNumber."<br>indexcount: ".$ifsnmp->indexcount."<br><table><tbody valign=\"top\">";
-
-	$portcompat = getPortInterfaceCompat();
-
-	$ipnets = array();
-
-	$ifsnmp->printifInfoTableHeader("<th>add ip</th><th>add port</th><th>upd label</th><th title=\"update mac\">upd mac</th><td>upd port type</th><th>porttypeid</th><th>comment</th></tr>");
-
-	echo '<tr><td colspan="11"></td>
-		<td><input type="checkbox" id="ipaddr" onclick="setchecked(this.id);" checked="checked">IPv4<br>
-		<input type="checkbox" id="ipv6addr" onclick="setchecked(this.id);" checked="checked">IPv6</td>
-		<td><input type="checkbox" id="ports" onclick="setchecked(this.id)"></td>
-		<td><input type="checkbox" id="label" onclick="setchecked(this.id);" checked="checked"></td>
-		<td><input type="checkbox" id="mac" onclick="setchecked(this.id);" checked="checked"></td>
-		<td><input type="checkbox" id="porttype" onclick="setchecked(this.id);"></td></tr>';
-
-	foreach($ifsnmp as $if) {
-
-		$createport = TRUE;
-		$disableport = FALSE;
-		$ignoreport = FALSE;
-		$port_info = NULL;
-		$updatelabel = false;
-		$updateporttype = false;
-
-		$updatemaccheckbox = '';
-
-		$hrefs = array();
-
-		$comment = "";
-
-		if(trim($ifsnmp->ifName($if)) == '') {
-			$comment .= "no ifName";
-			$createport = FALSE;
-		} else {
-
-			if(array_key_exists($ifsnmp->ifName($if),$object['ports'])){
-				$port_info = &$object['ports'][$ifsnmp->ifName($if)];
-				$comment .= "Name exists";
-
-				/* ifalias change */
-				if($port_info['label'] != $ifsnmp->ifAlias($if))
-					$updatelabel = true;
-
-				$createport = FALSE;
-				$disableport = TRUE;
-			}
-		}
-
-		if($ifsnmp->ifPhysAddress($if) != '' ) {
-
-			$ifPhysAddress = $ifsnmp->ifPhysAddress($if);
-
-			$l2port =  sg_checkL2Address($ifPhysAddress);
-
-			if(!empty($l2port)) {
-
-				$l2object_id = key($l2port);
-
-				$porthref = makeHref(array('page'=>'object', 'tab' => 'ports',
-								 'object_id' => $l2object_id, 'hl_port_id' => $l2port[$l2object_id]));
-
-				$comment .= ", L2Address exists";
-				$hrefs['ifPhysAddress'] = $porthref;
-				$createport = FALSE;
-			//	$disableport = TRUE;
-				$updatemaccheckbox = '';
-			}
-
-			$disablemac = true;
-			if($disableport) {
-				if($port_info !== NULL) {
-					if(str_replace(':','',$port_info['l2address']) != $ifPhysAddress)
-						$disablemac = false;
-					else
-						$disablemac = true;
+			$attr['create'] = SG_BOX_CHECK;
+
+			if (isset ($attr['value']))
+			{
+				if ($attr['value'] == $object['attr'][$attr_id]['value'])
+				{
+					$comment[] = 'Current = new value';
+					$attr['create'] = SG_BOX_UNCHECK;
 				}
-			} else {
-				/* port create always updates mac */
-				$updatemaccheckbox = '<b style="background-color:#00ff00">'
-					.'<input style="background-color:'
-					.'#00ff00" type="checkbox"'
-					.' checked="checked"'
-					.' disabled=\"disabled\"></b>';
 			}
 
-			if(!$disablemac)
-				$updatemaccheckbox = '<b style="background-color:'.($disablemac ? '#ff0000' : '#00ff00').'">'
-					.'<input class="mac" style="background-color:'
-					.($disablemac ? '#ff0000' : '#00ff00').'" type="checkbox" name="updatemac['.$if.']" value="'
-					.$object['ports'][$ifsnmp->ifName($if)]['id'].'" checked="checked"'
-					.($disablemac ? ' disabled=\"disabled\"' : '' ).'></b>';
+			if (!array_key_exists ('value', $attr))
+			{
+				unset ($sysObjectID['attr'][$attr_id]);
+				continue;
+			}
 
-		}
+			if (isset ($attr['key']) && isset ($object['attr'][$attr_id]['key']))
+			{
+				if ($attr['key'] == $object['attr'][$attr_id]['key'])
+				{
+					$comment[] = 'Current = new key';
+					$attr['create'] = SG_BOX_UNCHECK;
+				}
+			}
 
-
-		$porttypeid = guessRToif_id($ifsnmp->ifType($if), $ifsnmp->ifDescr($if));
-
-		if(in_array($ifsnmp->ifType($if),$sg_ifType_ignore)) {
-			$comment .= ", ignore if type";
-			$createport = FALSE;
-			$ignoreport = TRUE;
+			$attr['comment'] = implode (', ', $comment);
 		}
 		else
 		{
-			if($port_info)
+			showWarning ("Object has no attribute id: $attr_id");
+			unset ($sysObjectID['attr'][$attr_id]);
+		}
+	}
+	unset ($attr_id);
+
+	/* sort again in case there where attribs added ,maintain numeric keys */
+	ksort ($sysObjectID['attr']);
+
+	$data['sysObjectID'] = $sysObjectID;
+
+	$object['breed'] = sg_detectDeviceBreedByObject ($sysObjectID);
+
+	/* get ports */
+	amplifyCell ($object);
+
+	/* set array key to lowercase port name */
+	foreach ($object['ports'] as $key => $values)
+	{
+		$object['ports'][strtolower (shortenIfName ($values['name'], $object['breed']))] = $values;
+		unset ($object['ports'][$key]);
+	}
+
+	$newporttypeoptions = getNewPortTypeOptions ();
+
+	/* process vendor ports */
+	foreach ($data['sysObjectID']['port'] as $name => $port)
+	{
+
+		// TODO Update porttype
+
+		$data['sysObjectID']['port'][$name]['ifName'] = $name;
+
+		$data['sysObjectID']['port'][$name]['create'] = SG_BOX_CHECK;
+
+		if (array_key_exists (strtolower ($name),$object['ports']))
+			$data['sysObjectID']['port'][$name]['create'] = SG_BOX_UNCHECK;
+
+		$comment = array ();
+
+		if (isset ($port['comment']))
+		{
+			if (!empty ($port['comment']))
+				$comment[] = $port['comment'];
+		}
+
+		if (isset ($port['uncheck']))
+			$comment[] = $port['uncheck'];
+
+		$data['sysObjectID']['port'][$name]['comment'] = implode ('; ', $comment);
+	}
+	unset ($name);
+	unset ($port);
+	// -------------------------------------------------------
+
+	/* ipspaces */
+	foreach ($data['ipspaces'] as $key => $net)
+	{
+		$addrtype = $net['addrtype'];
+		$netaddr = $net['net'];
+		$maskbits = $net['maskbits'];
+		$netid = NULL;
+		$linklocal = FALSE;
+
+		/* check for ip space */
+		switch ($addrtype)
+		{
+			case 'ipv4':
+			case 'ipv4z':
+				if ($maskbits == 32)
+					$netid = 'host';
+				else
+					$netid = getIPv4AddressNetworkId (ip_parse ($netaddr));
+				break;
+			case 'ipv6':
+				if (ip_checkparse ($netaddr) === false)
+				{
+					/* format ipaddr for ip6_parse */
+					$ipaddr =  preg_replace ('/((..):(..))/','\\2\\3',$netaddr);
+					$ipaddr =  preg_replace ('/%.*$/','',$ipaddr);
+				}
+				if (ip_checkparse ($ipaddr) === false)
+					continue (2); // 2 because of switch
+				$ip6_bin = ip6_parse ($ipaddr);
+				$ip6_addr = ip_format ($ip6_bin);
+				$netid = getIPv6AddressNetworkId ($ip6_bin);
+				$node = constructIPRange ($ip6_bin, $maskbits);
+				$netaddr = $node['ip'];
+				$linklocal = ($netaddr == 'fe80::');
+				break;
+			case 'ipv6z':
+				/* link local */
+				$netid = 'ignore';
+				break;
+			default:
+		}
+
+		if (
+			empty ($netid) &&
+			$netaddr != '::1' &&
+			$netaddr != '127.0.0.1' &&
+			$netaddr != '127.0.0.0' &&
+			$netaddr != '0.0.0.0' &&
+			!$linklocal
+		)
+		{
+			$data['ipspaces'][$key]['create'] = ($maskbits > 0 ? SG_BOX_CHECK : SG_BOX_UNCHECK);
+			$data['ipspaces'][$key]['name'] = '';
+		}
+		else
+			unset ($data['ipspaces'][$key]);
+	}
+
+
+	// -------------------------------
+	amplifyCell ($object);
+
+	$object['portsbyname'] = array ();
+	foreach ($object['ports'] as $port)
+		$object['portsbyname'][strtolower (shortenIfName ($port['name'], $object['breed']))] = $port;
+
+	/* ports */
+	$data['indexcount'] = count ($data['ports']);
+
+	foreach ($data['ports'] as $key => $port)
+	{
+		$comment = array ();
+		$port_info = NULL;
+
+		$data['ports'][$key]['action'] = SG_BOX_IGNORE;
+		$data['ports'][$key]['create'] = SG_BOX_IGNORE; // rename to add ?
+		$data['ports'][$key]['labelupdate'] = SG_BOX_IGNORE;
+		$data['ports'][$key]['macupdate'] = SG_BOX_IGNORE;
+		$data['ports'][$key]['porttypeupdate'] = SG_BOX_IGNORE;
+		$data['ports'][$key]['RT_port_id'] = NULL;
+
+		/* check ifName */
+		if (empty (trim ($port['ifName'])))
+		{
+			$data['ports'][$key]['create'] = SG_BOX_UNCHECK;
+			$comment[] = "no ifName";
+		}
+		else
+		{
+
+			$data['ports'][$key]['ifName'] = strtolower (shortenIfName ($port['ifName'], $object['breed']));
+
+			if (array_key_exists ($port['ifName'], $object['portsbyname']))
+			{
+				$port_info = $object['portsbyname'][$port['ifName']];
+				$comment[] = "Name exists";
+				/* ifalias change */
+				if ($port_info['label'] != $port['ifAlias'])
+					$data['ports'][$key]['labelupdate'] = SG_BOX_CHECK;
+
+				$data['ports'][$key]['RT_port_id'] = $port_info['id'];
+			}
+			else
+				 $data['ports'][$key]['create'] = SG_BOX_CHECK;
+		}
+
+		/* l2address */
+		if (!empty ($port['ifPhysAddress']))
+		{
+			$l2port =  sg_checkL2Address ($port['ifPhysAddress']);
+
+			if (!empty ($l2port))
+			{
+				$comment[] = "L2Address exists";
+				$data['ports'][$key]['macexists'] = $l2port;
+
+				if ($data['ports'][$key]['create'])
+					$data['ports'][$key]['create'] = SG_BOX_PROBLEM;
+			}
+
+			if ($port_info !== NULL)
+			{
+				/* mac update needed */
+				if (l2addressForDatabase ($port_info['l2address']) != l2addressForDatabase ($port['ifPhysAddress']))
+					if (!empty ($l2port))
+						$data['ports'][$key]['macupdate'] = SG_BOX_PROBLEM;
+					else
+						$data['ports'][$key]['macupdate'] = SG_BOX_CHECK;
+				else
+					$data['ports'][$key]['macupdate'] = SG_BOX_IGNORE;
+			}
+		}
+
+		/* label *
+		if ($port_info && $port['ifAlias'] != $port_info['label'])
+			 $data['ports'][$key]['labelupdate'] = SG_BOX_CHECK;
+
+
+		/* port type id */
+		$data['ports'][$key]['porttypeid'] = guessRToif_id ($port['ifType'], $port['ifDescr']);
+
+		if (in_array ($port['ifType'],$sg_ifType_ignore))
+		{
+			$comment[] = "ignore if type";
+			$data['ports'][$key]['create'] = SG_BOX_IGNORE;
+		}
+		else
+		{
+			if ($port_info)
 			{
 				$ptid = $port_info['iif_id']."-".$port_info['oif_id'];
-				if($porttypeid != $ptid)
+				if ($data['ports'][$key]['porttypeid'] != $ptid)
 				{
-					$comment .= ", Update Type $ptid -> $porttypeid";
-					$updateporttype = true;
+					$comment[] = "Update Type $ptid -> ".$data['ports'][$key]['porttypeid'];
+					$data['ports'][$key]['porttypeupdate'] = SG_BOX_CHECK;
 				}
 			}
 		}
 
 		/* ignore ports without an Connector */
-		if(!$sg_create_noconnector_ports && ($ifsnmp->ifConnectorPresent($if) == 2)) {
-			$comment .= ", no Connector";
-			$createport = FALSE;
+		if (!$sg_create_noconnector_ports && ($port['ifConnectorPresent'] == 2))
+		{
+			$comment[] = "no Connector";
+			$data['ports'][$key]['create'] = SG_BOX_IGNORE;
 		}
 
-		/* Allocate IPs ipv4 and ipv6 */
+		if ($port['ifHighSpeed'] * 1000000 > $port['ifSpeed'])
+			$data['ports'][$key]['ifSpeed'] = $port['ifHighSpeed'] * 1000000;
 
-		$ipaddresses = $ifsnmp->ipaddress($if);
+		/* ip allocations */
+		foreach ($port['ip'] as $ipaddr => $ip)
+		{
+			$data['ports'][$key]['ip'][$ipaddr]['allocate'] = SG_BOX_CHECK;
+			$data['ports'][$key]['ip'][$ipaddr]['object_id'] = NULL;
 
-		if(!empty($ipaddresses)) {
+			$address = getIPAddress (ip_parse ($ipaddr));
+			if (count ($address['allocs'])) // TODO multiple allocs
+			{
+				if ($object['id'] != $address['allocs'][0]['object_id'])
+				{
+					$comment[] =  $address['ip'].' allocated '.$address['allocs'][0]['object_name'].' port: '.$address['allocs'][0]['name'];
+					$data['ports'][$key]['ip'][$ipaddr]['object_id'] = $address['allocs'][0]['object_id'];
+					$data['ports'][$key]['ip'][$ipaddr]['allocate'] = SG_BOX_PROBLEM;
+				}
+				else
+					$data['ports'][$key]['ip'][$ipaddr]['allocate'] = SG_BOX_IGNORE;
+			}
 
-			$ipaddrcell = '<table>';
+			/* reserved addresses */
+			if ($address['reserved'] == 'yes')
+			{
+				$comment[] = $address['ip'].' reserved '.$address['name'];
+				$data['ports'][$key]['ip'][$ipaddr]['allocate'] = SG_BOX_UNCHECK;
+			}
 
-			foreach($ipaddresses as $ipaddr => $value) {
-				$createipaddr = FALSE;
-				$disableipaddr = FALSE;
-				$ipaddrhref = '';
-				$linklocal = FALSE;
+			if ($ipaddr === $ip['bcast'])
+			{
+				$comment[] = "$ipaddr broadcast";
+				$data['ports'][$key]['ip'][$ipaddr]['allocate'] = SG_BOX_UNCHECK;
+			}
 
-				$addrtype = $value['addrtype'];
-				$maskbits = $value['maskbits'];
-				$bcast = $value['bcast'];
+			if (
+				$ipaddr == '127.0.0.1'
+				|| $ipaddr == '0.0.0.0'
+				|| $ipaddr == '::1'
+				|| $ipaddr == '::'
+				|| $ip['net'] == 'fe80::'
+			)
+			{
+				$data['ports'][$key]['ip'][$ipaddr]['allocate'] = SG_BOX_IGNORE;
+			}
+		}
 
-				//echo "<br> - DEBUG: ip $ipaddr - $addrtype - $maskbits - $bcast<br>";
+		$data['ports'][$key]['comment'] = implode ('; ', $comment);
+		$data['ports'][$key]['action'] |=
+						  $data['ports'][$key]['create']
+						| $data['ports'][$key]['labelupdate']
+						| $data['ports'][$key]['macupdate']
+						| $data['ports'][$key]['porttypeupdate'];
+	}
 
-				switch($addrtype) {
-					case 'ipv4z':
-					case 'ipv4':
-						if($maskbits == 32)
-							$bcast = "host";
+} /* snmpgeneric_process */
 
-						$inputname = 'ip';
-						break;
+/*
+ * prepare data for html form
+ */
+function snmpgeneric_processForm (&$data, $object)
+{
+	global $sg_portoifoptions;
 
-					case 'ipv6z':
-						$disableipaddr = TRUE;
+	/* attributes */
+	foreach ($data['sysObjectID']['attr'] as $attr_id => &$attr)
+	{
+		$attr['boxcolumn'] =
+				'<b style="background-color:#00ff00">'
+				.'<input style="background-color:#00ff00" class="attribute" type="checkbox" name="sysObjectID[attr]['.$attr_id.'][create]" value="'.SG_BOX_CHECK.'"'
+				.($attr['create'] & SG_BOX_CHECK ? 'checked="checked"' : '').'></b>'
+				.'<input type="hidden" name=sysObjectID[attr]['.$attr_id.'][value] value="'.$attr['value'].'">';
+
+		$attr['valuecolumn'] =
+			$attr['old_value'].(isset ($attr['old_key']) ? ' ('.$attr['old_key'].')' : '');
+
+		$attr['newvaluecolumn'] = $attr['value'];
+
+	}
+	unset ($attr_id);
+
+	$newporttypeoptions = getNewPortTypeOptions ();
+
+	/* vendor ports */
+	foreach ($data['sysObjectID']['port'] as $name => $port)
+	{
+
+		$data['sysObjectID']['port'][$name]['boxcolumn'] =
+			'<b style="background-color:'.($port['create'] & SG_BOX_PROBLEM ? '#ff0000' : '#00ff00')
+			.'"><input style="background-color:'.($port['create'] & SG_BOX_PROBLEM ? '#ff0000' : '#00ff00')
+			.'" class="moreport" type="checkbox" name="sysObjectID[port][vendor_'.$name.'][create]" value="'.SG_BOX_CHECK.'"'
+			.(!$port['create'] ? ' disabled="disabled"' : ($port['create'] & SG_BOX_CHECK ? 'checked="checked"' : '')).'></b>'
+			.'<input type="hidden" name="sysObjectID[port][vendor_'.$name.'][ifName]" value="'.$name.'">';
+
+		// label ?
+
+		if (0 && isset ($port['exists']))
+		{
+			$disabledselect = array ('disabled' => "disabled");
+		} else
+			$disabledselect = array ();
+
+		$data['sysObjectID']['port'][$name]['porttypecolumn'] =
+			getNiftySelect ($newporttypeoptions,
+				array ('name' => "sysObjectID[port][vendor_$name][porttypeid]") + $disabledselect, $port['porttypeid']);
+				/* disabled formfield won't be submitted ! */
+	}
+	unset ($name);
+	unset ($port);
+
+	/* ipspace */
+	foreach ($data['ipspaces'] as $key => $ipspace)
+	{
+
+		// TODO disable ip allocs for this ipspace if unchecked
+		$data['ipspaces'][$key]['boxcolumn'] =
+			'<b style="background-color:#00ff00">'
+			.'<input class="ipspace" style="background-color:#00ff00" type="checkbox" name="ipspaces['
+			.$key.'][create]" value="'.SG_BOX_CHECK.'"'.($ipspace['create'] & SG_BOX_CHECK ? ' checked="checked"' : '').'></b>'
+			.'<input type="hidden" name="ipspaces['.$key.'][addrtype]" value="'.$ipspace['addrtype'].'">';
+
+		$data['ipspaces'][$key]['prefixcolumn'] = '<input type="text" size=50 name="ipspaces['.$key.'][prefix]" value="'.$key.'">';
+		$data['ipspaces'][$key]['namecolumn'] = '<input type="text" name="ipspaces['.$key.'][name]">';
+		$data['ipspaces'][$key]['reservecolumn'] =
+			'<input type="checkbox" name="ipspaces['.$key.'][reserve]" checked="checked" value="'.SG_BOX_CHECK.'">';
+	}
+
+	/* ports */
+	$newporttypeoptions = getNewPortTypeOptions ();
+
+	foreach ($data['ports'] as $key => $port)
+	{
+		$actionvalue = $port['create'] & ~SG_BOX_PROBLEM ? 'add' : $port['RT_port_id'];
+
+		$action = $port['action'] & ~SG_BOX_PROBLEM;
+
+		$data['ports'][$key]['ifNamecolumn'] = $port['ifName'];
+
+		if ($action)
+			$data['ports'][$key]['ifNamecolumn'] .=
+				'<input type="hidden" name="ports['.$port['ifIndex'].'][action]" value="'.$action.'">'
+				.'<input type="hidden" name="ports['.$port['ifIndex'].'][RT_port_id]" value="'.$port['RT_port_id'].'">';
+
+		if ($action || !empty ($port['ip']))
+			$data['ports'][$key]['ifNamecolumn'] .=
+				'<input type="hidden" name="ports['.$port['ifIndex'].'][ifName]" value="'.$port['ifName'].'">';
+
+		$data['ports'][$key]['ifDescrcolumn'] =
+					empty ($port['ifDescr']) ?
+					$port['ifDescr'] :
+					'<input'.(!$action ? ' disabled="disabled"' : '').' readonly="readonly" type="text" size="15" name="ports['.$port['ifIndex'].'][ifDescr]" value="'.$port['ifDescr'].'">';
+
+		$data['ports'][$key]['ifAliascolumn'] =
+					'<input'.(!$action ? ' disabled="disabled"' : '').(empty ($port['ifAlias']) ? ' readonly="readonly"' : '').' type="text" size="15" name="ports['.$port['ifIndex'].'][ifAlias]" value="'.$port['ifAlias'].'">';
+
+
+		$speed = $port['ifSpeed'];
+
+		$prefix = array ( '', 'k', 'M', 'G');
+		$i = 0;
+		while ($speed >= 1000)
+		{
+			$speed = $speed / 1000;
+			$i++;
+		}
+
+		$data['ports'][$key]['ifSpeed'] = $speed.$prefix[$i];
+
+		$value = l2addressFromDatabase ($port['ifPhysAddress']);
+		if (isset ($port['macexists']))
+		{
+			$l2object_id = key ($port['macexists']);
+
+			$value = '<a href="'.makeHref (array (
+					'page'=>'object',
+					'tab' => 'ports',
+					'object_id' => $l2object_id,
+					'hl_port_id' => $port['macexists'][$l2object_id]
+					))
+					.'">'.$value.'</a>';
+		};
+
+		$data['ports'][$key]['ifPhysAddresscolumn'] = ($action ? '<input type="hidden" name="ports['.$port['ifIndex'].'][ifPhysAddress]" value="'.$port['ifPhysAddress'].'">' : '').$value;
+
+		/* ip address */
+		if (!empty ($port['ip']))
+		{
+			$table = '<table>';
+			foreach ($port['ip'] as $ipaddr => $ip )
+			{
+				$href = NULL;
+
+				if ($ip['object_id'])
+					$href = makeHref (
+						array ('page'=>'object',
+							'object_id' => $ip['object_id'],
+							'hl_ipv4_addr' => $ipaddr)
+					);
+
+				switch ($ip['addrtype'])
+				{
 					case 'ipv6':
+					case 'ipv6z':
 						$inputname = 'ipv6';
-
-						if(ip_checkparse($ipaddr) === false)
-						{
-							/* format ipaddr for ip6_parse */
-							$ipaddr =  preg_replace('/((..):(..))/','\\2\\3',$ipaddr);
-							$ipaddr =  preg_replace('/%.*$/','',$ipaddr);
-						}
-
-						if(ip_checkparse($ipaddr) === false)
-							continue(2); // 2 because of switch
-
-						/* ip_parse throws exception on parse errors */
-						$ip6_bin = ip_parse($ipaddr);
-						$ipaddr = ip_format($ip6_bin);
-
-						$node = constructIPRange($ip6_bin, $maskbits);
-
-						$linklocal = ($node['ip'] == 'fe80::');
-
-						$createipaddr = FALSE;
 						break;
-
-				} //switch
-
-				$address = getIPAddress(ip_parse($ipaddr));
-
-				/* only if ip not already allocated */
-				if(empty($address['allocs'])) {
-					if(!$ignoreport) {
-						$createipaddr = TRUE;
-					}
-				} else {
-					$disableipaddr = TRUE;
-
-					$ipobject_id = $address['allocs'][0]['object_id'];
-
-					$ipaddrhref = makeHref(array('page'=>'object',
-									 'object_id' => $ipobject_id, 'hl_ipv4_addr' => $ipaddr));
-
+					default:
+						$inputname = 'ip';
 				}
 
-				/* reserved addresses */
-				if($address['reserved'] == 'yes') {
-					$comment .= ', '.$address['ip'].' reserved '.$address['name'];
-					$createipaddr = FALSE;
-				//	$disableipaddr = TRUE;
-				}
-
-				if($ipaddr == '127.0.0.1' || $ipaddr == '0.0.0.0' || $ipaddr == '::1' || $ipaddr == '::' || $linklocal) {
-					$createipaddr = FALSE;
-					$disableipaddr = TRUE;
-				}
-
-				if($ipaddr === $bcast) {
-					$comment .= ", $ipaddr broadcast";
-					$createipaddr = FALSE;
-					$disableipaddr = TRUE;
-				}
-
-				if(!$disableipaddr) {
-					$ipaddrcheckbox = '<b style="background-color:'.($disableipaddr ? '#ff0000' : '#00ff00')
-						.'"><input class="'.$inputname.'addr" style="background-color:'
-						.($disableipaddr ? '#ff0000' : '#00ff00')
-						.'" type="checkbox" name="'.$inputname.'addrcreate['.$ipaddr.']" value="'.$if.'"'
-						.($disableipaddr ? ' disabled="disabled"' : '')
-						.($createipaddr ? ' checked="checked"' : '').'></b>';
-				} else {
-					$ipaddrcheckbox = '';
-				}
-
-				$ipaddrcell .= "<tr><td>$ipaddrcheckbox</td>";
-
-				if(!empty($ipaddrhref)) {
-					$ipaddrcell .= "<td><a href=$ipaddrhref>$ipaddr/$maskbits</a></td></tr>";
-				} else {
-					$ipaddrcell .= "<td>$ipaddr/$maskbits</td></tr>";
-				}
-
-			} // foreach
-			unset($ipaddr);
-			unset($value);
-
-			$ipaddrcell .= '</table>';
-
-		// if(!empty($ipaddresses))
-		 } else {
-			$ipaddrcreatecheckbox = '';
-			$ipaddrcell = '';
+				$table .= '<tr><td>'
+					.(!$ip['allocate'] ? '' :
+					'<b style="background-color:'.($ip['allocate'] & SG_BOX_PROBLEM ? '#ff0000' : '#00ff00')
+					.'"><input class="'.$inputname.'addr" style="background-color:'
+					.($ip['allocate'] & SG_BOX_PROBLEM ? '#ff0000' : '#00ff00')
+					.'" type="checkbox" name="ports['.$port['ifIndex'].'][ip]['.$ipaddr.'][allocate]" value="'.SG_BOX_CHECK.'"'
+					.(!$ip['allocate'] ? ' disabled="disabled"' : '')
+					.($ip['allocate'] & SG_BOX_CHECK ? ' checked="checked"' : '').'></b>'
+					.'<input type=hidden name="ports['.$port['ifIndex'].'][ip]['.$ipaddr.'][addrtype]" value="'.$ip['addrtype'].'">')
+					.'</td><td>'
+					.($href ? "<a href=$href>$ipaddr/${ip['maskbits']}</a>" : "$ipaddr/${ip['maskbits']}")
+					.'</td></tr>';
+			}
+			$table .= '</table>';
+			$data['ports'][$key]['ipcolumn'] = $table;
 		}
-
-		/* checkboxes for add port and add ip */
-		/* FireFox needs <b style=..>, IE and Opera work with <td style=..> */
-		if(!$disableport)
-			$portcreatecheckbox = '<b style="background-color:'.($disableport ? '#ff0000' : '#00ff00')
-					.'"><input class="ports" style="background-color:'.($disableport ? '#ff0000' : '#00ff00')
-					.'" type="checkbox" name="portcreate['.$if.']" value="'.$if.'"'
-					.($disableport ? ' disabled="disbaled"' : '').($createport ? ' checked="checked"' : '').'></b>';
 		else
-			$portcreatecheckbox = '';
+			$data['ports'][$key]['ipcolumn'] = '';
+
+		/* add port form columns */
+		$data['ports'][$key]['portcreatecolumn'] = !$port['create'] ? '' :
+					'<b style="background-color:'.($port['create'] & SG_BOX_PROBLEM ? '#ff0000' : '#00ff00')
+					.'"><input class="ports" style="background-color:'.($port['create'] & SG_BOX_PROBLEM ? '#ff0000' : '#00ff00')
+					.'" type="checkbox" name="ports['.$port['ifIndex'].'][create]" value="'.SG_BOX_CHECK.'"'
+					.($port['create'] & SG_BOX_CHECK ? ' checked="checked"' : '').'></b>';
+
+		 $data['ports'][$key]['labelupdatecolumn'] =  !$port['labelupdate'] ? '' :
+					'<b style="background-color:#00ff00;">'
+					.'<input class="label" style="background-color:#00ff00;" type="checkbox" name="ports['.$port['ifIndex'].'][labelupdate]" value="'
+					.SG_BOX_CHECK.($port['labelupdate'] & SG_BOX_CHECK ? '" checked="checked"' : '' ).'"></b>';
+
+		$data['ports'][$key]['macupdatecolumn'] = !$port['macupdate'] ? '' :
+					'<b style="background-color:'.($port['macupdate'] & SG_BOX_PROBLEM ? '#ff0000' : '#00ff00').'">'
+					.'<input class="mac" style="background-color:'
+					.($port['macupdate'] & SG_BOX_PROBLEM ? '#ff0000' : '#00ff00').'" type="checkbox" name="ports['.$port['ifIndex'].'][macupdate]" value="'
+					.SG_BOX_CHECK.'"'.($port['macupdate'] & SG_BOX_CHECK ? 'checked="checked"' : '')
+					.'></b>';
+
+		$data['ports'][$key]['porttypeupdatecolumn'] = !$port['porttypeupdate'] ? '' :
+					'<b style="background-color:#00ff00;">'
+					.'<input class="porttype" style="background-color:#00ff00;" type="checkbox" name="ports['.$port['ifIndex'].'][porttypeupdate]" value="'
+					.SG_BOX_CHECK.'"'.($port['porttypeupdate'] & SG_BOX_CHECK ? ' checked="checked"' : '').'></b>';
 
 		/* port type id */
 		/* add port type to newporttypeoptions if missing */
-		if(strpos(serialize($newporttypeoptions),$porttypeid) === FALSE) {
-
-			$portids = explode('-',$porttypeid);
+		if (strpos (serialize ($newporttypeoptions),$port['porttypeid']) === FALSE)
+		{
+			$portids = explode ('-',$port['porttypeid']);
 			$oif_name = $sg_portoifoptions[$portids[1]];
-
-			$newporttypeoptions['auto'] = array($porttypeid => "*$oif_name");
+			$newporttypeoptions['auto'] = array ($port['porttypeid'] => "*$oif_name");
 		}
 
-		$selectoptions = array('name' => "porttypeid[$if]");
+		$selectoptions = array ('name' => "ports[${port['ifIndex']}][porttypeid]");
 
-		if($disableport && !$updateporttype)
-			$selectoptions['disabled'] = "disabled";
+		if (!$port['porttypeupdate'] && ! ($port['create'] & ~SG_BOX_PROBLEM))
+			$selectoptions['disabled'] = 'disabled';
 
-		$updateporttypecheckbox = "";
+		$porttypeidselect = getNiftySelect ($newporttypeoptions, $selectoptions, $port['porttypeid']);
 
-		if($updateporttype)
-			$updateporttypecheckbox = '<b style="background-color:#00ff00;">'
-					.'<input class="porttype" style="background-color:#00ff00;" type="checkbox" name="updateporttype['.$if.']" value="'
-					.$port_info['id'].'"></b>';
-
-		$porttypeidselect = getNiftySelect($newporttypeoptions, $selectoptions, $porttypeid);
-
-		$updatelabelcheckbox = "";
-
-		if($updatelabel)
-			$updatelabelcheckbox = '<b style="background-color:#00ff00;">'
-					.'<input class="label" style="background-color:#00ff00;" type="checkbox" name="updatelabel['.$if.']" value="'
-					.$port_info['id'].($updatelabel ? '" checked="checked"' : '' ).'></b>';
-
-		$comment = trim($comment,', ');
-
-		$ifsnmp->printifInfoTableRow($if,"<td>$ipaddrcell</td><td>$portcreatecheckbox</td><td>$updatelabelcheckbox</td><td>$updatemaccheckbox</td><td>$updateporttypecheckbox</td><td>$porttypeidselect</td><td nowrap=\"nowrap\">$comment</td>", $hrefs);
-
+		$data['ports'][$key]['porttypecolumn'] = $porttypeidselect;
 	}
-	unset($if);
+
+	/* insert top row */
+	array_unshift ($data['ports'], array (
+					'ifIndex' => '',
+					'ifDescrcolumn' => '',
+					'ifAliascolumn' => '',
+					'ifNamecolumn' => '',
+					'ifType' => '',
+					'ifSpeed' => '',
+					'ifPhysAddresscolumn' => '',
+					'ifOperStatus' => '',
+					'ifInOctets' => '',
+					'ifOutOctets' => '',
+					'ifConnectorPresent' => '',
+					'ipcolumn' => '<input type="checkbox" id="ipaddr" onclick="setchecked(this.id);" checked="checked">IPv4<br>
+							<input type="checkbox" id="ipv6addr" onclick="setchecked(this.id);" checked="checked">IPv6',
+					'portcreatecolumn' => '<input type="checkbox" id="ports" onclick="setchecked(this.id)">',
+					'labelupdatecolumn' => '<input type="checkbox" id="label" onclick="setchecked(this.id);" checked="checked">',
+					'macupdatecolumn' => '<input type="checkbox" id="mac" onclick="setchecked(this.id);" checked="checked">',
+					'porttypeupdatecolumn' => '<input type="checkbox" id="porttype" onclick="setchecked(this.id);">',
+					'porttypecolumn' => '',
+					'comment' => '',
+						)
+	);
+
+	/* add bottom row  with submit button */
+	$data['ports'][] = array (
+					'ifIndex' => '',
+					'ifDescrcolumn' => '',
+					'ifAliascolumn' => '',
+					'ifNamecolumn' => '',
+					'ifType' => '',
+					'ifSpeed' => '',
+					'ifPhysAddresscolumn' => '',
+					'ifOperStatus' => '',
+					'ifInOctets' => '',
+					'ifOutOctets' => '',
+					'ifConnectorPresent' => '',
+					'ipcolumn' => '<input id="createbutton" type=submit value="Create Ports/IPs" onclick="return confirm(\'Create selected items?\')">',
+					'portcreatecolumn' => '',
+					'labelupdatecolumn' => '',
+					'macupdatecolumn' => '',
+					'porttypeupdatecolumn' => '',
+					'porttypecolumn' => '',
+					'comment' => '',
+	);
+} /* processForm */
+
+/*---------------------------------------------------------------*/
+
+function snmpgeneric_list ($object_id)
+{
+
+	if (isset ($_POST['snmpconfig']))
+	{
+		$snmpconfig = $_POST;
+	}
+	else
+	{
+		showError ("Missing SNMP Config");
+		return;
+	}
+
+	/* set focus on submit button */
+	echo '<body onload="document.getElementById(\'createbutton\').focus();">';
+
+	addJS ('function setchecked(classname) { var boxes = document.getElementsByClassName(classname);
+				 var value = document.getElementById(classname).checked;
+				 for(i=0;i<boxes.length;i++) {
+					if(boxes[i].disabled == false)
+						boxes[i].checked=value;
+				 }
+		};', TRUE);
+
+	$object = spotEntity ('object', $object_id);
+
+	$snmpdev = NULL;
+	$data = snmpgeneric_getsnmp ($snmpconfig, $snmpdev);
+
+	echo '<form name=CreatePorts method=post action='.$_SERVER['REQUEST_URI'].'&module=redirect&op=create>';
+
+	startPortlet ('System Informations');
+
+	$columns = array (
+				array ('row_key' => 'shortoid'),
+				array ('row_key' => 'value')
+			);
+
+	renderTableViewer ($columns, $data['system']);
+
+	finishPortlet ();
+
+	/* process data */
+	snmpgeneric_process ($data, $object, $snmpdev);
+	snmpgeneric_processForm ($data, $object);
+
+	/* print attributes */
+	startPortlet ('Attributes');
+
+	$columns = array (
+		array ('row_key' => 'boxcolumn', 'th_text' => '<input type="checkbox" id="attribute" checked="checked" onclick="setchecked(this.id)">', 'td_escape' => FALSE),
+		array ('row_key' => 'name', 'th_text' => 'Name'),
+		array ('row_key' => 'valuecolumn', 'th_text' => 'Current Value'),
+		array ('row_key' => 'newvaluecolumn', 'th_text' => 'New Value'),
+		array ('row_key' => 'comment')
+	);
+
+	renderTableViewer ($columns, $data['sysObjectID']['attr']);
+
+	finishPortlet ();
+
+	if (!empty ($data['sysObjectID']['port']))
+	{
+		/* vendor ports */
+
+		$columns = array (
+			array ('row_key' => 'boxcolumn', 'th_text' => '<input type="checkbox" id="moreport" checked="checked" onclick="setchecked(this.id)">', 'td_escape' => FALSE),
+			array ('row_key' => 'ifName', 'th_text' => 'Name'),
+			array ('row_key' => 'porttypecolumn', 'th_text' => 'porttype', 'td_escape' => FALSE),
+			array ('row_key' => 'ifDescr', 'th_text' => 'Descr'),
+			array ('row_key' => 'comment', 'th_text' => 'Comment'),
+		);
+
+		startPortlet ('Vendor / Device specific ports');
+
+		renderTableViewer ($columns, $data['sysObjectID']['port']);
+		finishPortlet ();
+	}
+
+	/* ip spaces */
+
+	/* print ip spaces table */
+	if (!empty ($data['ipspaces']))
+	{
+		startPortlet ('Create IP Spaces');
+
+		$columns = array (
+				array ('row_key' => 'boxcolumn', 'th_text' => '<input type="checkbox" id="ipspace" onclick="setchecked(this.id)" checked=\"checked\">', 'td_escape' => FALSE),
+				array ('row_key' => 'addrtype', 'th_text' => 'Type'),
+				array ('row_key' => 'prefixcolumn', 'th_text' => 'Prefix', 'td_escape' => FALSE),
+				// TODO VLAN
+				array ('row_key' => 'namecolumn', 'th_text' => 'Name', 'td_escape' => FALSE),
+				// TODO TAGS
+				array ('row_key' => 'reservecolumn', 'th_text' => 'Reserve', 'td_escape' => FALSE)
+			);
+
+		renderTableViewer ($columns, $data['ipspaces']);
+		finishPortlet ();
+	}
+
+	addCSS ('.nowrap { white-space: nowrap; }', TRUE);
+
+	$columns = array (
+			array ('row_key' => 'ifIndex', 'th_text' => 'ifIndex'),
+			array ('row_key' => 'ifDescrcolumn', 'th_text' => 'ifDescr', 'td_escape' => FALSE),
+			array ('row_key' => 'ifAliascolumn', 'th_text' => 'ifAlias', 'td_escape' => FALSE),
+			array ('row_key' => 'ifNamecolumn', 'th_text' => 'ifName', 'td_escape' => FALSE),
+			array ('row_key' => 'ifType', 'th_text' => 'ifType'),
+			array ('row_key' => 'ifSpeed', 'th_text' => 'ifSpeed'),
+			array ('row_key' => 'ifPhysAddresscolumn', 'th_text' => 'ifPhysAddress', 'td_escape' => FALSE),
+			array ('row_key' => 'ifOperStatus', 'th_text' => 'ifOper Status'),
+			array ('row_key' => 'ifInOctets', 'th_text' => 'ifInOctets'),
+			array ('row_key' => 'ifOutOctets', 'th_text' => 'ifOutOctets'),
+			array ('row_key' => 'ifConnectorPresent', 'th_text' => 'ifCon Pres'),
+			array ('row_key' => 'ipcolumn', 'th_text' => 'ip', 'td_escape' => FALSE),
+			array ('row_key' => 'portcreatecolumn', 'th_text' => 'add port', 'td_escape' => FALSE),
+			array ('row_key' => 'labelupdatecolumn', 'th_text' => 'upd label', 'td_escape' => FALSE),
+			array ('row_key' => 'macupdatecolumn', 'th_text' => 'upd mac', 'td_escape' => FALSE),
+			array ('row_key' => 'porttypeupdatecolumn', 'th_text' => 'upd port type', 'td_escape' => FALSE),
+			array ('row_key' => 'porttypecolumn', 'th_text' => 'Interface', 'td_escape' => FALSE),
+			array ('row_key' => 'comment', 'th_text' => 'Comment', 'td_class' => 'nowrap')
+		);
+
+	startPortlet ('Ports');
+
+	echo "ifNumber: ".$data['system']['ifNumber']['value']."<br>indexcount: ".$data['indexcount']."<br><table><tbody valign=\"top\">";
+
+	renderTableViewer ($columns, $data['ports']);
+
+	finishPortlet ();
 
 	/* preserve snmpconfig */
-	foreach($_POST as $key => $value) {
+	foreach ($_POST as $key => $value)
+	{
 		echo '<input type=hidden name='.$key.' value='.$value.' />';
 	}
-	unset($key);
-	unset($value);
-
-	echo '<tr><td colspan=15 align="right"><p><input id="createbutton" type=submit value="Create Ports and IPs" onclick="return confirm(\'Create selected items?\')"></p></td></tr></tbody></table></form>';
+	unset ($key);
+	unset ($value);
 
 } // END function  snmpgeneric_list
 
 /* -------------------------------------------------- */
-function snmpgeneric_opcreate() {
+function snmpgeneric_opcreate ()
+{
+	$object_id = genericAssertion ('object_id', 'uint');
 
-	$object_id = $_REQUEST['object_id'];
-	$attr = getAttrValues($object_id);
+	snmpgeneric_datacreate ($object_id, $_POST);
+}
 
-//	sg_var_dump_html($_REQUEST);
-//	sg_var_dump_html($attr);
+function snmpgeneric_datacreate ($object_id, $data)
+{
+	$count = 0;
+	$attr = getAttrValues ($object_id);
 
 	/* commitUpdateAttrValue ($object_id, $attr_id, $new_value); */
-	if(isset($_POST['updateattr'])) {
-		foreach($_POST['updateattr'] as $attr_id => $value) {
-		//	if(empty($attr[$attr_id]['value']))
-				if(!empty($value)) {
+	if (isset ($data['sysObjectID']['attr']))
+	{
+		foreach ($data['sysObjectID']['attr'] as $attr_id => $newattr)
+		{
+			if (!isset ($newattr['create']))
+				continue;
+
+			if (! ($newattr['create'] & SG_BOX_CHECK))
+				continue;
+
+			$value = $newattr['value'];
+			if (!empty ($value))
+			{
+				$msg = 'Attribute "'.$newattr['name']."\" set to $value";
+				$count++;
+				if (sg_checkArgs ('a', $msg))
+				{
 					commitUpdateAttrValue ($object_id, $attr_id, $value);
-					showSuccess("Attribute ".$attr[$attr_id]['name']." set to $value");
+					showSuccess ($msg);
 				}
+			}
 		}
-		unset($attr_id);
-		unset($value);
+		unset ($attr_id);
+		unset ($value);
 	}
 	/* updateattr */
 
-	/* create ports */
-	if(isset($_POST['portcreate'])) {
-		foreach($_POST['portcreate'] as $if => $value) {
+	/* create ip spaces */
+	if (isset ($data['ipspaces']))
+	{
+		foreach ($data['ipspaces'] as $range => $ipspace)
+		{
+			if (!isset ($ipspace['create']))
+				continue;
 
-			$ifName = (isset($_POST['ifName'][$if]) ? trim($_POST['ifName'][$if]) : '' );
-			$ifPhysAddress = (isset($_POST['ifPhysAddress'][$if]) ? trim($_POST['ifPhysAddress'][$if]) : '' );
-			$ifAlias = (isset($_POST['ifAlias'][$if]) ? trim($_POST['ifAlias'][$if]) : '' );
-			$ifDescr = (isset($_POST['ifDescr'][$if]) ? trim($_POST['ifDescr'][$if]) : '' );
+			if (! ($ipspace['create'] & SG_BOX_CHECK))
+				continue;
 
-			//$visible_label = (empty($ifAlias) ? '' : $ifAlias.'; ').$ifDescr;
-			$visible_label = $ifAlias;
+			$name = $ipspace['name'];
+			$is_reserved = isset ($ipspace['reserve']);
+			$addrtype = $ipspace['addrtype'];
 
-			if(empty($ifName)) {
-				showError('Port without ifName '.$_POST['porttypeid'][$if].', '.$visible_label.', '.$ifPhysAddress);
-			} else {
-				commitAddPort ($object_id, $ifName, $_POST['porttypeid'][$if], $visible_label, $ifPhysAddress);
-				showSuccess('Port created '.$ifName.', '.$_POST['porttypeid'][$if].', '.$visible_label.', '.$ifPhysAddress);
+			$msg = "$range $name created";
+			$count++;
+			if (sg_checkArgs ('s', $msg))
+			{
+				if ($addrtype == 'ipv4' || $addrtype == 'ipv4z')
+					createIPv4Prefix ($range, $name, $is_reserved);
+				else
+					createIPv6Prefix ($range, $name, $is_reserved);
+
+				showSuccess ($msg);
 			}
 		}
-		unset($if);
-		unset($value);
+		unset ($range);
+		unset ($ipspace);
 	}
-	/* portcreate */
+	/* ip spaces */
 
-	/* net create */
-	if(isset($_POST['netcreate'])) {
-		foreach($_POST['netcreate'] as $id => $addrtype) {
-			$range = $_POST['netprefix'][$id];
-			$name = $_POST['netname'][$id];
-			$is_reserved = isset($_POST['netreserve'][$id]);
+	$data['ports'] += $data['sysObjectID']['port'];
 
-			if($addrtype == 'ipv4' || $addrtype == 'ipv4z')
-				createIPv4Prefix($range, $name, $is_reserved);
+	if (isset ($data['ports']))
+	{
+		foreach ($data['ports'] as $ifIndex => $port)
+		{
+			$ifName = (isset ($port['ifName']) ? trim ($port['ifName']) : '' );
+			$ifPhysAddress = (isset ($port['ifPhysAddress']) ? trim ($port['ifPhysAddress']) : '' );
+			$ifAlias = (isset ($port['ifAlias']) ? trim ($port['ifAlias']) : '' );
+			$ifDescr = (isset ($port['ifDescr']) ? trim ($port['ifDescr']) : '' );
+			$porttypeid = (isset ($port['porttypeid']) ? $port['porttypeid'] : '');
+
+			if (empty ($ifName))
+			{
+				showError ('Port without ifName '.$porttypeid.', '.$ifAlias.', '.$ifPhysAddress);
+				continue;
+			}
+
+			if (isset ($port['create']) && ($port['create'] & SG_BOX_CHECK))
+			{
+				$msg = "Port created $ifName, $porttypeid, $ifAlias, $ifPhysAddress";
+				$count++;
+				if (sg_checkArgs ('p', $msg))
+				{
+					commitAddPort ($object_id, $ifName, $porttypeid, $ifAlias, $ifPhysAddress);
+					showSuccess ($msg);
+				}
+			}
 			else
-				createIPv6Prefix($range, $name, $is_reserved);
+			{
+				if (
+					   isset ($port['labelupdate'])
+					|| isset ($port['macupdate'])
+					|| isset ($port['porttypeupdate'])
+				)
+				{
+					/* update */
 
-			showSuccess("$range $name created");
+					/* get current prot values */
+					$port_id = $port['RT_port_id'];
+					$port_info = getPortInfo ($port_id);
+					$port_name = $port_info['name'];
+					$port_type_id = $port_info['iif_id'].'-'.$port_info['oif_id'];
+					$port_label = $port_info['label'];
+					$port_l2address = $port_info['l2address'];
+					$port_reservation_comment = $port_info['reservation_comment'];
 
+					$update = array ();
+
+					if (isset ($port['labelupdate']))
+						if ($port['labelupdate'] & SG_BOX_CHECK)
+						{
+							$update[] = "label: $port_label -> $ifAlias";
+							$port_label = $ifAlias;
+						}
+
+					if (isset ($port['macupdate']))
+						if ($port['macupdate'] & SG_BOX_CHECK)
+						{
+							$update[] = "MAC: $port_l2address -> $ifPhysAddress";
+							$port_l2address = $ifPhysAddress;
+						}
+
+					if (isset ($port['porttypeupdate']))
+						if ($port['porttypeupdate'] & SG_BOX_CHECK)
+						{
+							$update[] = "typeid: $port_type_id -> ".$port['porttypeid'];
+							$port_type_id = $port['porttypeid'];
+						}
+
+					if (!empty ($update))
+					{
+						$msg = "Port $ifName updated ".implode (', ', $update);
+						$count++;
+						if (sg_checkArgs ('u', $msg))
+						{
+							commitUpdatePort ($object_id, $port_id, $port_name, $port_type_id, $port_label, $port_l2address, $port_reservation_comment);
+							showSuccess ($msg);
+						}
+					}
+				}
+			} /* else create */
+
+			if (!empty ($port['ip']))
+				foreach ($port['ip'] as $ipaddr => $ip)
+				{
+					if (!isset ($ip['allocate']))
+						continue;
+
+					if (! ($ip['allocate'] & SG_BOX_CHECK))
+						continue;
+
+					$msg = "$ipaddr allocated";
+					$count++;
+					if (sg_checkArgs ('i', $msg))
+					{
+						if ($ip['addrtype'] == 'ipv4' || $ip['addrtype'] == 'ipv4z')
+							bindIPToObject (ip_parse ($ipaddr), $object_id, $ifName, 1); /* connected */
+						else
+							bindIPv6ToObject (ip6_parse ($ipaddr), $object_id, $ifName, 1); /* connected */
+
+						showSuccess ($msg);
+					}
+				}
 		}
-		unset($id);
-		unset($addrtype);
 	}
-	/* netcreate */
 
-	/* allocate ipv6 adresses */
-	if(isset($_POST['ipv6addrcreate'])) {
-		foreach($_POST['ipv6addrcreate'] as $ipaddr => $if) {
+	return $count;
 
-			bindIPv6ToObject(ip6_parse($ipaddr), $object_id,$_POST['ifName'][$if], 1); /* connected */
-			showSuccess("$ipaddr allocated");
-		}
-		unset($ipaddr);
-		unset($if);
-	}
-	/* allocate ip adresses */
-	if(isset($_POST['ipaddrcreate'])) {
-		foreach($_POST['ipaddrcreate'] as $ipaddr => $if) {
-
-			bindIPToObject(ip_parse($ipaddr), $object_id,$_POST['ifName'][$if], 1); /* connected */
-			showSuccess("$ipaddr allocated");
-		}
-		unset($ipaddr);
-		unset($if);
-	}
-	/* ipaddrecreate */
-
-	/* update label */
-	if(isset($_POST['updatelabel'])) {
-		foreach($_POST['updatelabel'] as $if => $port_id) {
-
-			$ifAlias = (isset($_POST['ifAlias'][$if]) ? trim($_POST['ifAlias'][$if]) : '' );
-
-			sg_commitUpdatePortLabel($object_id, $port_id, $ifAlias);
-
-			$ifName = (isset($_POST['ifName'][$if]) ? trim($_POST['ifName'][$if]) : '' );
-			showSuccess("label updated on $ifName to $ifAlias");
-		}
-		unset($if);
-		unset($port_id);
-	}
-	/* updatemac */
-
-	/* update mac addresses only */
-	if(isset($_POST['updatemac'])) {
-		foreach($_POST['updatemac'] as $if => $port_id) {
-
-			$ifPhysAddress = (isset($_POST['ifPhysAddress'][$if]) ? trim($_POST['ifPhysAddress'][$if]) : '' );
-
-			sg_commitUpdatePortl2address($object_id, $port_id, $ifPhysAddress);
-
-			$ifName = (isset($_POST['ifName'][$if]) ? trim($_POST['ifName'][$if]) : '' );
-			showSuccess("l2address updated on $ifName to $ifPhysAddress");
-		}
-		unset($if);
-		unset($port_id);
-	}
-	/* updatemac */
-
-	/* update port type */
-	if(isset($_POST['updateporttype'])) {
-		foreach($_POST['updateporttype'] as $if => $port_id) {
-
-			$porttypeid = (isset($_POST['porttypeid'][$if]) ? trim($_POST['porttypeid'][$if]) : '' );
-
-			sg_commitUpdatePortType($object_id, $port_id, $porttypeid);
-
-			$ifName = (isset($_POST['ifName'][$if]) ? trim($_POST['ifName'][$if]) : '' );
-			showSuccess("port type updated on $ifName");
-		}
-		unset($if);
-		unset($port_id);
-	}
-	/* updateporttype */
-} /* snmpgeneric_opcreate */
+} /* snmpgeneric_datacreate */
 
 /* -------------------------------------------------- */
 
 /* returns RT interface type depending on ifType, ifDescr, .. */
-function guessRToif_id($ifType,$ifDescr = NULL) {
+function guessRToif_id ($ifType,$ifDescr = NULL)
+{
 	global $sg_ifType2oif_id;
 	global $sg_portiifoptions;
 	global $sg_portoifoptions;
@@ -2101,31 +2763,32 @@ function guessRToif_id($ifType,$ifDescr = NULL) {
 	/* default value */
 	$retval = '24'; /* 1000BASE-T */
 
-	if(isset($sg_ifType2oif_id[$ifType])) {
+	if (isset ($sg_ifType2oif_id[$ifType]))
+	{
 		$retval = $sg_ifType2oif_id[$ifType];
 	}
 
-	if(strpos($retval,'-') === FALSE)
+	if (strpos ($retval,'-') === FALSE)
 		$retval = "1-$retval";
 
 	/* no ethernetCsmacd */
-	if($ifType != 6)
+	if ($ifType != 6)
 		return $retval;
 
 
 	/* try to identify outer and inner interface type from ifDescr */
 
-	switch(true)
+	switch (true)
 	{
-		case preg_match('/fast.?ethernet/i',$ifDescr,$matches):
+		case preg_match ('/fast.?ethernet/i',$ifDescr,$matches):
 			// Fast Ethernet
 			$retval = 19;
 			break;
-		case preg_match('/10.?gigabit.?ethernet/i',$ifDescr,$matches):
+		case preg_match ('/10.?gigabit.?ethernet/i',$ifDescr,$matches):
 			// 10-Gigabit Ethernet
 			$retval = 1642;
 			break;
-		case preg_match('/gigabit.?ethernet/i',$ifDescr,$matches):
+		case preg_match ('/gigabit.?ethernet/i',$ifDescr,$matches):
 			// Gigabit Ethernet
 			$retval = 24;
 			break;
@@ -2150,31 +2813,38 @@ function guessRToif_id($ifType,$ifDescr = NULL) {
 	 *
 	 */
 
-	foreach($sg_portiifoptions as $iif_id => $iif_type) {
+	foreach ($sg_portiifoptions as $iif_id => $iif_type)
+	{
 
 		/* TODO better matching */
 
 
 		/* find iif_type */
-		if(preg_match('/(.*?)('.preg_quote($iif_type).')(.*)/i',$ifDescr,$matches)) {
+		if (preg_match ('/(.*?)('.preg_quote ($iif_type).')(.*)/i',$ifDescr,$matches))
+		{
 
 			$oif_type = "empty ".$iif_type;
 
-			$no = preg_match('/ no $/i', $matches[1]);
+			$no = preg_match ('/ no $/i', $matches[1]);
 
-			if(preg_match('/(\d+[G]?)BASE[^ ]+/i', $matches[1], $basematch)) {
+			if (preg_match ('/(\d+[G]?)BASE[^ ]+/i', $matches[1], $basematch))
+			{
 				$oif_type=$basematch[0];
-			} else {
-				if(preg_match('/(\d+[G]?)BASE[^ ]+/i', $matches[3], $basematch)) {
+			}
+			else
+			{
+				if (preg_match ('/(\d+[G]?)BASE[^ ]+/i', $matches[3], $basematch))
 					$oif_type=$basematch[0];
-				}
 			}
 
-			if($iif_id == -1) {
+			if ($iif_id == -1)
+			{
 				/* 2 => SFP-100 or 4 => SFP-1000 */
 
-				if(isset($basematch[1])) {
-					switch($basematch[1]) {
+				if (isset ($basematch[1]))
+				{
+					switch ($basematch[1])
+					{
 						case '100' :
 							$iif_id = 2;
 							$iif_type = "SFP-100";
@@ -2187,23 +2857,25 @@ function guessRToif_id($ifType,$ifDescr = NULL) {
 					}
 				}
 
-				if(preg_match('/sfp 1000-sx/i',$ifDescr))
+				if (preg_match ('/sfp 1000-sx/i',$ifDescr))
 					$oif_type = '1000BASE-SX';
 
-				if(preg_match('/sfp 1000-lx/i',$ifDescr))
+				if (preg_match ('/sfp 1000-lx/i',$ifDescr))
 					$oif_type = '1000BASE-LX';
 
 			}
 
-			if($no) {
+			if ($no)
+			{
 				$oif_type = "empty ".$iif_type;
 			}
 
-			$oif_type = preg_replace('/BASE/',"Base",$oif_type);
+			$oif_type = preg_replace ('/BASE/',"Base",$oif_type);
 
-			$oif_id = array_search($oif_type,$sg_portoifoptions);
+			$oif_id = array_search ($oif_type,$sg_portoifoptions);
 
-			if($oif_id != '') {
+			if ($oif_id != '')
+			{
 				$retval = "$iif_id-$oif_id";
 			}
 
@@ -2213,15 +2885,15 @@ function guessRToif_id($ifType,$ifDescr = NULL) {
 			break;
 		}
 	}
-	unset($iif_id);
-	unset($iif_type);
+	unset ($iif_id);
+	unset ($iif_type);
 
-	if(strpos($retval,'-') === FALSE)
+	if (strpos ($retval,'-') === FALSE)
 		$retval = "1-$retval";
 
 	return $retval;
 
-}
+} /* guessRToif_id */
 
 /* --------------------------------------------------- */
 function sg_alreadyUsedL2Address ($address, $my_object_id)
@@ -2235,83 +2907,6 @@ function sg_alreadyUsedL2Address ($address, $my_object_id)
         return $row[0] != 0;
 }
 
-
-function sg_commitUpdatePortl2address($object_id, $port_id, $port_l2address)
-{
-        $db_l2address = l2addressForDatabase ($port_l2address);
-
-        global $dbxlink;
-        $dbxlink->exec ('LOCK TABLES Port WRITE');
-        if (sg_alreadyUsedL2Address ($db_l2address, $object_id))
-        {
-                $dbxlink->exec ('UNLOCK TABLES');
-                // FIXME: it is more correct to throw InvalidArgException here
-                // and convert it to InvalidRequestArgException at upper level,
-                // when there is a mean to do that.
-                throw new InvalidRequestArgException ('port_l2address', $db_l2address, 'address belongs to another object');
-        }
-        usePreparedUpdateBlade
-        (
-                'Port',
-                array
-                (
-                        'l2address' => ($db_l2address === '') ? NULL : $db_l2address,
-                ),
-                array
-                (
-                        'id' => $port_id,
-                        'object_id' => $object_id
-                )
-        );
-        $dbxlink->exec ('UNLOCK TABLES');
-} /* sg_commitUpdatePortl2address */
-
-/* --------------------------------------------------- */
-
-function sg_commitUpdatePortType($object_id, $port_id, $porttypeid)
-{
-	global $dbxlink;
-
-	list($iif_id, $type) = explode("-",$porttypeid);
-
-        $dbxlink->exec ('LOCK TABLES Port WRITE');
-        usePreparedUpdateBlade
-        (
-                'Port',
-                array
-                (
-                        'iif_id' => ($iif_id === '') ? NULL : $iif_id,
-			'type' => ($type === '') ? NULL : $type
-                ),
-                array
-                (
-                        'id' => $port_id,
-                        'object_id' => $object_id
-                )
-        );
-        $dbxlink->exec ('UNLOCK TABLES');
-} /* sg_commitUpdatePortType */
-
-function sg_commitUpdatePortLabel($object_id, $port_id, $label)
-{
-	global $dbxlink;
-
-        $dbxlink->exec ('LOCK TABLES Port WRITE');
-        usePreparedUpdateBlade
-        (
-                'Port',
-                array
-                (
-                        'label' => ($label === '') ? NULL : $label
-                ),
-                array
-                (
-                        'id' => $port_id,
-                        'object_id' => $object_id
-                )
-        );
-        $dbxlink->exec ('UNLOCK TABLES');
-} /* sg_commitUpdatePortLabel */
 /* ----------------------------------------------------- */
 
 /* returns object_id and port_id to a given l2address */
@@ -2322,7 +2917,7 @@ function sg_checkL2Address ($address)
                 'SELECT object_id,id FROM Port WHERE BINARY l2address = ?',
                 array ($address)
         );
-        $row = $result->fetchAll(PDO::FETCH_GROUP|PDO::FETCH_UNIQUE|PDO::FETCH_COLUMN);
+        $row = $result->fetchAll (PDO::FETCH_GROUP|PDO::FETCH_UNIQUE|PDO::FETCH_COLUMN);
         return $row;
 }
 
@@ -2347,7 +2942,7 @@ function sg_checkObjectNameUniqueness ($name, $type_id, $object_id = 0)
 		return true;
 }
 
-function sg_detectDeviceBreedByObject($object)
+function sg_detectDeviceBreedByObject ($object)
 {
 	global $breed_by_swcode, $breed_by_hwcode, $breed_by_mgmtcode;
 
@@ -2364,783 +2959,4 @@ function sg_detectDeviceBreedByObject($object)
 }
 
 /* ------------------------------------------------------- */
-class SNMPgeneric {
-
-	protected $host;
-	protected $version;
-
-	/* SNMPv1 and SNMPv2c */
-	protected $community;
-
-	/* SNMPv3 */
-	protected $sec_level;
-	protected $auth_protocol;
-	protected $auth_passphrase;
-	protected $priv_protocol;
-	protected $priv_passphrase;
-//	protected $contextName;
-//	protected $contextEngineID;
-
-	const VERSION_1 = 0;
-	const VERSION_2C = 1;
-	const VERSION_2c = 1;
-	const VERSION_3 = 3;
-
-	protected $result;
-
-	function __construct($version, $host, $community) {
-
-		$this->host = $host;
-
-		$this->version = $version;
-		$this->community = $community;
-
-		set_error_handler(array($this,'ErrorHandler'), E_WARNING);
-	}
-
-	function setSecurity($sec_level, $auth_protocol = 'md5', $auth_passphrase = '', $priv_protocol = 'des', $priv_passphrase = '') {
-		$this->sec_level = $sec_level;
-		$this->auth_protocol = $auth_protocol;
-		$this->auth_passphrase = $auth_passphrase;
-		$this->priv_protocol = $priv_protocol;
-		$this->priv_passphrase = $priv_passphrase;
-
-		return true;
-	}
-
-	function __set($name, $value)
-	{
-		switch($name)
-		{
-			case 'quick_print':
-				snmp_set_quick_print($value);
-				break;
-			case 'oid_output_format':
-				/* needs php >= 5.2.0 */
-				snmp_set_oid_output_format($value);
-				break;
-			case 'enum_print':
-				snmp_set_enum_print($value);
-				break;
-			case 'valueretrieval':
-				snmp_set_valueretrieval($value);
-				break;
-			default:
-				$trace = debug_backtrace();
-				trigger_error(
-					'Undefined property via __set(): ' . $name .
-					' in ' . $trace[0]['file'] .
-					' on line ' . $trace[0]['line'],
-					E_USER_NOTICE);
-				return null;
-		}
-	}
-
-	function walk( $oid, $suffix_as_key = FALSE) {
-
-		switch($this->version) {
-			case self::VERSION_1:
-				if($suffix_as_key){
-					$this->result = snmpwalk($this->host,$this->community,$oid);
-				} else {
-					$this->result = snmprealwalk($this->host,$this->community,$oid);
-				}
-				break;
-
-			case self::VERSION_2C:
-			case self::VERSION_2c:
-				if($suffix_as_key){
-					$this->result = snmp2_walk($this->host,$this->community,$oid);
-				} else {
-					$this->result = snmp2_real_walk($this->host,$this->community,$oid);
-				}
-				break;
-
-			case self::VERSION_3:
-				if($suffix_as_key){
-					$this->result = snmp3_walk($this->host,$this->community, $this->sec_level, $this->auth_protocol, $this->auth_passphrase, $this->priv_protocol, $this->priv_passphrase,$oid);
-				} else {
-					$this->result = snmp3_real_walk($this->host,$this->community, $this->sec_level, $this->auth_protocol, $this->auth_passphrase, $this->priv_protocol, $this->priv_passphrase,$oid);
-				}
-				break;
-		}
-
-		return $this->result;
-
-	}
-
-	private function __snmpget($object_id) {
-
-		$retval = FALSE;
-
-		switch($this->version) {
-			case self::VERSION_1:
-				$retval = snmpget($this->host,$this->community,$object_id);
-				break;
-
-			case self::VERSION_2C:
-			case self::VERSION_2c:
-				$retval = snmp2_get($this->host,$this->community,$object_id);
-				break;
-
-			case self::VERSION_3:
-				$retval = snmp3_get($this->host,$this->community, $this->sec_level, $this->auth_protocol, $this->auth_passphrase, $this->priv_protocol, $this->priv_passphrase,$object_id);
-				break;
-		}
-
-		return $retval;
-	}
-
-	function get($object_id, $preserve_keys = false) {
-
-		if(is_array($object_id)) {
-
-			if( $preserve_keys ) {
-				foreach($object_id as $oid) {
-					$this->result[$oid] = $this->__snmpget($oid);
-				}
-				unset($oid);
-			} else {
-				foreach($object_id as $oid) {
-					$result_oid = preg_replace('/.\d$/','',$oid);
-					$this->result[$result_oid] = $this->__snmpget($oid);
-				}
-				unset($oid);
-			}
-		} else {
-			$this->result = $this->__snmpget($object_id);
-		}
-
-		return $this->result;
-
-	}
-
-	function close() {
-	}
-
-	function getErrno() {
-		return ($this->result === FALSE);
-	}
-
-	function getError() {
-		$var = error_get_last();
-		return $var['message'];
-	}
-
-	function Errorhandler($errno, $errstr, $errfile, $errline) {
-		switch(TRUE) {
-			case (False !== strpos($errstr,'No Such Object available on this agent at this OID')):
-					/* no further error processing */
-					return true;
-				break;
-		}
-
-		/* proceed with default error handling */
-		return false;
-	}
-} /* SNMPgeneric */
-
-/* ------------------------------------------------------- */
-/*
- * SNMP with system OIDs
- */
-class mySNMP extends SNMPgeneric implements Iterator {
-
-	const SNMP_VERSION = parent::VERSION_2C;
-	const SNMP_COMMUNITY = 'public';
-
-	public $lastgetoid;
-
-	//private $sysInfo;
-	private $system;
-
-	/* is system table available ? */
-	private $systemerror = TRUE;
-
-	function __construct($version, $host, $community) {
-
-		switch($version)
-		{
-			case '1':
-			case 'v1':
-				$version = parent::VERSION_1;
-				break;
-			case '2':
-			case 'v2C':
-			case 'v2c':
-				$version = parent::VERSION_2c;
-				break;
-			case '3':
-			case 'v3':
-				$version = parent::VERSION_3;
-				break;
-		};
-
-		parent::__construct($version, $host, $community);
-
-		/* Return values without SNMP type hint */
-		$this->valueretrieval = SNMP_VALUE_PLAIN;
-
-	} /* __construct */
-
-	function init() {
-
-		$this->oid_output_format = SNMP_OID_OUTPUT_FULL;
-		/* .iso.org.dod.internet.mgmt.mib-2.system */
-		$this->system = $this->walk(".1.3.6.1.2.1.1");
-
-		$this->systemerror = $this->getErrno() || empty($this->system);
-	} /* init() */
-
-	/* get value from system cache */
-	private function _getvalue($object_id) {
-
-		/* TODO better matching  */
-
-		if( isset($this->system["SNMPv2-MIB::$object_id"])) {
-			$this->lastgetoid = "SNMPv2-MIB::$object_id";
-			return $this->system["SNMPv2-MIB::$object_id"];
-		} else {
-			if( isset($this->system[".iso.org.dod.internet.mgmt.mib-2.system.$object_id"])) {
-				$this->lastgetoid = ".iso.org.dod.internet.mgmt.mib-2.system.$object_id";
-				return $this->system[".iso.org.dod.internet.mgmt.mib-2.system.$object_id"];
-			} else {
-				if( isset($this->system[$object_id])) {
-					$this->lastgetoid = $object_id;
-					return $this->system[$object_id];
-				} else {
-					foreach($this->system as $key => $value) {
-						if(strpos($key, $object_id)) {
-							$this->lastgetoid = $key;
-							return $value;
-						}
-					}
-					unset($key);
-					unset($value);
-				}
-			}
-		}
-
-		return NULL;
-	}
-
-	function get($object_id, $preserve_keys = false) {
-
-		if(!$this->systemerror)
-			$retval = $this->_getvalue($object_id);
-		else
-			$retval = NULL;
-
-		if($retval === NULL) {
-			$this->lastgetoid = $object_id;
-			$retval = parent::get($object_id,$preserve_keys);
-		}
-
-		return $retval;
-
-	} /* get */
-
-	function translatetonumeric($oid) {
-		global $sg_cmd_snmptranslate;
-
-		$val = exec(escapeshellcmd($sg_cmd_snmptranslate).' -On '.escapeshellarg($oid), $output, $retval);
-
-		if($retval == 0)
-			return $val;
-
-		return FALSE;
-
-	} /* translatetonumeric */
-/*
-	function get_new($object_id, $preserve_keys = false) {
-		$result = parent::get($object_id,$preserve_keys);
-		return $this->removeDatatype($result);
-	}
-
-	function walk_new($object_id) {
-		$result = parent::walk($object_id);
-		return $this->removeDatatype($result);
-	}
-
-*/
-	/* use snmp_set_valueretrieval(SNMP_VALUE_PLAIN) instead */
-/*	function removeDatatype($val) {
-		return preg_replace('/^\w+: /','',$val);
-	}
-*/
-	/* make something like $class->sysDescr work */
-	function __get($name) {
-		if($this->systemerror) {
-			return;
-		}
-
-		$retval = $this->_getvalue($name);
-
-		if($retval === NULL) {
-
-			$trace = debug_backtrace();
-			trigger_error(
-					'Undefinierte Eigenschaft für __call(): ' . $name .
-					' in ' . $trace[0]['file'] .
-					' Zeile ' . $trace[0]['line'],
-					E_USER_NOTICE);
-		}
-
-		return $retval;
-	}
-
-
-	/* Iteration through all system OIDs */
-	/* Iterator */
-
-	function current() {
-		if($this->systemerror)
-			return;
-
-		return current($this->system);
-	}
-
-	function key() {
-		if($this->systemerror)
-			return;
-
-		return key($this->system);
-	}
-
-	function next() {
-		return next($this->system);
-	}
-
-	function valid() {
-		return ($this->current() !== FALSE) && ($this->systemerror !== TRUE);
-	}
-
-	function rewind() {
-		if($this->systemerror)
-			return;
-
-		reset($this->system);
-	}
-
-	/* END Iterator */
-
-} /* mySNMP */
-
-/* ------------------------------------------------------- */
-
-class ifSNMP implements Iterator {
-	private $snmpdevice;
-	private $ifNumber = 0;
-	private $indexcount = 0;
-	private $ifTable;
-
-	private $interfaceserror = TRUE;
-
-	public $object_breed = NULL;
-
-	function __construct(&$snmpdevice) {
-		$this->snmpdevice = $snmpdevice;
-
-		$this->ifNumber = intval($this->snmpdevice->get('ifNumber.0'));
-
-		$this->interfaceserror = $this->snmpdevice->getErrno();
-
-		if(!$this->interfaceserror) {
-			$this->getifTable();
-		}
-	}
-
-	function getifTable() {
-		$this->ifTable['ifIndex'] = $this->snmpdevice->walk('ifIndex',TRUE);
-
-		$this->indexcount = count($this->ifTable['ifIndex']);
-
-		$this->ifTable['ifDescr'] = $this->snmpdevice->walk('ifDescr',TRUE);
-		$this->ifTable['ifAlias'] = $this->snmpdevice->walk('ifAlias',TRUE);
-		$this->ifTable['ifName'] =  $this->snmpdevice->walk('ifName',TRUE);
-
-		$this->ifTable['ifType'] =  $this->snmpdevice->walk('ifType',TRUE);
-
-		$this->ifTable['ifSpeed'] =  $this->snmpdevice->walk('ifSpeed',TRUE);
-
-		/* notation changes when SNMP_VALUE_PLAIN is set string -> hex!! */
-		$this->ifTable['ifPhysAddress'] =  $this->snmpdevice->walk('ifPhysAddress',TRUE);
-
-		$this->ifTable['ifOperStatus'] =  $this->snmpdevice->walk('ifOperStatus',TRUE);
-
-		$this->ifTable['ifInOctets'] =  $this->snmpdevice->walk('ifInOctets',TRUE);
-		$this->ifTable['ifOutOctets'] =  $this->snmpdevice->walk('ifOutOctets',TRUE);
-
-		$this->ifTable['ifConnectorPresent'] =  $this->snmpdevice->walk('ifConnectorPresent',TRUE);
-
-		$this->ifTable['ipaddress'] = array();
-
-		/* ip address v4 only ipaddrtable */
-		$ipAdEntIfIndex =  $this->snmpdevice->walk('ipAdEntIfIndex');
-
-		if(!empty($ipAdEntIfIndex)) {
-			$ipAdEntNetMask =  $this->snmpdevice->walk('ipAdEntNetMask');
-
-			/* all addresses per interface */
-
-			reset($ipAdEntNetMask);
-			foreach($ipAdEntIfIndex as $oid => $value) {
-
-				$netmask = current($ipAdEntNetMask);
-				next($ipAdEntNetMask);
-
-				$ipaddr = preg_replace('/.*\.([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$/','$1',$oid);
-
-				$ifindex =  array_search($value,$this->ifTable['ifIndex']);
-
-				if($netmask != '0.0.0.0') {
-					$maskbits = 32-log((ip2long($netmask) ^ 0xffffffff)+1,2);
-					$net = ip2long($ipaddr) & ip2long($netmask);
-					$bcast = $net | ( ip2long($netmask) ^ 0xffffffff);
-
-					$this->ifTable['ipaddress'][$ifindex][$ipaddr] = array(
-										'addrtype' => 'ipv4',
-										'maskbits' => $maskbits,
-										'net' => long2ip($net),
-										'bcast' => long2ip($bcast)
-										);
-				}
-
-			}
-			unset($oid);
-			unset($value);
-
-	//		sg_var_dump_html($this->ipaddress);
-	//		sg_var_dump_html($ipAdEntIfIndex);
-	//		sg_var_dump_html($ipAdEntNetMask);
-		} /* ipadentifindex */
-
-		/* ipv4 ipv6 ipaddresstable */
-		/* also overwrites ipv4 from ipaddrtable */
-		$ipAddressIfIndex =  $this->snmpdevice->walk('ipAddressIfIndex');
-
-		if(!empty($ipAddressIfIndex)) {
-			$ipAddressPrefix =  $this->snmpdevice->walk('ipAddressPrefix');
-			$ipAddressType =  $this->snmpdevice->walk('ipAddressType'); /* 1 unicast, 2 anycast, 3 braodcast */
-
-			reset($ipAddressPrefix);
-			reset($ipAddressType);
-			foreach($ipAddressIfIndex as $oid => $value) {
-
-				$prefix = current($ipAddressPrefix);
-				next($ipAddressPrefix);
-
-				$type = current($ipAddressType);
-				next($ipAddressType);
-
-				if(!preg_match('/.*\.(ipv[46]z?)\.\"(.*)"$/',$oid, $matches))
-					continue;
-
-				/* ipv4 or ipv6 address */
-				$ifindex =  array_search($value,$this->ifTable['ifIndex']);
-
-				$net = NULL;
-				$maskbits = NULL;
-				$bcast = NULL;
-
-				if(preg_match('/\."([\.0-9a-fA-F:%]+)"\.([0-9]+)$/',$prefix,$prefixmatches)) {
-					$net = $prefixmatches[1];
-					$maskbits = $prefixmatches[2];
-
-					/* ipv4 */
-					if($matches[1] == 'ipv4z' || $matches[1] == 'ipv4') {
-						$intnetmask = (int)(0xffffffff << (32 - $maskbits));
-						$intnet = ip2long($net) & $intnetmask;
-						$intbcast = $intnet | ( $intnetmask ^ 0xffffffff);
-
-						$net = long2ip($intnet);
-						$bcast = long2ip($intbcast);
-					}
-				}
-
-				$this->ifTable['ipaddress'][$ifindex][$matches[2]] = array(
-										'addrtype' => $matches[1],
-										'maskbits' => $maskbits,
-										'net' => $net,
-										'bcast' => $bcast
-										);
-			}
-			unset($oid);
-			unset($value);
-
-	//		sg_var_dump_html($ipAddressIfIndex);
-	//		sg_var_dump_html($ipAddressPrefix);
-		} /* ipaddressifindex */
-
-		/* ipv6 MIB  */
-		/* overwrites ipv6 from ipaddresstable */
-		$ipv6interfaces = $this->snmpdevice->get('ipv6Interfaces.0');
-
-		if($ipv6interfaces)
-		{
-			echo"Found $ipv6interfaces ipv6 interfaces<br>";
-
-			$ipv6addraddress =  $this->snmpdevice->walk('ipv6AddrAddress');
-
-			if(!empty($ipv6addraddress)) {
-				$ipv6addrpfxlength =  $this->snmpdevice->walk('ipv6AddrPfxLength');
-			//	$ipv6addrtype =  $this->snmpdevice->walk('ipv6AddrType'); /* 1 stateless, 2 stateful, 3 unknown */
-
-				reset($ipv6addrpfxlength);
-				//reset($ipv6addrtype);
-
-				foreach($ipv6addraddress as $oid => $addr_bin) {
-
-					$addr = ip_format($addr_bin);
-
-					//$type = current($ipv6addrtype);
-					//next($ipv6addrtype);
-
-					if(!preg_match('/.*(ipv6).*\.([0-9]+)\..*$/',$oid, $matches))
-						continue;
-
-					$ifindex =  array_search($matches[2],$this->ifTable['ifIndex']);
-
-					if($ifindex === false)
-						continue;
-
-					$maskbits = current($ipv6addrpfxlength);
-					next($ipv6addrpfxlength);
-
-					$range = constructIPRange($addr_bin, $maskbits);
-
-					$net = ip_format($range['ip_bin']);
-					$bcast = NULL;
-
-					$this->ifTable['ipaddress'][$ifindex][$addr] = array(
-										'addrtype' => $matches[1],
-										'maskbits' => $maskbits,
-										'net' => $net,
-										'bcast' => $bcast,
-									//	'type' => ($type == 1 ? "stateless" : $type == 2 ? "statefull" : "unknown" )
-										);
-				}
-				unset($oid);
-				unset($value);
-
-			} /* ipv6addraddress */
-		} /* ipv6interfaces */
-	}
-
-	function printifInfoTableHeader($suffix = "") {
-		if($this->interfaceserror) {
-			return;
-		}
-
-		echo "<tr>";
-		foreach ($this->ifTable as $key => $value) {
-
-			switch($key) {
-				case 'ifOperStatus':
-					$displayvalue = 'if Oper Status';
-					break;
-				case 'ifConnectorPresent':
-					$displayvalue = 'if Con Pres';
-					break;
-				case 'ipaddress':
-				case 'ipaddressv6':
-					$displayvalue='';
-					break;
-				default:
-					$displayvalue = $key;
-			}
-
-			if(!empty($displayvalue))
-				echo "<th title=\"$key\">$displayvalue</th>";
-		}
-		unset($key);
-		unset($value);
-
-		echo "$suffix</tr>";
-	}
-
-	private $formfieldlist = array('ifName', 'ifDescr', 'ifAlias', 'ifPhysAddress');
-
-	function printifInfoTableRow($ifIndex, $suffix = "", $hrefs = NULL) {
-		if($this->interfaceserror) {
-			return;
-		}
-
-		echo "<tr".($ifIndex % 2 ? ' style="background-color:#d8d8d8"' : '' ).">";
-
-		foreach ($this->ifTable as $key => $value) {
-
-			if($key == 'ipaddress' || $key == 'ipaddressv6')
-				continue;
-
-			$textfield = FALSE;
-
-			/* minimize posted data to necessary fields */
-			if(in_array($key,$this->formfieldlist)) {
-
-				/* $value would contain raw values; $this->{$key}($ifIndex) post processed values */
-				$fieldvalue = $this->{$key}($ifIndex);
-
-				if(!empty($fieldvalue)) {
-					if($key == 'ifDescr' || $key == 'ifAlias') {
-						$formfield = '<input readonly="readonly" type="text" size="15" name="'.$key.'['.$ifIndex.']" value="'
-								.$this->$key($ifIndex).'">';
-						$textfield = TRUE;
-					} else {
-						$formfield = '<input type="hidden" name="'.$key.'['.$ifIndex.']" value="'.$fieldvalue.'">';
-						echo $formfield;
-					}
-				} else {
-					if($key == 'ifName') {
-						/* create textfield set to ifDescr */
-						$formfield = '<input type="text" size="8" name="'.$key.'['.$ifIndex.']" value="'
-								.strtolower(shortenIfName($this->ifDescr($ifIndex), $this->object_breed)).'">';
-						$textfield = TRUE;
-					}
-
-				}
-
-			}
-
-
-			if($textfield)
-				$displayvalue=$formfield;
-			else {
-				$displayvalue = $this->{$key}($ifIndex);
-
-				if(isset($hrefs) && isset($hrefs[$key])) {
-					$displayvalue = "<a href=".$hrefs[$key].">$displayvalue</a>";
-				}
-			}
-
-			echo "<td nowrap=\"nowrap\">$displayvalue</td>";
-		}
-		unset($key);
-		unset($value);
-
-		echo "$suffix</tr>";
-	}
-
-	function formatMACAddr($addr) {
-
-		$retval = '';
-
-		/* TODO test origin format */
-		if(strlen($addr)== 6 ) {
-			$retval =  unpack('H12',$addr);
-			$retval = $retval[1];
-		}
-
-		/* often used as loopback on Enterasys switches */
-		if($retval == '000000000000') {
-			$retval = '';
-		}
-
-		return $retval;
-	}
-
-	function ifPhysAddress($index) {
-
-		if(isset($this->ifTable['ifPhysAddress'][$index-1])) {
-			return strtoupper($this->formatMACAddr($this->ifTable['ifPhysAddress'][$index-1]));
-		}
-	}
-
-	function ipaddress($index) {
-		if(isset($this->ifTable['ipaddress'][$index-1])) {
-			return $this->ifTable['ipaddress'][$index-1];
-		}
-
-	}
-
-	function ifName($index) {
-		if(isset($this->ifTable['ifName'][$index-1])) {
-			return strtolower(shortenIfName($this->ifTable['ifName'][$index-1], $this->object_breed));
-		}
-
-	}
-	function &__get($name) {
-
-		switch($name) {
-			case 'ifNumber':
-			case 'indexcount':
-				return $this->{$name};
-				break;
-			case 'ipaddress':
-				return $this->ifTable['ipaddress'];
-				break;
-		}
-
-		$trace = debug_backtrace();
-
-		trigger_error(
-			'Undefinierte Eigenschaft für __get(): ' . $name .
-			' in ' . $trace[0]['file'] .
-			' Zeile ' . $trace[0]['line'],
-			E_USER_NOTICE);
-
-		return NULL;
-	}
-
-	/* $obj->ifDescr(3) = $ifTable[$name][$arg]*/
-	function __call($name,$args) {
-
-		if($this->interfaceserror)
-			return;
-
-		if(isset($this->ifTable[$name])) {
-			if(isset($this->ifTable[$name][$args[0]-1])) {
-				return $this->ifTable[$name][$args[0]-1];
-			}
-		} else {
-
-			/* for debug */
-			$trace = debug_backtrace();
-
-			trigger_error(
-				'Undefinierte Methode für __call(): ' . $name .
-				' in ' . $trace[0]['file'] .
-				' Zeile ' . $trace[0]['line'],
-				E_USER_NOTICE);
-		}
-
-	return NULL;
-
-	} /* __call */
-
-	/* Iterator */
-
-	private $IteratorIndex = 1;
-
-	function current() {
-		return $this->IteratorIndex;
-	}
-
-	function key() {
-	}
-
-	function next() {
-		$this->IteratorIndex++;
-	}
-
-	function valid() {
-		return ($this->IteratorIndex<=$this->indexcount);
-	}
-
-	function rewind() {
-		$this->IteratorIndex = 1;
-	}
-
-	/* END Iterator */
-}
-
-/* ------------------------------------------------------- */
-/* ------------------------------------------------------- */
-/* for debugging */
-function sg_var_dump_html(&$var, $text = '') {
-
-	echo "<pre>------------------Start Var Dump - $text -----------------------\n";
-	var_dump($var);
-	echo "\n---------------------END Var Dump - $text -----------------------</pre>";
-}
 ?>
