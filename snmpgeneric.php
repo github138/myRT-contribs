@@ -1085,14 +1085,15 @@ function snmpgeneric_getSNMPconfig ($object)
 		/* keep it compatible with older version */
 		switch ($snmpstrarray[2])
 		{
-			case "1":
+			case "v1":
 				$snmpstrarray[2] = 'v1';
 				break;
-			case "2":
+			case "v2":
+			case "v2c":
 			case "v2C":
 				$snmpstrarray[2] = 'v2c';
 				break;
-			case "3":
+			case "v3":
 				$snmpstrarray[2] = 'v3';
 				break;
 		}
@@ -1242,13 +1243,13 @@ function snmpgeneric_snmpconfig ($object_id)
 	}
 
 	if (!isset ($snmpconfig['version']))
-		$snmpconfig['version'] = mySNMP::SNMP_VERSION;
+		$snmpconfig['version'] = 'v2c';
 
 	if (!isset ($snmpconfig['community']))
 		$snmpconfig['community'] = getConfigVar ('DEFAULT_SNMP_COMMUNITY');
 
 	if (empty ($snmpconfig['community']))
-		$snmpconfig['community'] = mySNMP::SNMP_COMMUNITY;
+		$snmpconfig['community'] = 'public';
 
 	if (!isset ($snmpconfig['sec_level']))
 		$snmpconfig['sec_level'] = NULL;
@@ -1300,7 +1301,7 @@ function snmpgeneric_snmpconfig ($object_id)
                 <th class=tdright><label for=snmpversion>Version:</label></th>
                 <td class=tdleft>';
 
-	echo getSelect (array ("v1" => 'v1', "v2c" => 'v2c', "v3" => 'v3'),
+	echo getSelect (array ('v1' => 'v1', 'v2c' => 'v2c', 'v3' => 'v3'),
 			 array ('name' => 'version', 'id' => 'snmpversion', 'onchange' => 'showsnmpv3(this)'),
 			 $snmpconfig['version'], FALSE);
 
@@ -1402,6 +1403,7 @@ function snmpgeneric_getsnmp ($snmpconfig, &$snmpdev)
 			$version = SNMP::VERSION_1;
 			break;
 		case '2':
+		case 'v2':
 		case 'v2C':
 		case 'v2c':
 			$version = SNMP::VERSION_2c;
