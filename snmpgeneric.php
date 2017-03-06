@@ -2028,10 +2028,26 @@ function snmpgeneric_process (&$data, &$object, &$snmpdev)
 		{
 			$data['ports'][$key]['create'] = SG_BOX_UNCHECK;
 			$comment[] = "no ifName";
-		}
-		else
-		{
 
+			if ($port['ifAlias'])
+			{
+				$comment[] = "use ifAlias as ifName";
+				$data['ports'][$key]['ifName'] = strtolower (shortenIfName ($port['ifAlias'], $object['breed']));
+				$port['ifName'] = $data['ports'][$key]['ifName'];
+				$data['ports'][$key]['create'] = SG_BOX_IGNORE;
+			}
+			else
+				if ($port['ifDescr'])
+				{
+					$comment[] = "use ifDescr as ifName";
+					$data['ports'][$key]['ifName'] = strtolower (shortenIfName ($port['ifDescr'], $object['breed']));
+					$port['ifName'] = $data['ports'][$key]['ifName'];
+					$data['ports'][$key]['create'] = SG_BOX_IGNORE;
+				}
+		}
+
+		if (!empty (trim ($port['ifName'])))
+		{
 			$data['ports'][$key]['ifName'] = strtolower (shortenIfName ($port['ifName'], $object['breed']));
 
 			if (array_key_exists ($port['ifName'], $object['portsbyname']))
@@ -2066,10 +2082,12 @@ function snmpgeneric_process (&$data, &$object, &$snmpdev)
 			{
 				/* mac update needed */
 				if (l2addressForDatabase ($port_info['l2address']) != l2addressForDatabase ($port['ifPhysAddress']))
+				{
 					if (!empty ($l2port))
 						$data['ports'][$key]['macupdate'] = SG_BOX_PROBLEM;
 					else
 						$data['ports'][$key]['macupdate'] = SG_BOX_CHECK;
+				}
 				else
 					$data['ports'][$key]['macupdate'] = SG_BOX_IGNORE;
 			}
