@@ -2548,6 +2548,8 @@ function snmpgeneric_list ($object_id)
 	}
 
 	addCSS ('.nowrap { white-space: nowrap; }', TRUE);
+	addCSS ('.tdrightbordergrey { border-right: 1px solid grey; }
+		.tdrightborderwhite { border-right: 1px solid white; }', TRUE);
 
 	$columns = array (
 			array ('row_key' => 'ifIndex', 'th_text' => 'ifIndex'),
@@ -2562,9 +2564,9 @@ function snmpgeneric_list ($object_id)
 			array ('row_key' => 'ifOutOctets', 'th_text' => 'ifOutOctets'),
 			array ('row_key' => 'ifConnectorPresent', 'th_text' => 'ifCon Pres'),
 			array ('row_key' => 'ipcolumn', 'th_text' => 'ip', 'td_escape' => FALSE),
-			array ('row_key' => 'portcreatecolumn', 'th_text' => 'add port', 'td_escape' => FALSE),
-			array ('row_key' => 'labelupdatecolumn', 'th_text' => 'upd label', 'td_escape' => FALSE),
-			array ('row_key' => 'macupdatecolumn', 'th_text' => 'upd mac', 'td_escape' => FALSE),
+			array ('row_key' => 'portcreatecolumn', 'th_text' => 'add port', 'td_class' => 'tdrightborderwhite', 'td_escape' => FALSE),
+			array ('row_key' => 'labelupdatecolumn', 'th_text' => 'upd label', 'td_class' => 'tdrightbordergrey', 'td_escape' => FALSE),
+			array ('row_key' => 'macupdatecolumn', 'th_text' => 'upd mac', 'td_class' => 'tdrightborderwhite', 'td_escape' => FALSE),
 			array ('row_key' => 'porttypeupdatecolumn', 'th_text' => 'upd port type', 'td_escape' => FALSE),
 			array ('row_key' => 'porttypecolumn', 'th_text' => 'Interface', 'td_escape' => FALSE),
 			array ('row_key' => 'comment', 'th_text' => 'Comment', 'td_class' => 'nowrap')
