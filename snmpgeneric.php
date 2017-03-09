@@ -2572,7 +2572,7 @@ function snmpgeneric_list ($object_id)
 
 	startPortlet ('Ports');
 
-	echo "ifNumber: ".$data['system']['ifNumber']['value']."<br>indexcount: ".$data['indexcount']."<br><table><tbody valign=\"top\">";
+	echo 'ifNumber: '.$data['system']['ifNumber']['value'].'<br>indexcount: '.$data['indexcount'].'<br>';
 
 	renderTableViewer ($columns, $data['ports']);
 
