@@ -830,7 +830,10 @@ function print_help ()
 	echo "-o object id\n";
 	echo "-n dry-run\n";
 	echo "-p create ports\n";
-	echo "-u update ports\n";
+	echo "-u update ports same as -lmt\n";
+	echo "-l update labels\n";
+	echo "-m update macs\n";
+	echo "-t update porttypes\n";
 	echo "-s add ip spaces\n";
 	echo "-i allocate ips\n";
 	echo "-a update attributes\n";
@@ -840,18 +843,16 @@ function print_help ()
 	echo "\n";
 }
 
-/* set default args for html */
-$sg_args = array (
-		'p' => TRUE,
-		'u' => TRUE,
-		's' => TRUE,
-		'i' => TRUE,
-		'a' => TRUE
-);
+$sg_args = array ();
+$sg_dry_run = FALSE;
 
-function sg_checkArgs ($argname, $msg = NULL, &$count = NULL, $dryrunarg = 'n')
+function sg_checkArgs ($argname, $msg = NULL, &$count = NULL, $ignore_dry_run = FALSE)
 {
-	global $sg_args, $script_mode;
+	global $sg_args, $script_mode, $sg_dry_run;
+
+	/* always true for HTML */
+	if (! $script_mode)
+		return TRUE;
 
 	if (isset ($sg_args[$argname]))
 	{
@@ -862,7 +863,12 @@ function sg_checkArgs ($argname, $msg = NULL, &$count = NULL, $dryrunarg = 'n')
 				$count++;
 	}
 
-	return isset ($sg_args[$argname]) && !isset ($sg_args[$dryrunarg]);
+	$ret = isset ($sg_args[$argname]);
+
+	if ($ignore_dry_run)
+		return $ret;
+	else
+		return $ret && !$sg_dry_run;
 }
 
 if ($script_mode)
@@ -871,8 +877,6 @@ if ($script_mode)
 
 	$object_id = NULL;
 
-	$sg_args = array ();
-
 	$arg = array_shift ($argv);
 
 	while ($arg)
@@ -880,7 +884,7 @@ if ($script_mode)
 		switch ($arg)
 		{
 			case '--all':
-				$arg = 'aisup';
+				$arg = 'aislmtp';
 			default:
 				$args = str_split ($arg);
 
@@ -898,9 +902,17 @@ if ($script_mode)
 						case 'o':
 							$object_id = array_shift ($argv);
 							break;
-						case 'n':
-						case 'p':
 						case 'u':
+							$sg_args['l'] = TRUE;
+							$sg_args['m'] = TRUE;
+							$sg_args['t'] = TRUE;
+							break;
+						case 'n':
+							$sg_dry_run = TRUE;
+						case 'p':
+						case 'l':
+						case 'm':
+						case 't':
 						case 's':
 						case 'i':
 						case 'a':
@@ -931,9 +943,8 @@ if ($script_mode)
 		exit;
 	}
 
-	$null = NULL;
-
-	sg_checkArgs ('n', 'Running in dry-run mode!', $null, NULL);
+	if ($sg_dry_run)
+		echo "Running in dry-run mode!\n";
 
 	$snmpconfig = snmpgeneric_getSNMPconfig ($object);
 
@@ -947,7 +958,8 @@ if ($script_mode)
 
 	echo "$count changes\n";
 
-	sg_checkArgs ('n', 'Dry-run Mode! No changes made!', $null, NULL);
+	if ($sg_dry_run)
+		echo "Dry-run Mode! No changes made!\n";
 
 	/* return number of changes */
 	exit ($count);
@@ -2610,6 +2622,8 @@ function snmpgeneric_opcreate ()
 
 function snmpgeneric_datacreate ($object_id, $data)
 {
+	global $script_mode, $sg_dry_run;
+
 	$count = 0;
 	$attr = getAttrValues ($object_id);
 
@@ -2718,32 +2732,46 @@ function snmpgeneric_datacreate ($object_id, $data)
 					$port_reservation_comment = $port_info['reservation_comment'];
 
 					$update = array ();
+					$update_count = 0;
 
 					if (isset ($port['labelupdate']))
 						if ($port['labelupdate'] & SG_BOX_CHECK)
 						{
-							$update[] = "label: $port_label -> $ifAlias";
-							$port_label = $ifAlias;
+							if (sg_checkArgs ('l', NULL, $count, TRUE))
+							{
+								$update[] = "label: $port_label -> $ifAlias";
+								$port_label = $ifAlias;
+							}
 						}
 
 					if (isset ($port['macupdate']))
 						if ($port['macupdate'] & SG_BOX_CHECK)
 						{
-							$update[] = "MAC: $port_l2address -> $ifPhysAddress";
-							$port_l2address = $ifPhysAddress;
+							if (sg_checkArgs ('m', NULL, $count, TRUE))
+							{
+								$update[] = "MAC: $port_l2address -> $ifPhysAddress";
+								$port_l2address = $ifPhysAddress;
+							}
 						}
 
 					if (isset ($port['porttypeupdate']))
 						if ($port['porttypeupdate'] & SG_BOX_CHECK)
 						{
-							$update[] = "typeid: $port_type_id -> ".$port['porttypeid'];
-							$port_type_id = $port['porttypeid'];
+							if (sg_checkArgs ('t', NULL, $count, TRUE))
+							{
+								$update[] = "typeid: $port_type_id -> ".$port['porttypeid'];
+								$port_type_id = $port['porttypeid'];
+							}
 						}
 
 					if (!empty ($update))
 					{
 						$msg = "Port $ifName updated ".implode (', ', $update);
-						if (sg_checkArgs ('u', $msg, $count))
+
+						if ($script_mode)
+							echo "$msg\n";
+
+						if (!$sg_dry_run)
 						{
 							commitUpdatePort ($object_id, $port_id, $port_name, $port_type_id, $port_label, $port_l2address, $port_reservation_comment);
 							showSuccess ($msg);
