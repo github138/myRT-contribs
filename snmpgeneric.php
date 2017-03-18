@@ -847,12 +847,18 @@ $sg_args = array (
 		'a' => TRUE
 );
 
-function sg_checkArgs ($argname, $msg = NULL, $dryrunarg = 'n')
+function sg_checkArgs ($argname, $msg = NULL, &$count = NULL, $dryrunarg = 'n')
 {
 	global $sg_args, $script_mode;
 
-	if (isset ($sg_args[$argname]) && $script_mode && $msg)
-			echo "$msg\n";
+	if (isset ($sg_args[$argname]))
+	{
+			if ($script_mode && $msg)
+				echo "$msg\n";
+
+			if ($count !== NULL)
+				$count++;
+	}
 
 	return isset ($sg_args[$argname]) && !isset ($sg_args[$dryrunarg]);
 }
@@ -923,7 +929,9 @@ if ($script_mode)
 		exit;
 	}
 
-	sg_checkArgs ('n', 'Running in dry-run mode!', NULL);
+	$null = NULL;
+
+	sg_checkArgs ('n', 'Running in dry-run mode!', $null, NULL);
 
 	$snmpconfig = snmpgeneric_getSNMPconfig ($object);
 
@@ -937,7 +945,7 @@ if ($script_mode)
 
 	echo "$count changes\n";
 
-	sg_checkArgs ('n', 'Dry-run Mode! No changes made!', NULL);
+	sg_checkArgs ('n', 'Dry-run Mode! No changes made!', $null, NULL);
 
 	/* return number of changes */
 	exit ($count);
@@ -2618,8 +2626,7 @@ function snmpgeneric_datacreate ($object_id, $data)
 			if (!empty ($value))
 			{
 				$msg = 'Attribute "'.$newattr['name']."\" set to $value";
-				$count++;
-				if (sg_checkArgs ('a', $msg))
+				if (sg_checkArgs ('a', $msg, $count))
 				{
 					commitUpdateAttrValue ($object_id, $attr_id, $value);
 					showSuccess ($msg);
@@ -2647,8 +2654,7 @@ function snmpgeneric_datacreate ($object_id, $data)
 			$addrtype = $ipspace['addrtype'];
 
 			$msg = "$range $name created";
-			$count++;
-			if (sg_checkArgs ('s', $msg))
+			if (sg_checkArgs ('s', $msg, $count))
 			{
 				if ($addrtype == 'ipv4' || $addrtype == 'ipv4z')
 					createIPv4Prefix ($range, $name, $is_reserved);
@@ -2684,8 +2690,7 @@ function snmpgeneric_datacreate ($object_id, $data)
 			if (isset ($port['create']) && ($port['create'] & SG_BOX_CHECK))
 			{
 				$msg = "Port created $ifName, $porttypeid, $ifAlias, $ifPhysAddress";
-				$count++;
-				if (sg_checkArgs ('p', $msg))
+				if (sg_checkArgs ('p', $msg, $count))
 				{
 					commitAddPort ($object_id, $ifName, $porttypeid, $ifAlias, $ifPhysAddress);
 					showSuccess ($msg);
@@ -2736,8 +2741,7 @@ function snmpgeneric_datacreate ($object_id, $data)
 					if (!empty ($update))
 					{
 						$msg = "Port $ifName updated ".implode (', ', $update);
-						$count++;
-						if (sg_checkArgs ('u', $msg))
+						if (sg_checkArgs ('u', $msg, $count))
 						{
 							commitUpdatePort ($object_id, $port_id, $port_name, $port_type_id, $port_label, $port_l2address, $port_reservation_comment);
 							showSuccess ($msg);
@@ -2756,8 +2760,7 @@ function snmpgeneric_datacreate ($object_id, $data)
 						continue;
 
 					$msg = "$ipaddr allocated";
-					$count++;
-					if (sg_checkArgs ('i', $msg))
+					if (sg_checkArgs ('i', $msg, $count))
 					{
 						if ($ip['addrtype'] == 'ipv4' || $ip['addrtype'] == 'ipv4z')
 							bindIPToObject (ip_parse ($ipaddr), $object_id, $ifName, 1); /* connected */
