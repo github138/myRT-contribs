@@ -2685,7 +2685,8 @@ function snmpgeneric_datacreate ($object_id, $data)
 	}
 	/* ip spaces */
 
-	$data['ports'] += $data['sysObjectID']['port'];
+	if ( isset($data['sysObjectID']['port']))
+		$data['ports'] += $data['sysObjectID']['port'];
 
 	if (isset ($data['ports']))
 	{
