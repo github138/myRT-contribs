@@ -92,15 +92,13 @@
 /* RackTables Debug Mode */
 //$debug_mode=1;
 
-$include_path_prefix = '';
+$include_path_prefix = realpath (dirname (__FILE__).'/../wwwroot').'/';
 if (php_sapi_name () == 'cli')
 {
 	$script_mode = true;
 
 	session_start ();
         session_write_close ();
-
-	$include_path_prefix = '../wwwroot/';
 
 	require_once ($include_path_prefix.'inc/init.php');
 }
