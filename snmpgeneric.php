@@ -92,7 +92,7 @@
 /* RackTables Debug Mode */
 //$debug_mode=1;
 
-$include_path_prefix = realpath (dirname (__FILE__).'/../wwwroot').'/';
+$rt_base_path = dirname(get_included_files()[0]).'/';
 if (php_sapi_name () == 'cli')
 {
 	$script_mode = true;
@@ -100,10 +100,20 @@ if (php_sapi_name () == 'cli')
 	session_start ();
         session_write_close ();
 
-	require_once ($include_path_prefix.'inc/init.php');
+	$rt_base_path = '../wwwroot/'; # plugins directory
+	if ( !file_exists ($rt_base_path.'inc/init.php'))
+	{
+		$rt_base_path = ''; # wwwroot directory
+
+		if ( !file_exists ($rt_base_path.'inc/init.php'))
+			echo "Racktables includes could not be found. Please run from Racktables wwwroot or plugins directory.\n";
+			echo "Try set $rt_base_path!\n";
+	}
+
+	require_once ($rt_base_path.'inc/init.php');
 }
 
-require_once ($include_path_prefix.'inc/snmp.php');
+require_once ($rt_base_path.'inc/snmp.php');
 
 $tab['object']['snmpgeneric'] = 'SNMP Generic sync';
 $tabhandler['object']['snmpgeneric'] = 'snmpgeneric_tabhandler';
