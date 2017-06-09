@@ -1069,7 +1069,7 @@ function snmpgeneric_tabhandler ($object_id)
 
 		//	echo "$snmpnewstr ".$object['comment']." --> $comment";
 
-			commitUpdateObject ($object_id, $object['name'], NULL, $object['has_problems'], NULL, $comment );
+			commitUpdateObject ($object_id, $object['name'], $object['label'], $object['has_problems'], $object['asset_no'], $comment );
 			showNotice ("$setcomment SNMP Settings: $newsnmpstr");
 
 		}
