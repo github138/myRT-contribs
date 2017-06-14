@@ -2154,7 +2154,7 @@ function snmpgeneric_process (&$data, &$object, &$snmpdev)
 		if (!$sg_create_noconnector_ports && ($port['ifConnectorPresent'] == 2))
 		{
 			$comment[] = "no Connector";
-			$data['ports'][$key]['create'] = SG_BOX_IGNORE;
+			$data['ports'][$key]['create'] = SG_BOX_UNCHECK;
 		}
 
 		if ($port['ifHighSpeed'] * 1000000 > $port['ifSpeed'])
