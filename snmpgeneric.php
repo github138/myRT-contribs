@@ -2054,7 +2054,8 @@ function snmpgeneric_process (&$data, &$object, &$snmpdev)
 		$data['ports'][$key]['RT_port_id'] = NULL;
 
 		/* check ifName */
-		if (empty (trim ($port['ifName'])))
+		$port['ifName'] = trim ($port['ifName']);
+		if (empty ($port['ifName']))
 		{
 			$data['ports'][$key]['create'] = SG_BOX_UNCHECK;
 			$comment[] = "no ifName";
@@ -2076,7 +2077,7 @@ function snmpgeneric_process (&$data, &$object, &$snmpdev)
 				}
 		}
 
-		if (!empty (trim ($port['ifName'])))
+		if (!empty ($port['ifName']))
 		{
 			$data['ports'][$key]['ifName'] = strtolower (shortenIfName ($port['ifName'], $object['breed']));
 
