@@ -414,11 +414,14 @@ function snmpgeneric_pf_catalyst (&$snmp, &$sysObjectID, $attr_id)
 		$major_line = preg_replace ('/^([[:digit:]]+\.[[:digit:]]+)[^[:digit:]].*/', '\\1', $exact_release);
 
 	                $ios_codes = array
-		(
+			(
 				'12.0' => 244,
 				'12.1' => 251,
 				'12.2' => 252,
-		);
+				'15.0' => 1901,
+				'15.1' => 2082,
+				'15.2' => 2142,
+			);
 
 			$attrs[5]['value'] = $exact_release;
 
@@ -439,6 +442,12 @@ function snmpgeneric_pf_catalyst (&$snmp, &$sysObjectID, $attr_id)
 		if (preg_match ('/Cisco IOS Software, C2600/', $snmp->sysDescr))
 			$ports['aux0'] = array ('porttypeid' => '1-29', 'ifDescr' => 'auxillary'); // RJ-45 RS-232 aux port
 
+		if ($sysObjectID == '9.1.956')
+		{
+			// models with two AC inputs
+			$ports['AC1'] = array ('porttypeid' => '1-16', 'ifDescr' => 'AC-in-1');
+			$ports['AC2'] = array ('porttypeid' => '1-16', 'ifDescr' => 'AC-in-2');
+		}
                 // blade devices are powered through internal circuitry of chassis
                 if ($sysObjectID['value'] != '9.1.749' and $sysObjectID['value'] != '9.1.920')
 		{
