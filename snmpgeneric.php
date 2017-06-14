@@ -2707,14 +2707,14 @@ function snmpgeneric_datacreate ($object_id, $data)
 			$ifDescr = (isset ($port['ifDescr']) ? trim ($port['ifDescr']) : '' );
 			$porttypeid = (isset ($port['porttypeid']) ? $port['porttypeid'] : '');
 
-			if (empty ($ifName))
-			{
-				showError ('Port without ifName '.$porttypeid.', '.$ifAlias.', '.$ifPhysAddress);
-				continue;
-			}
-
 			if (isset ($port['create']) && ($port['create'] & SG_BOX_CHECK))
 			{
+				if (empty ($ifName))
+				{
+					showError ('Port without ifName '.$porttypeid.', '.$ifAlias.', '.$ifPhysAddress);
+					continue;
+				}
+
 				$msg = "Port created $ifName, $porttypeid, $ifAlias, $ifPhysAddress";
 				if (sg_checkArgs ('p', $msg, $count))
 				{
