@@ -407,11 +407,13 @@ function snmpgeneric_pf_catalyst (&$snmp, &$sysObjectID, $attr_id)
 		$attrs = &$sysObjectID['attr'];
 		$ports = &$sysObjectID['port'];
 
+		$sysDescr = $snmp->get('sysDescr.0');
+
 		/* sysDescr multiline on C5200 */
-                if (preg_match ('/.*, Version ([^ ]+), .*/', $snmp->sysDescr, $matches))
+                if (preg_match ('/.*, Version ([^ ]+), .*/', $sysDescr, $matches))
 		{
 			$exact_release = $matches[1];
-		$major_line = preg_replace ('/^([[:digit:]]+\.[[:digit:]]+)[^[:digit:]].*/', '\\1', $exact_release);
+			$major_line = preg_replace ('/^([[:digit:]]+\.[[:digit:]]+)[^[:digit:]].*/', '\\1', $exact_release);
 
 	                $ios_codes = array
 			(
@@ -423,23 +425,33 @@ function snmpgeneric_pf_catalyst (&$snmp, &$sysObjectID, $attr_id)
 				'15.2' => 2142,
 			);
 
+			$attrs[5]['name'] = 'SW version'; // workaround
+			$attrs[5]['comment'] = ''; // workaround
 			$attrs[5]['value'] = $exact_release;
+			$attrs[5]['create'] = SG_BOX_CHECK; // workaround
 
 			if (array_key_exists ($major_line, $ios_codes))
 			{
+				$attrs[4]['name'] = 'SW type'; // workaround
+				$attrs[4]['comment'] = ''; // workaround
 				$attrs[4]['value'] = $ios_codes[$major_line];
 				$attrs[4]['key'] = $ios_codes[$major_line];
 			}
 
 		} /* sw type / version */
 
-                $sysChassi = $snmp->get ('1.3.6.1.4.1.9.3.6.3.0');
-                if ($sysChassi !== FALSE or $sysChassi !== NULL)
+                @$sysChassi = $snmp->get ('1.3.6.1.4.1.9.3.6.3.0');
+
+                if ($sysChassi !== FALSE && $sysChassi !== NULL )
+		{
+			$attrs[1]['name'] = 'OEM SN 1'; // workaround
+			$attrs[1]['comment'] = ''; // workaround
 			$attrs[1]['value'] = str_replace ('"', '', $sysChassi);
+		}
 
 		$ports['con0'] = array ('porttypeid' => '1-29',  'ifDescr' => 'console'); // RJ-45 RS-232 console
 
-		if (preg_match ('/Cisco IOS Software, C2600/', $snmp->sysDescr))
+		if (preg_match ('/Cisco IOS Software, C2600/', $sysDescr))
 			$ports['aux0'] = array ('porttypeid' => '1-29', 'ifDescr' => 'auxillary'); // RJ-45 RS-232 aux port
 
 		if ($sysObjectID == '9.1.956')
@@ -451,7 +463,7 @@ function snmpgeneric_pf_catalyst (&$snmp, &$sysObjectID, $attr_id)
                 // blade devices are powered through internal circuitry of chassis
                 if ($sysObjectID['value'] != '9.1.749' and $sysObjectID['value'] != '9.1.920')
 		{
-			$ports['AC-in'] = array ('porttypeid' => '1-16');
+			$ports['AC-in'] = array ('porttypeid' => '1-16', 'ifDescr' => 'AC-in');
 		}
 
 } /* snmpgeneric_pf_catalyst */
@@ -1880,7 +1892,10 @@ function snmpgeneric_process (&$data, &$object, &$snmpdev)
 
 			}
 
+			// TODO process newly added attrs
+
 			$attr['name'] = $object['attr'][$attr_id]['name'];
+			// TODO find name if not set
 
 			if (array_key_exists ('key',$object['attr'][$attr_id]))
 				$attr['old_key'] = $object['attr'][$attr_id]['key'];
