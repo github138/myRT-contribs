@@ -530,6 +530,8 @@ function snmpgeneric_pf_ciscoflash (&$snmp, &$sysObjectID, $attr_id)
 		}
 
 		$attrs[17]['value'] = ceil (($free + $used) / 1024 / 1024); /* RAM, MB */
+		$attrs[17]['name'] = 'DRAM, MB'; // workaround
+		$attrs[17]['comment'] = ''; // workaround
 	}
 
 } /* snmpgeneric_pf_ciscoflash */
