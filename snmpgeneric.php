@@ -1585,7 +1585,13 @@ function snmpgeneric_getsnmp ($snmpconfig, &$snmpdev)
 						$retval =  unpack ('H12',$value);
 						$value = strtoupper ($retval[1]);
 					}
-					break;
+					else
+						if (strlen ($value) == 8 || strlen ($value) == 16) // WWN 8 or 16 byte
+						{
+							$retval =  unpack ('H'.(strlen($value) * 2),$value);
+							$value = strtoupper ($retval[1]);
+						}
+				break;
 			}
 			$row[$shortoid] = $value;
 		}
