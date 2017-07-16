@@ -2070,6 +2070,7 @@ function snmpgeneric_process (&$data, &$object, &$snmpdev)
 	/* ports */
 	$data['indexcount'] = count ($data['ports']);
 
+	$l2addrs = array();
 	foreach ($data['ports'] as $key => $port)
 	{
 		$comment = array ();
@@ -2127,6 +2128,26 @@ function snmpgeneric_process (&$data, &$object, &$snmpdev)
 		/* l2address */
 		if (!empty ($port['ifPhysAddress']))
 		{
+			if (array_key_exists ($port['ifPhysAddress'], $l2addrs))
+			{
+				$l2comment = "duplicate L2Address ".$port['ifPhysAddress'];
+
+				$duplicatekey = $l2addrs[$port['ifPhysAddress']];
+				if (!empty ($data['ports'][$duplicatekey]['ifPhysAddress']))
+				{
+					$data['ports'][$duplicatekey]['comment'] = implode (
+						'; ',
+						array ($data['ports'][$duplicatekey]['comment'], $l2comment)
+					);
+					$data['ports'][$duplicatekey]['ifPhysAddress'] = '';
+				}
+
+				$comment[] = $l2comment;
+				$data['ports'][$key]['ifPhysAddress'] = '';
+			}
+			else
+				$l2addrs[$port['ifPhysAddress']] = $key;
+
 			$l2port =  sg_checkL2Address ($port['ifPhysAddress']);
 
 			if (!empty ($l2port))
