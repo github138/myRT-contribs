@@ -1579,18 +1579,15 @@ function snmpgeneric_getsnmp ($snmpconfig, &$snmpdev)
 			switch ($shortoid)
 			{
 				case 'ifPhysAddress':
-					/* format MAC Address */
-					if (strlen ($value) == 6 )
+					/* format L2 Address */
+					if (
+						strlen($value) == 6 ||	// MAC 6 bytes
+						strlen ($value) == 8 || strlen ($value) == 16	// WWN 8 or 16 byte
+					)
 					{
-						$retval =  unpack ('H12',$value);
+						$retval =  unpack ('H'.(strlen($value) * 2),$value);
 						$value = strtoupper ($retval[1]);
 					}
-					else
-						if (strlen ($value) == 8 || strlen ($value) == 16) // WWN 8 or 16 byte
-						{
-							$retval =  unpack ('H'.(strlen($value) * 2),$value);
-							$value = strtoupper ($retval[1]);
-						}
 				break;
 			}
 			$row[$shortoid] = $value;
