@@ -140,6 +140,7 @@ $sg_ifType_ignore = array (
 	'136',	/* l3ipvlan */
 	'160',	/* usb */
 	'161',	/* ieee8023adLag */
+	'209',	/* bridge */
 );
 
 /* ifType to RT oif_id mapping */
@@ -160,6 +161,7 @@ $sg_ifType2oif_id = array (
 	'136' => 1469,	/* l3ipvlan => virtual port 1469 */
 	'160' => 1469,	/* usb => virtual port 1469 */
 	'161' => 1469,	/* ieee8023adLag => virtual port 1469 */
+	'209' => 1469,	/* bridge => virtual port 1469 */
 );
 
 /* -------------------------------------------------- */
