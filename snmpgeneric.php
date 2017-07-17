@@ -1697,6 +1697,20 @@ function snmpgeneric_getsnmp ($snmpconfig, &$snmpdev)
 					break;
 				case 2: // ipv6
 				case 4: // ipv6z
+					$bytes = explode ('.', $ipAddressAddr);
+					$ipAddressAddr = '';
+					$ipv6 = '';
+					for ($i=0;$i<16;$i+=2)
+					{
+						$bytea = substr ('0'.dechex ($bytes[$i]), -2);
+						$byteb = substr ('0'.dechex ($bytes[$i + 1]), -2);
+						$ipv6 .= $bytea.$byteb.':';
+					}
+					$ipv6_bin = ip_parse (trim ($ipv6, ':'));
+
+					$iprange = constructIPRange($ipv6_bin, $maskbits);
+					$netaddr = $iprange['ip'];
+					$ipAddressAddr = ip_format ($ipv6_bin);
 					break;
 			}
 
