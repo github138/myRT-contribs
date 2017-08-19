@@ -47,7 +47,7 @@
  * TESTED on FreeBSD 10.3, nginx/1.8.0, php 7, NET-SNMP 5.7.3
  *	and RackTables 0.20.12
  *
- * (c)2017 Maik Ehinger <m.ehinger@ltur.de>
+ * (c)2017 Maik Ehinger <github138@t-online.de>
  */
 
 /****
